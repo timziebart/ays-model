@@ -1,7 +1,7 @@
 
-
-
 from __future__ import division
+
+import BaseODEs
 
 import PyViability as viab
 
@@ -9,9 +9,8 @@ import numpy as np
 import numpy.linalg as la
 import warnings as warn
 
-
-## import matplotlib as mpl
-## mpl.use("TkAgg")
+#import matplotlib as mpl
+#mpl.use("TkAgg")
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
@@ -26,13 +25,37 @@ from SODEoneL import SODEone
 
 from PTopologyL import *
 
-## global ax, ay, prod
+import time
+
+import numba as nb
 
 pi = np.pi
 
 stylePoint["markersize"] *= 2
 
-class ProdAndRes(SODEone):
+
+def PopAndRes_rhs(xy, t, phi, r, gamma, delta, kappa):
+    x, y = xy
+    dx = delta * x + phi * gamma * x * y
+    dy = r * y * (1 - y / kappa) - gamma * x * y
+    return np.array([dx, dy])
+
+
+class PopAndRes(BaseODEs.BaseODEs):
+
+    """\
+Implementation of population and resource dynamics model
+"""
+
+    def __init__(self, comment="", **params):
+        assert set(["delta", "phi", "gamma", "kappa"]).issubset(params)
+        BaseODEs.BaseODEs.__init__(self, PopAndRes_rhs, params, comment=comment)
+
+    def plotPhaseSpace(self, boundaries, style, alpha=None):
+        plotPhaseSpace(self.rhs_PS, boundaries, colorbar=False, style=style, alpha=alpha)
+
+
+class PopAndRes2(SODEone):
 
     """\
 Implementation of population and resource dynamics model
@@ -170,8 +193,8 @@ if __name__ == "__main__":
             ax = fig4.add_subplot(111)
 
             # different instances of the model
-            moddefPuR = ProdAndRes('no')
-            mod1PuR = ProdAndRes('one')
+            moddefPuR = PopAndRes2('no')
+            mod1PuR = PopAndRes2('one')
 
             defaultPuR_run = viab.make_run_function2(moddefPuR, 1)
             management1PuR_run = viab.make_run_function2(mod1PuR, 1)
@@ -219,28 +242,12 @@ if __name__ == "__main__":
             kappa = 12000
 
             # different instances of the model
-            moddefPuR = ProdAndRes('no')
-            mod1PuR = ProdAndRes('one')
+            moddefPuR = PopAndRes2('no')
+            mod1PuR = PopAndRes2('one')
 
             defaultPuR_run = viab.make_run_function2(moddefPuR, 10)
             management1PuR_run = viab.make_run_function2(mod1PuR, 10)
 
-        #
-        # if "0" in args:
-        #    moddefTC.plotPhaseSpace(boundaries, style = styleDefault)
-        #    pointIt([0.5, 0], cDefault)
-        #    pointIt([0, 0.75], cDefault)
-        # if "1" in args:
-        #     pefix += "1"
-        #     mod1TC.plotPhaseSpace(boundaries, style = styleMod1)
-        #     pointIt([0.79, 0], cMod)
-        #     pointIt([0, 0.86], cMod)
-        #     ax.text(-0.05, 1.03, "a")
-        # if "2" in args:
-        #     prefix += "2"
-        #     mod2.plotPhaseSpace(boundaries, style = styleMod2)
-        #     pointIt([0, 1], cMod)
-        #     ax.text(-0.05, 1.03, "b")
 
         plt.xlabel("$x$")
         plt.ylabel("$y$")

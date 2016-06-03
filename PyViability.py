@@ -23,7 +23,7 @@ MAX_STEP_NUM = 10
 VERBOSE = 0
 
 COLORS = {
-        0: "white",
+        0: "red",
         1: topo.cShelter,
         2: topo.cGlade,
         3: topo.cSunnyUp,
@@ -47,9 +47,9 @@ def generate_2Dgrid(xmin, xmax, x_num, ymin, ymax):
     y_len = ymax - ymin
     x_step = max(x_len, y_len) / x_num
     x_half_step = x_step / 2
-    x = np.linspace(0, 1, x_num + 1)
+    x = np.linspace(xmin, xmax, x_num + 1)
     x = (x[:-1] + x[1:]) / 2
-    y = np.linspace(0, 1, x_num + 1)
+    y = np.linspace(ymin, ymax, x_num + 1)
     y = (y[:-1] + y[1:]) / 2
     xy = np.asarray(np.meshgrid(x, y))
     xy = np.rollaxis(xy, 0, 3)

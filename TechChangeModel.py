@@ -56,16 +56,21 @@ def evol_Management1(uB_pB, t=0):
 def evol_Management2(uB_pB, t=0):
     uB, pB = uB_pB
 
-    if pB.size > 1:
-        p = np.zeros_like(pB)
-        p[:] = sBmax + pE
-        mask = (smax < sBmax * uB)
-        p[mask] = (pE + smax / uB[mask])
+    if smax < sBmax * uB:
+        p = pE + smax / uB
     else:
-        if smax < sBmax * uB:
-            p = pE + smax / uB
-        else:
-            p = sBmax + pE
+        p = sBmax + pE
+
+    duB = rvar * uB * (1 - uB) * (p - pB)
+    dpB = -(pB - pBmin) * ((pB - pBmin) * uB - delta)
+    return np.array([duB, dpB])
+
+def evol_Management2_PS(uB_pB, t=0):
+    uB, pB = uB_pB
+    p = np.zeros_like(pB)
+    p[:] = sBmax + pE
+    mask = (smax < sBmax * uB)
+    p[mask] = (pE + smax / uB[mask])
 
     duB = rvar * uB * (1 - uB) * (p - pB)
     dpB = -(pB - pBmin) * ((pB - pBmin) * uB - delta)
@@ -79,18 +84,21 @@ Implementation of tech change model
 """
 
 
-    def __init__(self, comment="", **params):
-        if comment == "no":
+    def __init__(self, management, comment="", **params):
+        if management == "default":
             techChange_rhs= evol_noManagement
-        elif comment == "one":
+            rhs_PS = techChange_rhs
+        elif management == "one":
             techChange_rhs = evol_Management1
-        elif comment == "two":
+            rhs_PS = techChange_rhs
+        elif management == "two":
             techChange_rhs = evol_Management2
+            rhs_PS = evol_Management2_PS
         else:
             raise ValueError('You have to define the management options: Write "no" for no management, '
                              '"one" for management option 1 and "two" for managemante option 2')
-        params="no"
-        BaseODEs.BaseODEs.__init__(self, techChange_rhs, params, comment=comment)
+        params={}
+        BaseODEs.BaseODEs.__init__(self, techChange_rhs, params, comment=comment, rhs_PS = rhs_PS)
 
     def plotPhaseSpace(self, boundaries, style, alpha=None):
         plotPhaseSpace(self.rhs_PS, boundaries, colorbar=False, style=style, alpha=alpha)
