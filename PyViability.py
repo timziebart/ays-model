@@ -203,16 +203,9 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
         # user
         STEPSIZE = 2 * x_step
 
-    converged = False
-    for run_num in range(MAX_STEP_NUM):
-        print("############### run_num %i ################"%run_num)
-        if not viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree, ball_tree):
-            converged = True
-            break
-    else:
-        warn.warn("number of steps during viability kernel approximation reached MAX_STEP_NUM = %i"%MAX_STEP_NUM, RuntimeWarning)
-
-    return converged
+    # actually only on step is needed due to the recursive checks (i.e. first
+    # checking all neighbors of a point that changed state)
+    viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree, ball_tree)
 
 def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree, ball_tree):
     """reuse the viability kernel algorithm to calculate the capture basin"""
