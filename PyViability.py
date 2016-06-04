@@ -20,6 +20,7 @@ import itertools as it
 
 MAX_EVOLUTION_NUM = 20
 MAX_STEP_NUM = 10
+
 VERBOSE = 0
 
 COLORS = {
@@ -36,10 +37,6 @@ COLORS = {
         10: topo.cDarkAbyss,
         11: topo.cTrench,
         }
-
-## function topology_classification
-## input coordinates, states, default_evols, management_evols, is_sunny
-## "output" write in state the classification in terms of 0, ..., n
 
 
 def generate_2Dgrid(xmin, xmax, x_num, ymin, ymax):
@@ -70,7 +67,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     start = coordinates[coordinate_index]
     start_state = states[coordinate_index]
 
-    empty_dims = (np.newaxis, ) * len(coordinate_index)
+    # empty_dims = (np.newaxis, ) * len(coordinate_index)
 
 
 
@@ -83,7 +80,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
         point = start
 
         for _ in range(MAX_EVOLUTION_NUM):
-            point = evol(point)
+            point = evol(point, STEPSIZE)
             if np.any(np.isnan(point)):
                 warn.warn("point {!r} became nan for one option, so I'm assuming it's a fixed point".format(start))
                 if start_state in stop_states:
@@ -136,7 +133,7 @@ class NeighborList(list):
             return self.pop(0)
         except IndexError:
             raise StopIteration
-    
+
 
 def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree, ball_tree):
     """do a single step of the viability calculation algorithm by checking which points stay immediately within the good_states"""
@@ -197,9 +194,15 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
     """calculate the viability kernel by iterating through the viability kernel steps until convergence (no further change)"""
     #assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
 
-    assert "x_step" in globals()
+    assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
     global x_half_step
     x_half_step = x_step/2
+    if not STEPSIZE in globals():
+        global STEPSIZE
+        # fix stepsize on that for now if nothing else has been given by the
+        # user
+        STEPSIZE = 2 * x_step
+
     converged = False
     for run_num in range(MAX_STEP_NUM):
         print("############### run_num %i ################"%run_num)
@@ -222,15 +225,14 @@ def viability_capture_basin(coordinates, states, target_states, reached_state, b
 
 def plot_points(coordinates, states):
     """plot the current states in the viability calculation as points"""
-    assert set(states.flatten()).issubset(COLORS) 
+    assert set(states.flatten()).issubset(COLORS)
     coords = coordinates
     for color_state in COLORS:
         plt.plot(coords[ states == color_state , 0], coords[ states == color_state , 1], color = COLORS[color_state], linestyle = "", marker = ".", markersize = 10 ,zorder=0)
 
 
 def make_run_function(rhs,
-                      ordered_params,
-                      stepsize
+                      ordered_params
                       ):
 
     @nb.jit
@@ -240,7 +242,7 @@ def make_run_function(rhs,
 
 
     @nb.jit
-    def model_run(p):
+    def model_run(p, stepsize):
         traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
 
         return traj[-1]
@@ -257,7 +259,7 @@ def make_run_function2(model_object,
             v = model_object.eval(*p)
             v_norm = la.norm(v)
             # resize all steps that might be too long
-            if v_norm > x_step: 
+            if v_norm > x_step:
                 v *= x_step / v_norm
             p2 = p + v
             plt.plot([p[0], p2[0]], [p[1], p2[1]], color = "blue", linewidth = 5)
