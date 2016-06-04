@@ -12,6 +12,7 @@ import scipy.integrate as integ
 
 from scipy.spatial import cKDTree as cKD
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 import warnings as warn
@@ -216,12 +217,26 @@ def viability_capture_basin(coordinates, states, target_states, reached_state, b
 
 # below are just helper functions
 
-def plot_points(coordinates, states):
+def plot_points(coords, states):
     """plot the current states in the viability calculation as points"""
     assert set(states.flatten()).issubset(COLORS)
-    coords = coordinates
     for color_state in COLORS:
         plt.plot(coords[ states == color_state , 0], coords[ states == color_state , 1], color = COLORS[color_state], linestyle = "", marker = ".", markersize = 10 ,zorder=0)
+
+def plot_areas(coords, states):
+    """plot the current states in the viability calculation as areas"""
+    states = states.flatten()
+    assert set(states).issubset(COLORS)
+    coords = np.reshape(coords, states.shape + (-1,))
+    x, y = coords[:,0], coords[:,1]
+
+    color_states = sorted(COLORS)
+    cmap = mpl.colors.ListedColormap([ COLORS[state] for state in color_states ])
+    bounds = color_states[:1] + [ state + 0.5 for state in color_states[:-1]] + color_states[-1:]
+    norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+
+    plt.tripcolor(x, y, states, cmap = cmap, norm = norm, shading = "gouraud")
+
 
 
 def make_run_function(rhs,

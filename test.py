@@ -25,6 +25,28 @@ if __name__ == "__main__":
 
     args = sys.argv[1:]
 
+    if "colortest" in args:
+        fig = plt.figure(figsize=(15, 15), tight_layout = True)
+        ax = fig.add_subplot(111)
+        xmin, xmax = 0, 1
+
+        x_num = 80
+        x_len = xmax - xmin
+        x_step = x_len / x_num
+        viab.x_step=x_step
+        x_half_step = x_step / 2
+        x = np.linspace(xmin ,xmax, x_num + 1)
+        x = (x[:-1] + x[1:]) / 2
+        y = np.linspace(xmin, xmax, x_num + 1)
+        y = (y[:-1] + y[1:]) / 2
+        xy = np.asarray(np.meshgrid(x, y))
+        del x, y
+        xy = np.rollaxis(xy, 0, 3)
+        state = np.zeros(xy.shape[:-1])
+        state[:] = 1
+
+        viab.plot_areas(xy, state)
+
     if "plants" in args:
         # test plant model
         xmin, xmax = 0, 1
@@ -82,6 +104,11 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
         viab.plot_points(xy, state)
+        fig = plt.figure(figsize=(15, 15), tight_layout = True)
+        viab.plot_areas(xy, state)
+        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
+##         mod1.plotPhaseSpace(boundaries, topo.styleMod1)
+        mod2.plotPhaseSpace(boundaries, topo.styleMod2)
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
@@ -137,8 +164,7 @@ if __name__ == "__main__":
 
 
         viab.plot_points(xy, state)
-        # plt.ylim([0, 2])
-        # plt.xlim([0, 1])
+
     if "PuR_Plot_a" in args:
 
         boundaries = [0, 0, 35000, 18000]
