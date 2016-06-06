@@ -9,8 +9,7 @@ import numpy.linalg as la
 import numba as nb
 
 import scipy.integrate as integ
-
-from scipy.spatial import cKDTree as cKD
+import scipy.spatial as spat
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -20,8 +19,7 @@ import warnings as warn
 import itertools as it
 
 MAX_EVOLUTION_NUM = 20
-MAX_STEP_NUM = 10
-
+#MAX_STEP_NUM = 10  braucht man die noch?
 VERBOSE = 0
 
 COLORS = {
@@ -59,51 +57,56 @@ def dummy_constraint(p):
     return np.ones(p.shape[:-1]).astype(np.bool)
 
 
-def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state, evolutions, tree, constraint = dummy_constraint):
+def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state, evolutions,
+                           tree, constraint = dummy_constraint):
     """Calculate whether a coordinate with value 'stop_value' can be reached from 'coordinates[coordinate_index]'."""
-    #coordinates_reshaped = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-    #states_reshaped = np.reshape(states, (-1, 1))
-
+    # coordinates_reshaped = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
+    # states_reshaped = np.reshape(states, (-1, 1))
 
     start = coordinates[coordinate_index]
     start_state = states[coordinate_index]
 
     # empty_dims = (np.newaxis, ) * len(coordinate_index)
 
-
-
     global VERBOSE
     VERBOSE = (coordinate_index == (13, 2))
 
     if VERBOSE:
         print()
+
     for evol_num, evol in enumerate(evolutions):
         point = start
 
         for _ in range(MAX_EVOLUTION_NUM):
             point = evol(point, STEPSIZE)
+
             if np.any(np.isnan(point)):
                 warn.warn("point {!r} became nan for one option, so I'm assuming it's a fixed point".format(start))
+
                 if start_state in stop_states:
                     final_state = succesful_state
+
                     if VERBOSE:
                         print("%i:" % evol_num, coordinate_index, start, start_state, "-->", final_state)
                     return final_state
                 # else
                 break
+
             if np.max(np.abs(point - start)) < x_half_step:
                 # not yet close enough to a different point
                 # so run the evolution function again
                 continue # not yet close enough to another point
 
-            #index = np.argmin(la.norm(point[empty_dims] - coordinates, axis = -1))  # als funktion auslagern
+            # index = np.argmin(la.norm(point[empty_dims] - coordinates, axis = -1))  # als funktion auslagern
             # final_distance = la.norm(point - coordinates[index])
             final_distance, tree_index = tree.query(point, 1)
             final_state = states[tree_index]
 
             if VERBOSE:
                 print(final_state, constraint(point), final_distance, x_step)
+
             if final_state in stop_states and constraint(point) and final_distance < x_step:
+
                 if VERBOSE:
                     print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
                 return succesful_state
@@ -111,6 +114,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
             if VERBOSE:
                 print("%i:"%evol_num, "break")
             break
+
         else:
             # didn't find an option leading to a point with 'stop_state'
             if VERBOSE:
@@ -136,7 +140,7 @@ class NeighborList(list):
             raise StopIteration
 
 
-def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree, ball_tree):
+def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree):
     """do a single step of the viability calculation algorithm by checking which points stay immediately within the good_states"""
 
     coordinates_reshaped = coordinates
@@ -165,19 +169,22 @@ def viability_kernel_step(coordinates, states, good_states, bad_state, succesful
                     changed = True
                     states_reshaped[index] = new_state
                     #get_neighbor_indices(index, shape, neighbor_list = neighbors)
-                    get_neighbor_indices_via_cKD(index, ball_tree, neighbor_list=neighbors)
+                    get_neighbor_indices_via_cKD(index, tree,  neighbor_list=neighbors)
 
 ##        neighbors_length += len(neighbors)
     return changed
 
-def get_neighbor_indices_via_cKD(index, ball_tree, neighbor_list=[]):
-    index=np.asarray(index)
-    index= index.astype(int)
-    listb = ball_tree[index]
-    listb=[(x,) for x in listb]
-    neighbor_list.extend(listb)
-    return neighbor_list
 
+def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
+    """extend 'neighbor_list' by 'tree_neighbors', a list that contains the nearest neighbors found trough cKDTree"""
+    index = np.asarray(index)
+    index = index.astype(int)
+
+    tree_neighbors = tree.query_ball_point(tree.data[index].flatten(), 1.5 * x_step)
+    tree_neighbors = [(x,) for x in tree_neighbors]
+
+    neighbor_list.extend(tree_neighbors)
+    return neighbor_list
 
 
 def get_neighbor_indices(index, shape, neighbor_list = []):
@@ -191,8 +198,10 @@ def get_neighbor_indices(index, shape, neighbor_list = []):
             neighbor_list.append(tuple(new_index))
     return neighbor_list
 
-def viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree, ball_tree):
-    """calculate the viability kernel by iterating through the viability kernel steps until convergence (no further change)"""
+
+def viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree):
+    """calculate the viability kernel by iterating through the viability kernel steps
+    until convergence (no further change)"""
     #assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
 
     assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
@@ -206,22 +215,27 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
 
     # actually only on step is needed due to the recursive checks (i.e. first
     # checking all neighbors of a point that changed state)
-    viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree, ball_tree)
+    viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
 
-def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree, ball_tree):
+
+def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
     """reuse the viability kernel algorithm to calculate the capture basin"""
-    return_value =  viability_kernel(coordinates, states, target_states + [reached_state], work_state, reached_state, work_state, evolutions, tree, ball_tree)
+    return_value =  viability_kernel(coordinates, states, target_states + [reached_state], work_state, reached_state,
+                                     work_state, evolutions, tree)
     # all the points that still have the state work_state are not part of the capture basin and are set to be bad_states
     states[ states == work_state ] = bad_state
     return return_value
 
 # below are just helper functions
 
+
 def plot_points(coords, states):
     """plot the current states in the viability calculation as points"""
     assert set(states.flatten()).issubset(COLORS)
     for color_state in COLORS:
-        plt.plot(coords[ states == color_state , 0], coords[ states == color_state , 1], color = COLORS[color_state], linestyle = "", marker = ".", markersize = 10 ,zorder=0)
+        plt.plot(coords[ states == color_state , 0], coords[ states == color_state , 1], color = COLORS[color_state],
+                 linestyle = "", marker = ".", markersize = 10 ,zorder=0)
+
 
 def plot_areas(coords, states):
     """plot the current states in the viability calculation as areas"""
@@ -236,7 +250,6 @@ def plot_areas(coords, states):
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 
     plt.tripcolor(x, y, states, cmap = cmap, norm = norm, shading = "gouraud")
-
 
 
 def make_run_function(rhs,
@@ -256,6 +269,7 @@ def make_run_function(rhs,
         return traj[-1]
 
     return model_run
+
 
 def make_run_function2(model_object,
         timestep,
@@ -325,8 +339,8 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
     coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
     states = np.reshape(states, (-1))
-    tree = cKD(coordinates)
-    ball_tree = tree.query_ball_tree(tree, 1.5 * x_step)
+    tree = spat.cKDTree(coordinates)
+
     # checking data-type of input evolution functions
     if isinstance(default_evols, list):
         default_evols_list = default_evols
@@ -352,7 +366,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
     # calculate shelter
     print('###### calculating shelter')
     states[(is_sunny(coordinates))] = 1 # initial state for shelter calculation
-    viability_kernel(coordinates, states, [1], 0, 1, 1, default_evols_list, tree, ball_tree)
+    viability_kernel(coordinates, states, [1], 0, 1, 1, default_evols_list, tree)
 
 
     if not np.any(states == 1):
@@ -366,24 +380,24 @@ def topology_classification(coordinates, states, default_evols, management_evols
         states[(states == 0) & is_sunny(coordinates)] = 3
 
         states[~is_sunny(coordinates)] = 0
-        viability_capture_basin(coordinates, states, [1], 2, 0, 3, all_evols, tree, ball_tree)
+        viability_capture_basin(coordinates, states, [1], 2, 0, 3, all_evols, tree)
 
         # calculate remaining upstream dark and sunny
         print('###### calculating rest of upstream (lake, dark and sunny)')
         states[(states == 0)] = 4
-        viability_capture_basin(coordinates, states, [1, 2], 3, 0, 4, all_evols, tree, ball_tree)
+        viability_capture_basin(coordinates, states, [1, 2], 3, 0, 4, all_evols, tree)
 
         states[~is_sunny(coordinates) & (states == 3)] = 4
 
         # calculate Lake
         print('###### calculating lake')
         states[is_sunny(coordinates) & (states == 3)] = 5
-        viability_kernel(coordinates, states, [1, 2, 5], 3, 5, 5, all_evols, tree, ball_tree)
+        viability_kernel(coordinates, states, [1, 2, 5], 3, 5, 5, all_evols, tree)
 
     # calculate Bachwater
     print('###### calculating backwater')
     states[is_sunny(coordinates) & (states == 0)] = 6
-    viability_kernel(coordinates, states, [6], 0, 6, 6, all_evols, tree, ball_tree)
+    viability_kernel(coordinates, states, [6], 0, 6, 6, all_evols, tree)
 
     if not np.any(states == 6):
         print('backwater empty')
@@ -393,7 +407,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
         # calculate remaining downstream dark and sunny
         print('###### calculating remaining downstream (dark and sunny)')
         states[(states == 0)] = 8
-        viability_capture_basin(coordinates, states, [6], 7, 0, 8, all_evols, tree, ball_tree)
+        viability_capture_basin(coordinates, states, [6], 7, 0, 8, all_evols, tree)
         states[~is_sunny(coordinates) & (states == 7)] = 8
 
     # set sunny Eddies/Abyss
@@ -403,12 +417,12 @@ def topology_classification(coordinates, states, default_evols, management_evols
     print('###### calculating dark Eddies/Abyss')
     # look only at the coordinates with state == 0
     states[(states == 0)] = 12
-    viability_capture_basin(coordinates, states, [9], 10, 0, 12, all_evols, tree, ball_tree)
+    viability_capture_basin(coordinates, states, [9], 10, 0, 12, all_evols, tree)
     # Konsistenzcheck? [1, 2, 3, 4, 5, 6, 7, 9] sollten alle nicht erreicht werden
 
     # calculate trench
     print('###### set trench')
     states[(states == 0)] = 11
-    #viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree, ball_tree)
+    #viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree)
 
     return states
