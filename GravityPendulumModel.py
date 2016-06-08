@@ -2,6 +2,8 @@
 
 from __future__ import division
 
+import BaseODEs
+
 import PyViability as viab
 
 import numpy as np
@@ -31,7 +33,23 @@ pi = np.pi
 
 stylePoint["markersize"] *= 2
 
-class GravPend(SODEone):
+
+def gravity_rhs(theta_omega, t, a):
+    theta, omega = theta_omega
+    dtheta =  -omega
+    domega = -np.sin(theta) - a
+    return np.array([domega, dtheta])
+
+class GravPend(BaseODEs.BaseODEs):
+    def __init__(self, comment="", **params):
+        assert set(["a"]).issubset(params)
+        BaseODEs.BaseODEs.__init__(self, gravity_rhs, params, comment=comment)
+
+    def plotPhaseSpace(self, boundaries, style, alpha=None):
+        plotPhaseSpace(self.rhs_PS, boundaries, colorbar=False, style=style, alpha=alpha)
+
+
+class GravPend2(SODEone):
 
     """\
 Implementation of tech change model
@@ -75,9 +93,9 @@ def pointIt(xy, color):
         plt.plot([xy[0]],[xy[1]], marker = "8", color = color, **stylePoint)
 
 
-def is_sunnyTC(p):
-    """sunny constraint for techChangeModel"""
-    return np.abs(p[:, :, 1])<l
+def is_sunnyGPM(p):
+    """sunny constraint for gravity Pendulum"""
+    return np.abs(p[:, 1])<l
 
 if __name__ == "__main__":
 
@@ -125,8 +143,8 @@ if __name__ == "__main__":
         ## viability stuff starts here
         #######################
 
-        defaultTC_run = viab.make_run_function(moddefTC, 1)
-        management1TC_run = viab.make_run_function(mod1TC, 1)
+        defaultTC_run = viab.make_run_function2(moddefTC, 1)
+        management1TC_run = viab.make_run_function2(mod1TC, 1)
 
         viab.MAX_STEP_NUM = 4
         x_num = 80
@@ -134,6 +152,7 @@ if __name__ == "__main__":
         y_len = ymax - ymin
         x_step = max(x_len,y_len) / x_num
         viab.x_step = x_step
+        viab.STEPSIZE = 2 * x_step
         #viab.timestep=1
         #viab.ADD_NEIGHBORS_ONLY_ONCE= True #3 421 997
 

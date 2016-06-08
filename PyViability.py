@@ -3,6 +3,8 @@ from __future__ import print_function, division
 
 import PTopologyL as topo
 
+import periodic_kdtree as periodkdt
+
 import numpy as np
 import numpy.linalg as la
 
@@ -69,7 +71,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     # empty_dims = (np.newaxis, ) * len(coordinate_index)
 
     global VERBOSE
-    VERBOSE = (coordinate_index == (13, 2))
+    VERBOSE = (coordinate_index == (60*80+74,))
 
     if VERBOSE:
         print()
@@ -184,6 +186,7 @@ def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
     tree_neighbors = [(x,) for x in tree_neighbors]
 
     neighbor_list.extend(tree_neighbors)
+
     return neighbor_list
 
 
@@ -265,6 +268,8 @@ def make_run_function(rhs,
     @nb.jit
     def model_run(p, stepsize):
         traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
+        if VERBOSE:
+            plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
 
         return traj[-1]
 
@@ -318,8 +323,10 @@ def make_run_function2(model_object,
         raise NotImplementedError("backend = %s does not exist"%repr(backend))
     return model_run
 
+
 def trajectory_length(traj):
     return np.sum( la.norm( traj[1:] - traj[:-1], axis = -1) )
+
 
 def trajectory_length_index(traj, target_length):
     lengths = np.cumsum( la.norm( traj[1:] - traj[:-1], axis = -1) )
@@ -334,12 +341,23 @@ def trajectory_length_index(traj, target_length):
             index_1 = middle_index
     return index_1
 
-def topology_classification(coordinates, states, default_evols, management_evols, is_sunny):
+
+def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
+                            periodic_boundaries = []):
     """calculates different regions of the state space using viability theory algorithms"""
 
-    coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-    states = np.reshape(states, (-1))
-    tree = spat.cKDTree(coordinates)
+    # check, if there are periodic boundaries and if so, use different tree form
+    if periodic_boundaries == []:
+        coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
+        states = np.reshape(states, (-1))
+        tree = spat.cKDTree(coordinates)
+    else:
+        assert len(np.shape(coordinates)[:-1]) == len(periodic_boundaries), "Given boundaries don't match with " \
+                                                                            "dimensions of coordinates. " \
+                                                                            "Write '0' if boundary is not periodic!"
+        coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
+        states = np.reshape(states, (-1))
+        tree = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
 
     # checking data-type of input evolution functions
     if isinstance(default_evols, list):
@@ -361,13 +379,10 @@ def topology_classification(coordinates, states, default_evols, management_evols
     shelter_empty = False
     backwater_empty = False
 
-
-
     # calculate shelter
     print('###### calculating shelter')
     states[(is_sunny(coordinates))] = 1 # initial state for shelter calculation
     viability_kernel(coordinates, states, [1], 0, 1, 1, default_evols_list, tree)
-
 
     if not np.any(states == 1):
         print('shelter empty')
@@ -417,7 +432,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
     print('###### calculating dark Eddies/Abyss')
     # look only at the coordinates with state == 0
     states[(states == 0)] = 12
-    viability_capture_basin(coordinates, states, [9], 10, 0, 12, all_evols, tree)
+    viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 10, 0, 12, all_evols, tree)
     # Konsistenzcheck? [1, 2, 3, 4, 5, 6, 7, 9] sollten alle nicht erreicht werden
 
     # calculate trench

@@ -6,7 +6,7 @@ import PyViability as viab
 import PlantModel as pm
 import TechChangeModel as tcm
 import PopulationAndResourceModel as prm
-#import GravityPendulumModel as gpm
+import GravityPendulumModel as gpm
 import PTopologyL as topo
 
 import sys
@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patch
 import numpy as np
 
+from scipy.integrate import odeint
 
 def patchit(*traj, **kwargs):
         ax.add_patch(patch.Polygon(np.transpose(np.hstack(traj)) , facecolor = kwargs["color"], **topo.stylePatch))
@@ -182,7 +183,7 @@ if __name__ == "__main__":
         x_num = 80
         x_step, x_half_step, xy = viab.generate_2Dgrid(xmin, xmax, x_num, ymin, ymax)
         viab.x_step = x_step
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 5 * x_step
 
         # different instances of the model
         moddefPuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000, comment="default")
@@ -345,6 +346,64 @@ if __name__ == "__main__":
         plt.ylim([ymin, ymax])
         # plt.gca().set_aspect('equal')
         ##         plt.gca().set_aspect('equal', adjustable='box')
+
+    if "pendulum" in args:
+        # test gravity pendulum
+        xmin, xmax = 0, 7
+        ymin, ymax = -2, 1
+        boundaries = [xmin, ymin, xmax, ymax]
+
+
+        # default values
+        a = 0.6  # harvest value
+        gpm.l = 0.5  # min sum of both for being desirable state
+
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+        ax = fig.add_subplot(111)
+
+        moddef = gpm.GravPend(a=0, comment="default")
+        mod1 = gpm.GravPend(a=a, comment="management 1")
+
+        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(boundaries, topo.styleMod2)
+
+        timestep = 1
+
+        x_num = 80
+        x_len = xmax - xmin
+        x_step = x_len / x_num
+        viab.x_step = x_step
+        x_half_step = x_step / 2
+        x = np.linspace(xmin, xmax, x_num + 1)
+        x = (x[:-1] + x[1:]) / 2
+        y = np.linspace(ymin, ymax, x_num + 1)
+        y = (y[:-1] + y[1:]) / 2
+        xy = np.asarray(np.meshgrid(x, y))
+        del x, y
+        xy = np.rollaxis(xy, 0, 3)
+        state = np.zeros(xy.shape[:-1])
+
+        viab.STEPSIZE = 2 * x_step
+
+        default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params)
+        management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params)
+
+
+        states = state
+        coordinates = xy
+        start_time = time.time()
+        viab.topology_classification(xy, state, default_run, management1_run, gpm.is_sunnyGPM,
+                                     periodic_boundaries = np.array([2*np.pi, -1]))
+        time_diff = time.time() - start_time
+        print(time_diff)
+        viab.plot_points(xy, state)
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+        viab.plot_areas(xy, state)
+        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(boundaries, topo.styleMod2)
+
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
 
     plt.show()
 
