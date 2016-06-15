@@ -26,6 +26,7 @@ VERBOSE = 0
 
 COLORS = {
         0: "red",
+        -1: "red",
         1: topo.cShelter,
         2: topo.cGlade,
         3: topo.cSunnyUp,
@@ -343,20 +344,27 @@ def trajectory_length_index(traj, target_length):
 
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
-                            periodic_boundaries = []):
+                            periodic_boundaries = [], fixed_points = []):
     """calculates different regions of the state space using viability theory algorithms"""
+
+    # reshaping coordinates and states in order to use kdtree
+    coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
+    states = np.reshape(states, (-1))
+
+    if fixed_points:
+        fixed_points = np.asarray(fixed_points)
+        fixed_points = np.reshape(fixed_points, (-1, np.shape(fixed_points)[-1]))
+        np.append(coordinates, fixed_points)
+        np.append(states, np.zeros_like(len(fixed_points)))
+        print(states[(is_sunny(fixed_points))])
 
     # check, if there are periodic boundaries and if so, use different tree form
     if periodic_boundaries == []:
-        coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-        states = np.reshape(states, (-1))
         tree = spat.cKDTree(coordinates)
     else:
         assert len(np.shape(coordinates)[:-1]) == len(periodic_boundaries), "Given boundaries don't match with " \
                                                                             "dimensions of coordinates. " \
                                                                             "Write '0' if boundary is not periodic!"
-        coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-        states = np.reshape(states, (-1))
         tree = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
 
     # checking data-type of input evolution functions

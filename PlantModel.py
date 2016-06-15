@@ -21,7 +21,7 @@ import sys, os.path
 
 from myPhaseSpaceL import plotPhaseSpace, savePlot
 
-from SODEoneL import SODEone
+
 
 from PTopologyL import *
 
@@ -57,34 +57,34 @@ class PlantXY(BaseODEs.BaseODEs):
         plotPhaseSpace(self.rhs_PS, boundaries, colorbar = False, style = style, alpha = alpha)
 
 
-class PlantXY2(SODEone):
-        """\
-Implementation of competing plant growth
-"""
-        def __init__(self, prod = None, ax = None, ay = None):
-                assert not None in [prod, ax, ay]
-                SODEone.__init__(self, self.evol)
-                self.prod = float(prod)
-                self.ax = float(ax)
-                self.ay = float(ay)
-
-                # set functions for displaying
-                self.plotPhaseSpace = lambda boundaries, style, alpha = None: plotPhaseSpace(self.evol, boundaries, colorbar = False, style = style, alpha = alpha)
-
-                self.plotTrajectoryPS = lambda style = {"color": "blue"}, stop = None: SODEone.plotTrajectoryPS(self, 0, 1, style = style, stop = stop)
-
-        def evol(self, xy, t):
-                x, y = xy
-                dx = x * (np.sqrt(x) * (1 - y) - x) - self.ax * x
-                dy = self.prod * y * (np.sqrt(y) * (1 - x) - y) - self.ay * y
-                return np.array([dx, dy])
-
-        def steadyState(self):
-                q = 2 * self.ay / self.prod
-                p = 2 * self.ax
-                #print solveZero(lambda xy: self.evol(xy, 0), [0.4, 0.2], f_tol = 1e-10)
-                return [ ( 0, ((1-p) + np.sqrt(1 - 2*p))/2 ), ( 0, ((1-q) + np.sqrt(1 - 2*q))/2 )]
-
+# class PlantXY2(SODEone):
+#         """\
+# Implementation of competing plant growth
+# """
+#         def __init__(self, prod = None, ax = None, ay = None):
+#                 assert not None in [prod, ax, ay]
+#                 SODEone.__init__(self, self.evol)
+#                 self.prod = float(prod)
+#                 self.ax = float(ax)
+#                 self.ay = float(ay)
+#
+#                 # set functions for displaying
+#                 self.plotPhaseSpace = lambda boundaries, style, alpha = None: plotPhaseSpace(self.evol, boundaries, colorbar = False, style = style, alpha = alpha)
+#
+#                 self.plotTrajectoryPS = lambda style = {"color": "blue"}, stop = None: SODEone.plotTrajectoryPS(self, 0, 1, style = style, stop = stop)
+#
+#         def evol(self, xy, t):
+#                 x, y = xy
+#                 dx = x * (np.sqrt(x) * (1 - y) - x) - self.ax * x
+#                 dy = self.prod * y * (np.sqrt(y) * (1 - x) - y) - self.ay * y
+#                 return np.array([dx, dy])
+#
+#         def steadyState(self):
+#                 q = 2 * self.ay / self.prod
+#                 p = 2 * self.ax
+#                 #print solveZero(lambda xy: self.evol(xy, 0), [0.4, 0.2], f_tol = 1e-10)
+#                 return [ ( 0, ((1-p) + np.sqrt(1 - 2*p))/2 ), ( 0, ((1-q) + np.sqrt(1 - 2*q))/2 )]
+#
 
 def patchit(*traj, **kwargs):
         ax.add_patch(patch.Polygon(np.transpose(np.hstack(traj)) , facecolor = kwargs["color"], **stylePatch))

@@ -69,6 +69,14 @@ if __name__ == "__main__":
         mod1 = pm.PlantXY( prod = prod, ax = a/2, ay = a/2, comment = "management 1" )
         mod2 = pm.PlantXY( prod = prod, ax = 2*a, ay = 0, comment = "management 2" )
 
+        steady_states_def = moddef.steadyState()
+        steady_states1= mod1.steadyState()
+        steady_states2 = mod2.steadyState()
+
+        fixed_point_list = [steady_states_def, steady_states1, steady_states2]
+        print(fixed_point_list)
+
+
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
 ##         mod1.plotPhaseSpace(boundaries, topo.styleMod1)
         mod2.plotPhaseSpace(boundaries, topo.styleMod2)
@@ -101,7 +109,8 @@ if __name__ == "__main__":
         states = state
         coordinates = xy
         start_time = time.time()
-        viab.topology_classification(xy, state, default_run, [management1_run, management2_run], pm.is_sunny)
+        viab.topology_classification(xy, state, default_run, [management1_run, management2_run], pm.is_sunny,
+                                     fixed_points = fixed_point_list)
         time_diff = time.time() - start_time
         print(time_diff)
         viab.plot_points(xy, state)
@@ -349,8 +358,8 @@ if __name__ == "__main__":
 
     if "pendulum" in args:
         # test gravity pendulum
-        xmin, xmax = 0, 7
-        ymin, ymax = -2, 1
+        xmin, xmax = - 0.3, 3*np.pi -0.3
+        ymin, ymax = -2.2, 1.2
         boundaries = [xmin, ymin, xmax, ymax]
 
 
