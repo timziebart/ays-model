@@ -72,7 +72,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     # empty_dims = (np.newaxis, ) * len(coordinate_index)
 
     global VERBOSE
-    VERBOSE = (coordinate_index == (60*80+74,))
+    # VERBOSE = (coordinate_index == (60*80+74,))
 
     if VERBOSE:
         print()
@@ -257,12 +257,19 @@ def plot_areas(coords, states):
 
 
 def make_run_function(rhs,
-                      ordered_params
+                      ordered_params, offset, scaling_factor
                       ):
 
     @nb.jit
+    def rhs_scaled_to_one(x0, t, *args):
+        x = (x0 * scaling_factor) + offset
+        val = rhs(x, t, *args)  # calculate the rhs
+        return val
+
+
+    @nb.jit
     def normalized_rhs(x0, t, *args):
-        val = rhs(x0, t, *args)  # calculate the rhs
+        val = rhs_scaled_to_one(x0, t, *args)  # calculate the rhs
         return val / np.sqrt(np.sum(val ** 2, axis=-1))  # normalize it
 
 
@@ -275,6 +282,18 @@ def make_run_function(rhs,
         return traj[-1]
 
     return model_run
+
+
+def scaled_to_one_sunny(is_sunny, offset, scaling_factor):
+
+    @nb.jit
+    def scaled_sunny(grid):
+        new_grid = grid * scaling_factor + offset
+        val = is_sunny(new_grid)  # calculate the rhs
+        return val  # normalize it
+
+    return scaled_sunny
+
 
 
 def make_run_function2(model_object,
@@ -343,28 +362,53 @@ def trajectory_length_index(traj, target_length):
     return index_1
 
 
+def normalized_grid(boundaries, x_num):
+    """generates a normalized 2D or 3D grid and gets the scaling factors and linear shift of each axis"""
+
+    dim = int(len(boundaries)/2)
+
+    scaling_factor = np.ones(dim)
+
+    offset = np.zeros(dim)
+
+    for index in range(0, dim):
+        scaling_factor[index] = boundaries[index+dim] - boundaries[index]
+
+        if boundaries[index] != 0:
+            offset[index] = boundaries[index]
+
+    grid_prep = np.linspace(0, 1, x_num + 1)
+    grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
+
+    if dim == 2:
+        grid = np.asarray(np.meshgrid(grid_prep, grid_prep))
+
+    elif dim == 3:
+        grid = np.asarray(np.meshgrid(grid_prep, grid_prep, grid_prep))
+
+    grid = np.rollaxis(grid, 0, dim + 1)
+
+    x_step = 1/x_num
+
+    return [grid, scaling_factor, offset, x_step]
+
+
+
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
-                            periodic_boundaries = [], fixed_points = []):
+                            periodic_boundaries = []):
     """calculates different regions of the state space using viability theory algorithms"""
 
     # reshaping coordinates and states in order to use kdtree
     coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
     states = np.reshape(states, (-1))
 
-    if fixed_points:
-        fixed_points = np.asarray(fixed_points)
-        fixed_points = np.reshape(fixed_points, (-1, np.shape(fixed_points)[-1]))
-        np.append(coordinates, fixed_points)
-        np.append(states, np.zeros_like(len(fixed_points)))
-        print(states[(is_sunny(fixed_points))])
-
     # check, if there are periodic boundaries and if so, use different tree form
     if periodic_boundaries == []:
         tree = spat.cKDTree(coordinates)
     else:
-        assert len(np.shape(coordinates)[:-1]) == len(periodic_boundaries), "Given boundaries don't match with " \
+        assert np.shape(coordinates)[-1] == len(periodic_boundaries), "Given boundaries don't match with " \
                                                                             "dimensions of coordinates. " \
-                                                                            "Write '0' if boundary is not periodic!"
+                                                                            "Write '-1' if boundary is not periodic!"
         tree = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
 
     # checking data-type of input evolution functions
