@@ -86,13 +86,6 @@ if __name__ == "__main__":
         # x_step = x_len / x_num
         viab.x_step = x_step
         x_half_step = x_step / 2
-        # x = np.linspace(xmin ,xmax, x_num + 1)
-        # x = (x[:-1] + x[1:]) / 2
-        # y = np.linspace(xmin, xmax, x_num + 1)
-        # y = (y[:-1] + y[1:]) / 2
-        # xy = np.asarray(np.meshgrid(x, y))
-        # del x, y
-        # xy = np.rollaxis(xy, 0, 3)
         state = np.zeros(xy.shape[:-1])
 
         viab.STEPSIZE = 2 * x_step
@@ -110,7 +103,8 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
         viab.plot_points(xy, state)
         fig = plt.figure(figsize=(15, 15), tight_layout = True)
         viab.plot_areas(xy, state)
@@ -173,7 +167,8 @@ if __name__ == "__main__":
         moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
         mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
         viab.plot_points(xy, state)
 
     if "PuR_Plot_a" in args:
@@ -212,7 +207,8 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -259,7 +255,8 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -304,7 +301,8 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -351,7 +349,7 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -378,7 +376,7 @@ if __name__ == "__main__":
         moddef = gpm.GravPend(a=0, comment="default")
         mod1 = gpm.GravPend(a=a, comment="management 1")
 
-        xy, scalingfactor,  offset, x_step = viab.normalized_grid(boundaries, 40)
+        xy, scalingfactor,  offset, x_step = viab.normalized_grid(boundaries, 80)
 
         timestep = 1
 
@@ -398,7 +396,7 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
 
-        xy = xy * scalingfactor + offset
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         viab.plot_points(xy, state)
         fig = plt.figure(figsize=(15, 15), tight_layout=True)

@@ -295,9 +295,7 @@ def scaled_to_one_sunny(is_sunny, offset, scaling_factor):
     return scaled_sunny
 
 
-
-def make_run_function2(model_object,
-        timestep,
+def make_run_function2(model_object, timestep,
         backend = "odeint"
         ):
     """"""
@@ -363,7 +361,7 @@ def trajectory_length_index(traj, target_length):
 
 
 def normalized_grid(boundaries, x_num):
-    """generates a normalized 2D or 3D grid and gets the scaling factors and linear shift of each axis"""
+    """generates a normalized grid  in any dimension and gets the scaling factors and linear shift of each axis"""
 
     dim = int(len(boundaries)/2)
 
@@ -372,7 +370,7 @@ def normalized_grid(boundaries, x_num):
     offset = np.zeros(dim)
 
     for index in range(0, dim):
-        scaling_factor[index] = boundaries[index+dim] - boundaries[index]
+        scaling_factor[index] = boundaries[index + dim] - boundaries[index]
 
         if boundaries[index] != 0:
             offset[index] = boundaries[index]
@@ -380,11 +378,9 @@ def normalized_grid(boundaries, x_num):
     grid_prep = np.linspace(0, 1, x_num + 1)
     grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
 
-    if dim == 2:
-        grid = np.asarray(np.meshgrid(grid_prep, grid_prep))
+    meshgrid_arg = [grid_prep for _ in range(dim)]
 
-    elif dim == 3:
-        grid = np.asarray(np.meshgrid(grid_prep, grid_prep, grid_prep))
+    grid = np.asarray(np.meshgrid(*meshgrid_arg))
 
     grid = np.rollaxis(grid, 0, dim + 1)
 
@@ -392,7 +388,8 @@ def normalized_grid(boundaries, x_num):
 
     return [grid, scaling_factor, offset, x_step]
 
-
+def backscaling_grid(grid, scalingfactor, offset):
+    return grid * scalingfactor + offset
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
                             periodic_boundaries = []):
@@ -493,3 +490,5 @@ def topology_classification(coordinates, states, default_evols, management_evols
     #viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree)
 
     return states
+
+
