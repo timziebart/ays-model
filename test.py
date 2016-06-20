@@ -106,6 +106,9 @@ if __name__ == "__main__":
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         viab.plot_points(xy, state)
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
+
         fig = plt.figure(figsize=(15, 15), tight_layout = True)
         viab.plot_areas(xy, state)
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -162,7 +165,12 @@ if __name__ == "__main__":
         state = np.zeros(xy.shape[:-1])
 
         sunny = viab.scaled_to_one_sunny(tcm.is_sunnyTC, offset, scalingfactor)
+
+        start_time = time.time()
         viab.topology_classification(xy, state, defaultTC_run, management2TC_run, sunny)
+
+        time_diff = time.time() - start_time
+        print(time_diff)
 
         moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
         mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
@@ -399,6 +407,9 @@ if __name__ == "__main__":
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         viab.plot_points(xy, state)
+
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
         fig = plt.figure(figsize=(15, 15), tight_layout=True)
         viab.plot_areas(xy, state)
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
