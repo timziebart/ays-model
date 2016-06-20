@@ -36,9 +36,9 @@ stylePoint["markersize"] *= 2
 
 def gravity_rhs(theta_omega, t, a):
     theta, omega = theta_omega
-    dtheta =  -omega
+    dtheta = omega
     domega = -np.sin(theta) - a
-    return np.array([domega, dtheta])
+    return np.array([dtheta, domega])
 
 class GravPend(BaseODEs.BaseODEs):
     def __init__(self, comment="", **params):

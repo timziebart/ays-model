@@ -105,6 +105,8 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
         viab.plot_points(xy, state)
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
         fig = plt.figure(figsize=(15, 15), tight_layout = True)
         viab.plot_areas(xy, state)
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -158,7 +160,11 @@ if __name__ == "__main__":
 
         state = np.zeros(xy.shape[:-1])
 
+        start_time = time.time()
         viab.topology_classification(xy, state, defaultTC_run, management2TC_run, tcm.is_sunnyTC)
+
+        time_diff = time.time() - start_time
+        print(time_diff)
 
         moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
         mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
@@ -349,7 +355,7 @@ if __name__ == "__main__":
 
     if "pendulum" in args:
         # test gravity pendulum
-        xmin, xmax = 0, 7
+        xmin, xmax = 0, 2*np.pi
         ymin, ymax = -2, 1
         boundaries = [xmin, ymin, xmax, ymax]
 
@@ -397,6 +403,10 @@ if __name__ == "__main__":
         time_diff = time.time() - start_time
         print(time_diff)
         viab.plot_points(xy, state)
+
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
+
         fig = plt.figure(figsize=(15, 15), tight_layout=True)
         viab.plot_areas(xy, state)
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
