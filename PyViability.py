@@ -26,7 +26,6 @@ VERBOSE = 0
 
 COLORS = {
         0: "red",
-        -1: "red",
         1: topo.cShelter,
         2: topo.cGlade,
         3: topo.cSunnyUp,
@@ -72,7 +71,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     # empty_dims = (np.newaxis, ) * len(coordinate_index)
 
     global VERBOSE
-    # VERBOSE = (coordinate_index == (60*80+74,))
+    VERBOSE = (coordinate_index == (79*79+42,))
 
     if VERBOSE:
         print()
@@ -107,6 +106,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
             if VERBOSE:
                 print(final_state, constraint(point), final_distance, x_step)
+                print('----', tree_index, coordinates[tree_index])
 
             if final_state in stop_states and constraint(point) and final_distance < x_step:
 
@@ -211,7 +211,7 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
     assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
     global x_half_step
     x_half_step = x_step/2
-    if not STEPSIZE in globals():
+    if not "STEPSIZE" in globals():
         global STEPSIZE
         # fix stepsize on that for now if nothing else has been given by the
         # user
@@ -257,13 +257,29 @@ def plot_areas(coords, states):
 
 
 def make_run_function(rhs,
-                      ordered_params, offset, scaling_factor
+                      ordered_params,
+                      offset,
+                      scaling_factor,
+                      returning = "run-function"
                       ):
+
+    #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
+    @nb.jit
+    def rhs_scaled_to_one_PS(x0, t, *args):
+        x = np.zeros_like(x0)
+        x[0] = scaling_factor[0] * x0[0] + offset[0]
+        x[1] = scaling_factor[1] * x0[1] + offset[1]
+        val = rhs(x, t, *args)  # calculate the rhs
+        val[0] /= scaling_factor[0]
+        val[1] /= scaling_factor[1]
+        return val
+    # ---------------------------------------------------------------------------
+
 
     @nb.jit
     def rhs_scaled_to_one(x0, t, *args):
-        x = (x0 * scaling_factor) + offset
-        val = rhs(x, t, *args)  # calculate the rhs
+        x = scaling_factor * x0 + offset
+        val = rhs(x, t, *args) / scaling_factor # calculate the rhs
         return val
 
 
@@ -281,7 +297,11 @@ def make_run_function(rhs,
 
         return traj[-1]
 
-    return model_run
+    if returning == "run-function":
+        return model_run
+    elif returning == "PS_plt_scaled_rhs":
+        # to check scaled right-hand-side
+        return rhs_scaled_to_one_PS
 
 
 def scaled_to_one_sunny(is_sunny, offset, scaling_factor):
@@ -384,9 +404,9 @@ def normalized_grid(boundaries, x_num):
 
     grid = np.rollaxis(grid, 0, dim + 1)
 
-    x_step = 1/x_num
+    x_step = 1/(x_num-1)
 
-    return [grid, scaling_factor, offset, x_step]
+    return grid, scaling_factor, offset, x_step
 
 def backscaling_grid(grid, scalingfactor, offset):
     return grid * scalingfactor + offset

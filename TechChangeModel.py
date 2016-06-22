@@ -53,6 +53,7 @@ def evol_Management1(uB_pB, t=0):
     dpB = -(pB - pBmin) * ((pB - pBmin) * uB - delta)
     return np.array([duB, dpB])
 
+
 def evol_Management2(uB_pB, t=0):
     uB, pB = uB_pB
 
@@ -88,23 +89,23 @@ Implementation of tech change model
         if management == "default":
             techChange_rhs= evol_noManagement
             rhs_PS = techChange_rhs
+            params = {}
         elif management == "one":
             techChange_rhs = evol_Management1
             rhs_PS = techChange_rhs
+            params = {}
         elif management == "two":
             techChange_rhs = evol_Management2
             rhs_PS = evol_Management2_PS
+            params = {}
         else:
             raise ValueError('You have to define the management options: Write "no" for no management, '
                              '"one" for management option 1 and "two" for managemante option 2')
-        params={}
+
         BaseODEs.BaseODEs.__init__(self, techChange_rhs, params, comment=comment, rhs_PS = rhs_PS)
 
     def plotPhaseSpace(self, boundaries, style, alpha=None):
         plotPhaseSpace(self.rhs_PS, boundaries, colorbar=False, style=style, alpha=alpha)
-
-
-
 
 
 class TechChangeXY2(SODEone):

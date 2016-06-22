@@ -9,6 +9,7 @@ import PopulationAndResourceModel as prm
 import GravityPendulumModel as gpm
 import PTopologyL as topo
 
+import myPhaseSpaceL as mPS
 import sys
 import time
 
@@ -120,6 +121,7 @@ if __name__ == "__main__":
         plt.gca().set_aspect('equal', adjustable='box')
 
     if "techChange" in args:
+        # boundaries of PhaseSpace
         boundaries = [0, 0, 1, 2]
         xmin, ymin, xmax, ymax = boundaries
 
@@ -137,47 +139,56 @@ if __name__ == "__main__":
         tcm.smax = 0.3
         tcm.sBmax = 0.5
 
+        # normalized grid
+        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
 
+        # Integration length for odeint
+        viab.x_step = x_step
+        viab.STEPSIZE = 2 * x_step
 
         # different instances of the model
         moddefTC = tcm.TechChangeXY('default')
-        # mod1TC = tcm.TechChangeXY('one')
         mod2TC = tcm.TechChangeXY('two')
 
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
-
-        plt.xlabel("$u_B$")
-        plt.ylabel("$p_B$")
-        plt.axis([xmin, xmax, ymin, ymax])
-
-
-        # x_num = 80
-        #
-        # x_step, x_half_step, xy = viab.generate_2Dgrid(xmin, xmax, x_num, ymin, ymax)
-
-        viab.x_step = x_step
-
-        viab.STEPSIZE = 2 * x_step
         defaultTC_run = viab.make_run_function(moddefTC._rhs_fast, moddefTC._odeint_params, offset, scalingfactor)
-        # management1TC_run = viab.make_run_function2(mod1TC, 1)
         management2TC_run = viab.make_run_function(mod2TC._rhs_fast, mod2TC._odeint_params, offset, scalingfactor)
 
+        # # Example: Plotting the scaled right-hand-side
+        # defaultTC_rhs_test = viab.make_run_function(moddefTC.rhs_PS, moddefTC._odeint_params, offset, scalingfactor, returning = "PS_plt_scaled_rhs")
+        # mPS.plotPhaseSpace(defaultTC_rhs_test, [0, 0, 1, 1], colorbar=False, style=topo.styleDefault)
+        #
+        # mod2TC_rhs_test = viab.make_run_function(mod2TC.rhs_PS, mod2TC._odeint_params, offset, scalingfactor,
+        #                                             returning="PS_plt_scaled_rhs")
+        # mPS.plotPhaseSpace(mod2TC_rhs_test, [0, 0, 1, 1], colorbar=False, style=topo.styleMod1)
+
+        # Generating states for grid points
         state = np.zeros(xy.shape[:-1])
 
+        # scaled sunny-function
         sunny = viab.scaled_to_one_sunny(tcm.is_sunnyTC, offset, scalingfactor)
 
         start_time = time.time()
+
+        # topology classification via viability algorithm
         viab.topology_classification(xy, state, defaultTC_run, management2TC_run, sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
 
+        # backscaling grid
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
+        # Plotting:
         moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
         mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
 
-        xy = viab.backscaling_grid(xy, scalingfactor, offset)
-
         viab.plot_points(xy, state)
+
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
+
+        plt.xlabel("$u_B$")
+        plt.ylabel("$p_B$")
 
     if "PuR_Plot_a" in args:
 
@@ -203,7 +214,7 @@ if __name__ == "__main__":
 
         # generating grid and step size values
         viab.x_step = x_step
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         default_evols_list = [defaultPuR_run]
         states = np.zeros(xy.shape[:-1])
@@ -339,7 +350,7 @@ if __name__ == "__main__":
 
         # generating grid and step size values
         viab.x_step = x_step
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         # different instances of the model
         moddefPuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000, comment="default")
@@ -392,7 +403,7 @@ if __name__ == "__main__":
         x_half_step = x_step / 2
         state = np.zeros(xy.shape[:-1])
 
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params, offset, scalingfactor)
         management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params, offset, scalingfactor)
