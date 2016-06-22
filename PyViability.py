@@ -71,7 +71,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     # empty_dims = (np.newaxis, ) * len(coordinate_index)
 
     global VERBOSE
-    VERBOSE = (coordinate_index == (60*80+74,))
+    VERBOSE = (coordinate_index == (79*79+42,))
 
     if VERBOSE:
         print()
@@ -106,6 +106,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
             if VERBOSE:
                 print(final_state, constraint(point), final_distance, x_step)
+                print('----', tree_index, coordinates[tree_index])
 
             if final_state in stop_states and constraint(point) and final_distance < x_step:
 
@@ -210,7 +211,7 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
     assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
     global x_half_step
     x_half_step = x_step/2
-    if not STEPSIZE in globals():
+    if not "STEPSIZE" in globals():
         global STEPSIZE
         # fix stepsize on that for now if nothing else has been given by the
         # user
@@ -256,12 +257,35 @@ def plot_areas(coords, states):
 
 
 def make_run_function(rhs,
-                      ordered_params
+                      ordered_params,
+                      offset,
+                      scaling_factor,
+                      returning = "run-function"
                       ):
+
+    #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
+    @nb.jit
+    def rhs_scaled_to_one_PS(x0, t, *args):
+        x = np.zeros_like(x0)
+        x[0] = scaling_factor[0] * x0[0] + offset[0]
+        x[1] = scaling_factor[1] * x0[1] + offset[1]
+        val = rhs(x, t, *args)  # calculate the rhs
+        val[0] /= scaling_factor[0]
+        val[1] /= scaling_factor[1]
+        return val
+    # ---------------------------------------------------------------------------
+
+
+    @nb.jit
+    def rhs_scaled_to_one(x0, t, *args):
+        x = scaling_factor * x0 + offset
+        val = rhs(x, t, *args) / scaling_factor # calculate the rhs
+        return val
+
 
     @nb.jit
     def normalized_rhs(x0, t, *args):
-        val = rhs(x0, t, *args)  # calculate the rhs
+        val = rhs_scaled_to_one(x0, t, *args)  # calculate the rhs
         return val / np.sqrt(np.sum(val ** 2, axis=-1))  # normalize it
 
 
@@ -273,11 +297,25 @@ def make_run_function(rhs,
 
         return traj[-1]
 
-    return model_run
+    if returning == "run-function":
+        return model_run
+    elif returning == "PS_plt_scaled_rhs":
+        # to check scaled right-hand-side
+        return rhs_scaled_to_one_PS
 
 
-def make_run_function2(model_object,
-        timestep,
+def scaled_to_one_sunny(is_sunny, offset, scaling_factor):
+
+    @nb.jit
+    def scaled_sunny(grid):
+        new_grid = grid * scaling_factor + offset
+        val = is_sunny(new_grid)  # calculate the rhs
+        return val  # normalize it
+
+    return scaled_sunny
+
+
+def make_run_function2(model_object, timestep,
         backend = "odeint"
         ):
     """"""
@@ -342,21 +380,52 @@ def trajectory_length_index(traj, target_length):
     return index_1
 
 
+def normalized_grid(boundaries, x_num):
+    """generates a normalized grid  in any dimension and gets the scaling factors and linear shift of each axis"""
+
+    dim = int(len(boundaries)/2)
+
+    scaling_factor = np.ones(dim)
+
+    offset = np.zeros(dim)
+
+    for index in range(0, dim):
+        scaling_factor[index] = boundaries[index + dim] - boundaries[index]
+
+        if boundaries[index] != 0:
+            offset[index] = boundaries[index]
+
+    grid_prep = np.linspace(0, 1, x_num + 1)
+    grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
+
+    meshgrid_arg = [grid_prep for _ in range(dim)]
+
+    grid = np.asarray(np.meshgrid(*meshgrid_arg))
+
+    grid = np.rollaxis(grid, 0, dim + 1)
+
+    x_step = 1/(x_num-1)
+
+    return grid, scaling_factor, offset, x_step
+
+def backscaling_grid(grid, scalingfactor, offset):
+    return grid * scalingfactor + offset
+
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
                             periodic_boundaries = []):
     """calculates different regions of the state space using viability theory algorithms"""
 
+    # reshaping coordinates and states in order to use kdtree
+    coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
+    states = np.reshape(states, (-1))
+
     # check, if there are periodic boundaries and if so, use different tree form
     if periodic_boundaries == []:
-        coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-        states = np.reshape(states, (-1))
         tree = spat.cKDTree(coordinates)
     else:
-        assert len(np.shape(coordinates)[:-1]) == len(periodic_boundaries), "Given boundaries don't match with " \
+        assert np.shape(coordinates)[-1] == len(periodic_boundaries), "Given boundaries don't match with " \
                                                                             "dimensions of coordinates. " \
-                                                                            "Write '0' if boundary is not periodic!"
-        coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-        states = np.reshape(states, (-1))
+                                                                            "Write '-1' if boundary is not periodic!"
         tree = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
 
     # checking data-type of input evolution functions
@@ -441,3 +510,5 @@ def topology_classification(coordinates, states, default_evols, management_evols
     #viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree)
 
     return states
+
+
