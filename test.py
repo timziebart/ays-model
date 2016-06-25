@@ -77,7 +77,7 @@ if __name__ == "__main__":
         xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
 
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-##         mod1.plotPhaseSpace(boundaries, topo.styleMod1)
+        mod1.plotPhaseSpace(boundaries, topo.styleMod1)
         mod2.plotPhaseSpace(boundaries, topo.styleMod2)
 
         timestep = 1
@@ -89,7 +89,12 @@ if __name__ == "__main__":
         x_half_step = x_step / 2
         state = np.zeros(xy.shape[:-1])
 
-        viab.STEPSIZE = 2 * x_step
+        init_states = [(4880, -1), (4960, -1), (5040, -1), (61, -5), (62, -5), (63, -5), (0, -4), (1, -4),
+                       (40, -4), (41, -4), (42, -4), (43, -4)]
+        for i in range(len(init_states)):
+            state[init_states[i][0]] = init_states[i][1]
+
+        viab.STEPSIZE = 1.5 * x_step
 
         default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params, offset, scalingfactor)
         management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params, offset, scalingfactor)
@@ -113,7 +118,7 @@ if __name__ == "__main__":
         fig = plt.figure(figsize=(15, 15), tight_layout = True)
         viab.plot_areas(xy, state)
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-##         mod1.plotPhaseSpace(boundaries, topo.styleMod1)
+        mod1.plotPhaseSpace(boundaries, topo.styleMod1)
         mod2.plotPhaseSpace(boundaries, topo.styleMod2)
 
         plt.xlim([xmin, xmax])
@@ -144,7 +149,7 @@ if __name__ == "__main__":
 
         # Integration length for odeint
         viab.x_step = x_step
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         # different instances of the model
         moddefTC = tcm.TechChangeXY('default')
@@ -163,6 +168,12 @@ if __name__ == "__main__":
 
         # Generating states for grid points
         state = np.zeros(xy.shape[:-1])
+
+        # Some initial states for 80*80 grid to avoid runtime warnings
+        init_states = [(79*7, -1), (79*8, -1), (79*9, -1), (559, -1), (639
+                                                                       , -1)]
+        for i in range(len(init_states)):
+            state[init_states[i][0]] = init_states[i][1]
 
         # scaled sunny-function
         sunny = viab.scaled_to_one_sunny(tcm.is_sunnyTC, offset, scalingfactor)
@@ -255,7 +266,7 @@ if __name__ == "__main__":
 
         # generating grid and step size values
         viab.x_step = x_step
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         # different instances of the model
         moddefPuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000, comment="default")
@@ -267,6 +278,11 @@ if __name__ == "__main__":
 
         default_evols_list = [defaultPuR_run]
         states = np.zeros(xy.shape[:-1])
+
+        # Some initial states for 80*80 grid to avoid runtime warnings
+        init_states = [(1934, -6), (3289, -7)]
+        for i in range(len(init_states)):
+            states[init_states[i][0]] = init_states[i][1]
 
         start_time = time.time()
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
@@ -302,7 +318,7 @@ if __name__ == "__main__":
 
         # generating grid and step size values
         viab.x_step = x_step
-        viab.STEPSIZE = 2 * x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         # different instances of the model
         moddefPuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000, comment="default")
@@ -313,6 +329,12 @@ if __name__ == "__main__":
 
         default_evols_list = [defaultPuR_run]
         states = np.zeros(xy.shape[:-1])
+
+        # Some initial states for 80*80 grid to avoid runtime warnings
+        init_states = [(1613, -10), (3289, -10)]
+        for i in range(len(init_states)):
+           states[init_states[i][0]] = init_states[i][1]
+
 
         start_time = time.time()
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
@@ -361,6 +383,12 @@ if __name__ == "__main__":
 
         default_evols_list = [defaultPuR_run]
         states = np.zeros(xy.shape[:-1])
+
+        # Some initial states for 80*80 grid to avoid runtime warnings
+        init_states = [(2334, -10), (3289, -10)]
+        for i in range(len(init_states)):
+            states[init_states[i][0]] = init_states[i][1]
+
 
         start_time = time.time()
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
@@ -421,6 +449,7 @@ if __name__ == "__main__":
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
+
 
         fig = plt.figure(figsize=(15, 15), tight_layout=True)
         viab.plot_areas(xy, state)

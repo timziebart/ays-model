@@ -26,6 +26,8 @@ VERBOSE = 0
 
 COLORS = {
         0: "red",
+        -1: "red",
+        -2: "red",
         1: topo.cShelter,
         2: topo.cGlade,
         3: topo.cSunnyUp,
@@ -72,7 +74,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     VERBOSE = (coordinate_index == (79*79+42,))
-
+    print(coordinate_index)
     if VERBOSE:
         print()
 
@@ -84,6 +86,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
             if np.any(np.isnan(point)):
                 warn.warn("point {!r} became nan for one option, so I'm assuming it's a fixed point".format(start))
+                print(coordinate_index)
 
                 if start_state in stop_states:
                     final_state = succesful_state
@@ -404,6 +407,9 @@ def normalized_grid(boundaries, x_num):
 
     grid = np.rollaxis(grid, 0, dim + 1)
 
+    # reshaping coordinates and states in order to use kdtree
+    grid = np.reshape(grid, (-1, np.shape(grid)[-1]))
+
     x_step = 1/(x_num-1)
 
     return grid, scaling_factor, offset, x_step
@@ -412,12 +418,13 @@ def backscaling_grid(grid, scalingfactor, offset):
     return grid * scalingfactor + offset
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
-                            periodic_boundaries = []):
+                            periodic_boundaries = [], upgradeable_initial_states = False
+                            ):
     """calculates different regions of the state space using viability theory algorithms"""
 
-    # reshaping coordinates and states in order to use kdtree
-    coordinates = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-    states = np.reshape(states, (-1))
+    # upgreading initial states to higher
+    if upgradeable_initial_states:
+        raise NotImplementedError
 
     # check, if there are periodic boundaries and if so, use different tree form
     if periodic_boundaries == []:
@@ -450,8 +457,9 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
     # calculate shelter
     print('###### calculating shelter')
-    states[(is_sunny(coordinates))] = 1 # initial state for shelter calculation
-    viability_kernel(coordinates, states, [1], 0, 1, 1, default_evols_list, tree)
+    states[(states == 0) & is_sunny(coordinates)] = 1 # initial state for shelter calculation
+    # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
+    viability_kernel(coordinates, states, [1, -1], 0, 1, 1, default_evols_list, tree)
 
     if not np.any(states == 1):
         print('shelter empty')
@@ -463,25 +471,26 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
         states[(states == 0) & is_sunny(coordinates)] = 3
 
-        states[~is_sunny(coordinates)] = 0
-        viability_capture_basin(coordinates, states, [1], 2, 0, 3, all_evols, tree)
+        #states[~is_sunny(coordinates)] = 0 #??????????????????????
+        #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
+        viability_capture_basin(coordinates, states, [1, -1], 2, 0, 3, all_evols, tree)
 
         # calculate remaining upstream dark and sunny
         print('###### calculating rest of upstream (lake, dark and sunny)')
         states[(states == 0)] = 4
-        viability_capture_basin(coordinates, states, [1, 2], 3, 0, 4, all_evols, tree)
+        viability_capture_basin(coordinates, states, [1, 2, -3, -4, -5], 3, 0, 4, all_evols, tree)
 
         states[~is_sunny(coordinates) & (states == 3)] = 4
 
         # calculate Lake
         print('###### calculating lake')
         states[is_sunny(coordinates) & (states == 3)] = 5
-        viability_kernel(coordinates, states, [1, 2, 5], 3, 5, 5, all_evols, tree)
+        viability_kernel(coordinates, states, [1, 2, 5, -5], 3, 5, 5, all_evols, tree)
 
     # calculate Bachwater
     print('###### calculating backwater')
     states[is_sunny(coordinates) & (states == 0)] = 6
-    viability_kernel(coordinates, states, [6], 0, 6, 6, all_evols, tree)
+    viability_kernel(coordinates, states, [6, -6], 0, 6, 6, all_evols, tree)
 
     if not np.any(states == 6):
         print('backwater empty')
@@ -491,23 +500,28 @@ def topology_classification(coordinates, states, default_evols, management_evols
         # calculate remaining downstream dark and sunny
         print('###### calculating remaining downstream (dark and sunny)')
         states[(states == 0)] = 8
-        viability_capture_basin(coordinates, states, [6], 7, 0, 8, all_evols, tree)
+        viability_capture_basin(coordinates, states, [6, -7, -8], 7, 0, 8, all_evols, tree)
         states[~is_sunny(coordinates) & (states == 7)] = 8
 
     # set sunny Eddies/Abyss
+    print('###### set sunny Eddies/Abyss')
     states[is_sunny(coordinates) & (states == 0)] = 9
 
     # calculate dark Eddies/Abyss
     print('###### calculating dark Eddies/Abyss')
     # look only at the coordinates with state == 0
     states[(states == 0)] = 12
-    viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 10, 0, 12, all_evols, tree)
-    # Konsistenzcheck? [1, 2, 3, 4, 5, 6, 7, 9] sollten alle nicht erreicht werden
+    viability_capture_basin(coordinates, states,
+                            [1, 2, 3, 4, 5, 6, 7, 9, -1, -2, -3, -4 , -5, -6, -7, -9], 10, 0, 12, all_evols, tree)
 
     # calculate trench
     print('###### set trench')
     states[(states == 0)] = 11
-    #viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree)
+    # Konsistenzcheck? [1, 2, 3, 4, 5, 6, 7, 9] sollten alle nicht erreicht werden:
+    # viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree)
+
+    # All initially given states are set to positive counterparts
+    states[(states < 0)] *= -1
 
     return states
 
