@@ -21,7 +21,6 @@ import warnings as warn
 import itertools as it
 
 MAX_EVOLUTION_NUM = 20
-#MAX_STEP_NUM = 10  braucht man die noch?
 VERBOSE = 0
 
 COLORS = {
@@ -64,17 +63,13 @@ def dummy_constraint(p):
 def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state, evolutions,
                            tree, constraint = dummy_constraint):
     """Calculate whether a coordinate with value 'stop_value' can be reached from 'coordinates[coordinate_index]'."""
-    # coordinates_reshaped = np.reshape(coordinates, (-1, np.shape(coordinates)[-1]))
-    # states_reshaped = np.reshape(states, (-1, 1))
 
     start = coordinates[coordinate_index]
     start_state = states[coordinate_index]
 
-    # empty_dims = (np.newaxis, ) * len(coordinate_index)
-
     global VERBOSE
     VERBOSE = (coordinate_index == (79*79+42,))
-    print(coordinate_index)
+
     if VERBOSE:
         print()
 
@@ -102,14 +97,12 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
                 # so run the evolution function again
                 continue # not yet close enough to another point
 
-            # index = np.argmin(la.norm(point[empty_dims] - coordinates, axis = -1))  # als funktion auslagern
-            # final_distance = la.norm(point - coordinates[index])
             final_distance, tree_index = tree.query(point, 1)
             final_state = states[tree_index]
 
             if VERBOSE:
                 print(final_state, constraint(point), final_distance, x_step)
-                print('----', tree_index, coordinates[tree_index])
+                # print('----', tree_index, coordinates[tree_index])
 
             if final_state in stop_states and constraint(point) and final_distance < x_step:
 
@@ -132,57 +125,34 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     return else_state
 
 
-class NeighborList(list):
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return self.next()
-
-    def next(self):
-        try:
-            return self.pop(0)
-        except IndexError:
-            raise StopIteration
-
-
 def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree):
     """do a single step of the viability calculation algorithm by checking which points stay immediately within the good_states"""
 
-    coordinates_reshaped = coordinates
-    states_reshaped = states
+    changed = False
 
     shape = coordinates.shape[:-1]
 
-    changed = False
-##    neighbors_length = 0
-
-    shape_reshaped = coordinates_reshaped.shape[:-1]
-
-
-    for base_index in np.ndindex(shape_reshaped):
+    for base_index in np.ndindex(shape):
         neighbors = [base_index]
 
         for index in neighbors: # iterate over the base_index and, if any changes happened, over the neighbors, too
-            #
-            # print(neighbors)
-            old_state = states_reshaped[index]
+            old_state = states[index]
 
             if old_state == work_state:
-                new_state = viability_single_point(index, coordinates_reshaped, states_reshaped, good_states, succesful_state, bad_state, evolutions, tree)
+                new_state = viability_single_point(index, coordinates, states, good_states, succesful_state, bad_state, evolutions, tree)
 
                 if new_state != old_state:
                     changed = True
-                    states_reshaped[index] = new_state
-                    #get_neighbor_indices(index, shape, neighbor_list = neighbors)
+                    states[index] = new_state
+                    # get_neighbor_indices(index, shape, neighbor_list = neighbors)
                     get_neighbor_indices_via_cKD(index, tree,  neighbor_list=neighbors)
 
-##        neighbors_length += len(neighbors)
     return changed
 
 
 def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
     """extend 'neighbor_list' by 'tree_neighbors', a list that contains the nearest neighbors found trough cKDTree"""
+
     index = np.asarray(index)
     index = index.astype(int)
 
@@ -196,20 +166,24 @@ def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
 
 def get_neighbor_indices(index, shape, neighbor_list = []):
     """append all neighboring indices of 'index' to 'neighbor_list' if they are within 'shape'"""
+
     index = np.asarray(index)
     shape = np.asarray(shape)
+
     for diff_index in it.product([-1, 0, 1], repeat = len(index)):
         diff_index = np.asarray(diff_index)
         new_index = index + diff_index
+
         if np.count_nonzero(diff_index) and np.all( new_index >= 0 ) and np.all( new_index < shape ):
             neighbor_list.append(tuple(new_index))
+
     return neighbor_list
 
 
 def viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree):
     """calculate the viability kernel by iterating through the viability kernel steps
     until convergence (no further change)"""
-    #assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
+    # assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
 
     assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
     global x_half_step
@@ -227,6 +201,7 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
 
 def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
     """reuse the viability kernel algorithm to calculate the capture basin"""
+
     return_value =  viability_kernel(coordinates, states, target_states + [reached_state], work_state, reached_state,
                                      work_state, evolutions, tree)
     # all the points that still have the state work_state are not part of the capture basin and are set to be bad_states
@@ -238,6 +213,7 @@ def viability_capture_basin(coordinates, states, target_states, reached_state, b
 
 def plot_points(coords, states):
     """plot the current states in the viability calculation as points"""
+
     assert set(states.flatten()).issubset(COLORS)
     for color_state in COLORS:
         plt.plot(coords[ states == color_state , 0], coords[ states == color_state , 1], color = COLORS[color_state],
@@ -246,6 +222,7 @@ def plot_points(coords, states):
 
 def plot_areas(coords, states):
     """plot the current states in the viability calculation as areas"""
+
     states = states.flatten()
     assert set(states).issubset(COLORS)
     coords = np.reshape(coords, states.shape + (-1,))
@@ -323,6 +300,7 @@ def make_run_function2(model_object, timestep,
         ):
     """"""
     if backend == "simple":
+
         def model_run(p):
             v = model_object.eval(*p)
             v_norm = la.norm(v)
@@ -333,6 +311,7 @@ def make_run_function2(model_object, timestep,
             plt.plot([p[0], p2[0]], [p[1], p2[1]], color = "blue", linewidth = 5)
             return p2
     elif backend == "odeint":
+
         def model_run(p):
             model_object.setInitialCond(p)
             t, traj = model_object.run(0, timestep, steps = 1e2)
@@ -346,6 +325,7 @@ def make_run_function2(model_object, timestep,
              #   plt.plot(traj[:, 0], traj[:, 1], color = "blue", linewidth = 5)
             return traj[-1]
     elif backend == "new":
+
         def model_run(p):
             t = np.linspace(0, timestep, 1e2)
             traj = model_object.integrate(p, t)
@@ -361,7 +341,9 @@ def make_run_function2(model_object, timestep,
                 ##                 plt.plot(traj[:, 0], traj[:, 1], color = "blue", linewidth = 1)
             return traj[-1]
     else:
+
         raise NotImplementedError("backend = %s does not exist"%repr(backend))
+
     return model_run
 
 
@@ -371,15 +353,19 @@ def trajectory_length(traj):
 
 def trajectory_length_index(traj, target_length):
     lengths = np.cumsum( la.norm( traj[1:] - traj[:-1], axis = -1) )
+
     if target_length < lengths[-1]:
         return traj.shape[0] # incl. last element
     index_0, index_1 = 0, traj.shape[0] - 1
+
     while not index_0 in [index_1, index_1 - 1]:
         middle_index = int( (index_0 + index_1)/2 )
+
         if lengths[middle_index] <= target_length:
             index_0 = middle_index
         else:
             index_1 = middle_index
+
     return index_1
 
 
@@ -414,8 +400,10 @@ def normalized_grid(boundaries, x_num):
 
     return grid, scaling_factor, offset, x_step
 
+
 def backscaling_grid(grid, scalingfactor, offset):
     return grid * scalingfactor + offset
+
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
                             periodic_boundaries = [], upgradeable_initial_states = False

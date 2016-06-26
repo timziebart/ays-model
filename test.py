@@ -51,69 +51,76 @@ if __name__ == "__main__":
 
     if "plants" in args:
         # test plant model
+
+        # boundaries of PhaseSpace
         xmin, xmax = 0, 1
-##         boundaries = [1e-3, 1e-3, 1, 1]
         boundaries = [xmin, xmin, xmax, xmax]
-        #boundaries = [0.49, 0.130, 0.52, 0.155]
         xmin, ymin, xmax, ymax = boundaries
+
         # default values
         a = 0.2 # harvest value
         pm.xplusy = 0.65 # min sum of both for being desirable state
         prod = 2 # factor of productivity for y
 
-        fig = plt.figure(figsize=(15, 15), tight_layout = True)
+        # plot preparation
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
         ax = fig.add_subplot(111)
         b3 = np.array([[0, pm.xplusy, 0], [pm.xplusy, 0, 0]])
-        patchit(b3, color = topo.cDarkUp)
+        patchit(b3, color=topo.cDarkUp)
 
-        moddef = pm.PlantXY( prod = prod, ax = a, ay = a , comment = "default")
-        mod1 = pm.PlantXY( prod = prod, ax = a/2, ay = a/2, comment = "management 1" )
-        mod2 = pm.PlantXY( prod = prod, ax = 2*a, ay = 0, comment = "management 2" )
+        # steady_states_def = moddef.steadyState()
+        # steady_states1= mod1.steadyState()
+        # steady_states2 = mod2.steadyState()
 
-        #steady_states_def = moddef.steadyState()
-        #steady_states1= mod1.steadyState()
-        #steady_states2 = mod2.steadyState()
-
+        # normalized grid
         xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
 
-        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-        mod1.plotPhaseSpace(boundaries, topo.styleMod1)
-        mod2.plotPhaseSpace(boundaries, topo.styleMod2)
-
-        timestep = 1
-
-        # x_num = 80
-        # x_len = xmax - xmin
-        # x_step = x_len / x_num
-        viab.x_step = x_step
-        x_half_step = x_step / 2
+        # states for grid
         state = np.zeros(xy.shape[:-1])
 
+        # Some initial states for 80*80 grid to avoid runtime warnings
         init_states = [(4880, -1), (4960, -1), (5040, -1), (61, -5), (62, -5), (63, -5), (0, -4), (1, -4),
                        (40, -4), (41, -4), (42, -4), (43, -4)]
         for i in range(len(init_states)):
             state[init_states[i][0]] = init_states[i][1]
 
+        # Integration length for odeint
+        viab.x_step = x_step
+        x_half_step = x_step / 2
         viab.STEPSIZE = 1.5 * x_step
+
+        # different instances of the model
+        moddef = pm.PlantXY(prod=prod, ax=a, ay=a, comment="default")
+        mod1 = pm.PlantXY(prod=prod, ax=a / 2, ay=a / 2, comment="management 1")
+        mod2 = pm.PlantXY(prod=prod, ax=2 * a, ay=0, comment="management 2")
 
         default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params, offset, scalingfactor)
         management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params, offset, scalingfactor)
         management2_run = viab.make_run_function(mod2._rhs_fast, mod2._odeint_params, offset, scalingfactor)
 
-        sunny = viab.scaled_to_one_sunny(pm.is_sunny, offset, scalingfactor)
-
         default_evols_list = [default_run]
 
+        # scaled sunny function
+        sunny = viab.scaled_to_one_sunny(pm.is_sunny, offset, scalingfactor)
+
+        # topology classification via viability algorithm
         start_time = time.time()
+
         viab.topology_classification(xy, state, default_run, [management1_run, management2_run], sunny)
+
         time_diff = time.time() - start_time
         print(time_diff)
 
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
+        # plotting
         viab.plot_points(xy, state)
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
+
+        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(boundaries, topo.styleMod1)
+        mod2.plotPhaseSpace(boundaries, topo.styleMod2)
 
         fig = plt.figure(figsize=(15, 15), tight_layout = True)
         viab.plot_areas(xy, state)
@@ -190,10 +197,10 @@ if __name__ == "__main__":
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         # Plotting:
+        viab.plot_points(xy, state)
+
         moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
         mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
-
-        viab.plot_points(xy, state)
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
@@ -213,7 +220,10 @@ if __name__ == "__main__":
         prm.xMinimal = 1000
         prm.yMinimal = 3000
 
+        # generating grid and step size values
         xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
+        viab.x_step = x_step
+        viab.STEPSIZE = 1.5 * x_step
 
         # different instances of the model
         moddefPuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000, comment="default")
@@ -222,21 +232,21 @@ if __name__ == "__main__":
         defaultPuR_run = viab.make_run_function(moddefPuR._rhs_fast, moddefPuR._odeint_params, offset, scalingfactor)
         management1PuR_run = viab.make_run_function(mod1PuR._rhs_fast, mod1PuR._odeint_params, offset, scalingfactor)
 
-
-        # generating grid and step size values
-        viab.x_step = x_step
-        viab.STEPSIZE = 1.5 * x_step
-
         default_evols_list = [defaultPuR_run]
-        states = np.zeros(xy.shape[:-1])
 
-        start_time = time.time()
+        # set states and scale sunny region
+        states = np.zeros(xy.shape[:-1])
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
+
+        # Viability calculation
+        start_time = time.time()
+
         viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
 
+        # plotting
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         viab.plot_points(xy, states)
@@ -246,25 +256,18 @@ if __name__ == "__main__":
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
-       # plt.gca().set_aspect('equal')
-    ##         plt.gca().set_aspect('equal', adjustable='box')
 
     if "PuR_Plot_b" in args:
 
         boundaries = [0, 0, 9000, 9000]
         xmin, ymin, xmax, ymax = boundaries
 
-        fig3 = plt.figure(figsize=(15, 15))
-        ax = fig3.add_subplot(111)
-
         # default values for sunny region
         prm.xMinimal = 1200
         prm.yMinimal = 2000
 
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
-
-
         # generating grid and step size values
+        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
         viab.x_step = x_step
         viab.STEPSIZE = 1.5 * x_step
 
@@ -275,23 +278,28 @@ if __name__ == "__main__":
         defaultPuR_run = viab.make_run_function(moddefPuR._rhs_fast, moddefPuR._odeint_params, offset, scalingfactor)
         management1PuR_run = viab.make_run_function(mod1PuR._rhs_fast, mod1PuR._odeint_params, offset, scalingfactor)
 
-
         default_evols_list = [defaultPuR_run]
-        states = np.zeros(xy.shape[:-1])
 
         # Some initial states for 80*80 grid to avoid runtime warnings
+        states = np.zeros(xy.shape[:-1])
         init_states = [(1934, -6), (3289, -7)]
         for i in range(len(init_states)):
             states[init_states[i][0]] = init_states[i][1]
 
-        start_time = time.time()
+        # scaled sunny function
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
+
+        # viability calculation
+        start_time = time.time()
+
         viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+
         time_diff = time.time() - start_time
         print(time_diff)
 
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
+        # plotting
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -299,24 +307,18 @@ if __name__ == "__main__":
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
-        # plt.gca().set_aspect('equal')
-        ##         plt.gca().set_aspect('equal', adjustable='box')
 
     if "PuR_Plot_c" in args:
 
         boundaries = [0, 0, 9000, 9000]
         xmin, ymin, xmax, ymax = boundaries
 
-        fig4 = plt.figure(figsize=(15, 15))
-        ax = fig4.add_subplot(111)
-
         # default values for sunny region
         prm.xMinimal = 4000
         prm.yMinimal = 3000
 
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
-
         # generating grid and step size values
+        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
         viab.x_step = x_step
         viab.STEPSIZE = 1.5 * x_step
 
@@ -328,22 +330,28 @@ if __name__ == "__main__":
         management1PuR_run = viab.make_run_function(mod1PuR._rhs_fast, mod1PuR._odeint_params, offset, scalingfactor)
 
         default_evols_list = [defaultPuR_run]
-        states = np.zeros(xy.shape[:-1])
 
         # Some initial states for 80*80 grid to avoid runtime warnings
+        states = np.zeros(xy.shape[:-1])
+
         init_states = [(1613, -10), (3289, -10)]
         for i in range(len(init_states)):
            states[init_states[i][0]] = init_states[i][1]
 
-
-        start_time = time.time()
+        # scaled sunny function
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
+
+        # viability calculation
+        start_time = time.time()
+
         viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+
         time_diff = time.time() - start_time
         print(time_diff)
 
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
+        # plotting
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -351,26 +359,18 @@ if __name__ == "__main__":
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
-        # plt.gca().set_aspect('equal')
-        ##         plt.gca().set_aspect('equal', adjustable='box')
 
     if "PuR_Plot_d" in args:
 
         boundaries = [0, 0, 9000, 9000]
         xmin, ymin, xmax, ymax = boundaries
 
-
-        fig4 = plt.figure(figsize=(15, 15))
-        ax = fig4.add_subplot(111)
-
         # default values for sunny region
         prm.xMinimal = 4000
         prm.yMinimal = 3000
 
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
-
-
         # generating grid and step size values
+        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
         viab.x_step = x_step
         viab.STEPSIZE = 1.5 * x_step
 
@@ -382,21 +382,28 @@ if __name__ == "__main__":
         management1PuR_run = viab.make_run_function(mod1PuR._rhs_fast, mod1PuR._odeint_params, offset, scalingfactor)
 
         default_evols_list = [defaultPuR_run]
-        states = np.zeros(xy.shape[:-1])
 
         # Some initial states for 80*80 grid to avoid runtime warnings
+        states = np.zeros(xy.shape[:-1])
+
         init_states = [(2334, -10), (3289, -10)]
         for i in range(len(init_states)):
             states[init_states[i][0]] = init_states[i][1]
 
-
-        start_time = time.time()
+        # scaled sunny function
         sunny = viab.scaled_to_one_sunny(prm.is_sunnyPuR, offset, scalingfactor)
+
+        # viability calculation
+        start_time = time.time()
+
         viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+
         time_diff = time.time() - start_time
         print(time_diff)
 
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
+        # plotting
         viab.plot_points(xy, states)
 
         moddefPuR.plotPhaseSpace(boundaries, topo.styleDefault)
@@ -404,55 +411,57 @@ if __name__ == "__main__":
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
-        # plt.gca().set_aspect('equal')
-        ##         plt.gca().set_aspect('equal', adjustable='box')
 
     if "pendulum" in args:
         # test gravity pendulum
-        xmin, xmax = 0, 2*np.pi
+        xmin, xmax = 0, 2 * np.pi
         ymin, ymax = -2.2, 1.2
         boundaries = [xmin, ymin, xmax, ymax]
 
         # default values
-        a = 0.6  # harvest value
-        gpm.l = 0.5  # min sum of both for being desirable state
+        a = 0.6
+        gpm.l = 0.5
 
-        fig = plt.figure(figsize=(15, 15), tight_layout=True)
-        ax = fig.add_subplot(111)
+        # generating grid and step size values
+        xy, scalingfactor,  offset, x_step = viab.normalized_grid(boundaries, 80)
+        viab.x_step = x_step
+        viab.STEPSIZE = 1.5 * x_step
 
+        # different instances of the model
         moddef = gpm.GravPend(a=0, comment="default")
         mod1 = gpm.GravPend(a=a, comment="management 1")
-
-        xy, scalingfactor,  offset, x_step = viab.normalized_grid(boundaries, 80)
-
-        timestep = 1
-
-        viab.x_step = x_step
-        x_half_step = x_step / 2
-        state = np.zeros(xy.shape[:-1])
-
-        viab.STEPSIZE = 1.5 * x_step
 
         default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params, offset, scalingfactor)
         management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params, offset, scalingfactor)
 
+        # states before calculation and scaled sunny function
+        state = np.zeros(xy.shape[:-1])
         sunny = viab.scaled_to_one_sunny(gpm.is_sunnyGPM, offset, scalingfactor)
 
+        # viability calculation
         start_time = time.time()
+
         viab.topology_classification(xy, state, default_run, management1_run, sunny, periodic_boundaries = np.array([1, -1]))
+
         time_diff = time.time() - start_time
         print(time_diff)
 
         xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
+        # plotting
         viab.plot_points(xy, state)
+
+        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(boundaries, topo.styleMod2)
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
 
 
         fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
         viab.plot_areas(xy, state)
+
         moddef.plotPhaseSpace(boundaries, topo.styleDefault)
         mod1.plotPhaseSpace(boundaries, topo.styleMod2)
 
