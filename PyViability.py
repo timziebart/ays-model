@@ -174,8 +174,8 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
             if VERBOSE:
                 print(coordinates[tree_index], final_state, constraint(point), final_distance, x_step)
                 # print('----', tree_index, coordinates[tree_index])
-                print(final_state in stop_states, constraint(point),final_distance < MAX_FINAL_DISTANCE)
-                print(final_distance, MAX_FINAL_DISTANCE)
+                # print(final_state in stop_states, constraint(point),final_distance < MAX_FINAL_DISTANCE)
+                # print(final_distance, MAX_FINAL_DISTANCE)
 
             if final_state in stop_states and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
