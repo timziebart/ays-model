@@ -55,6 +55,74 @@ def generate_2Dgrid(xmin, xmax, x_num, ymin, ymax):
     return [x_step, x_half_step, xy]
 
 
+def hexGridSeriesGen(dim):
+    a = 1/4 # comes straight from the calculation
+    yield 1 # 1 is set as inital condition
+    for d in range(1, dim):
+        yield np.sqrt( (1-(-a)**(d+1)) / (1 + a) )
+
+
+def hexGrid(boundaries, n0, verb = False):
+    """
+    boundaries = list with shape (d, 2), first index for dimension, second index for minimal and maximal values
+    """
+    global MAX_NEIGHBOR_DISTANCE, x_step, MAX_FINAL_DISTANCE
+    boundaries = np.asarray(boundaries)
+    dim = boundaries.shape[0]
+    offset = boundaries[:,0]
+    print(boundaries)
+    scaling_factor = boundaries[:,1] - boundaries[:,0]
+
+    Delta_0 = 1/n0
+    x_step = Delta_0 # Delta_0 is side length of the simplices
+    eps = Delta_0 / 3 # introduced so in the first line there are exactly n0 and there are no shifts over 1 in any dimension afterwards
+
+    # print(np.array(list(hexGridSeriesGen(dim))))
+    Delta_all = Delta_0 * np.array(list(hexGridSeriesGen(dim)))
+    # print(Delta_all)
+    # args = [ np.arange(0, 1 - eps , Delta_d) for Delta_d in Delta_all ]
+    # print(len(args))
+    # print(list(map(len, args)))
+    # print(args)
+    # grid = np.asarray(np.meshgrid( *args , indexing = "ij"))
+    # assert False
+    grid = np.array(np.meshgrid( *[ np.arange(0, 1 - eps , Delta_d) for Delta_d in Delta_all ], indexing = "ij" ))
+    grid = np.rollaxis( grid, 0, grid.ndim )
+    assert len(grid.shape) == dim + 1
+    assert grid.shape[-1] == dim
+    # print(grid[:,:,1])
+    # print( grid.shape )
+    if verb:
+        print("created n = %i points"%np.prod(grid.shape[:-1]))
+
+    shifts = Delta_all / 2
+    # print(shifts)
+
+    assert len(grid.shape) == dim + 1, "something is strange"
+
+    all_slice = slice(0, None)
+    jump_slice = slice(1, None, 2)
+    for d in range(1, dim): # starting at 1, because in dimension 0 nothing changes anyway
+        slicelist = [all_slice] * dim
+        slicelist[d] = jump_slice
+        slicelist += (slice(0,d), )
+        print(slicelist)
+        print(grid.shape, grid[tuple(slicelist)].shape)
+        grid[tuple(slicelist)] += shifts[:d]
+        # grid[tuple(slicelist)][:d] = shifts[:d]
+
+    # flatten the array
+    grid = np.reshape(grid, (-1, dim))
+    # print(grid)
+
+    MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
+    MAX_FINAL_DISTANCE = 0.7 * Delta_0
+    warn.warn("proper estimation of MAX_FINAL_DISTANCE is still necessary")
+
+    return grid, scaling_factor, offset, x_step
+
+
+
 def dummy_constraint(p):
     """used when no constraint is applied"""
     return np.ones(p.shape[:-1]).astype(np.bool)
@@ -68,7 +136,10 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     start_state = states[coordinate_index]
 
     global VERBOSE
-    VERBOSE = (coordinate_index == (79*79+42,))
+    # VERBOSE = (coordinate_index == (10 * 80 - 64,))
+    # VERBOSE = la.norm(start - np.array([0.125, 0.649])) < 0.02
+    # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
+    # VERBOSE = True
 
     if VERBOSE:
         print()
@@ -101,17 +172,20 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
             final_state = states[tree_index]
 
             if VERBOSE:
-                print(final_state, constraint(point), final_distance, x_step)
+                print(coordinates[tree_index], final_state, constraint(point), final_distance, x_step)
                 # print('----', tree_index, coordinates[tree_index])
+                print(final_state in stop_states, constraint(point),final_distance < MAX_FINAL_DISTANCE)
+                print(final_distance, MAX_FINAL_DISTANCE)
 
-            if final_state in stop_states and constraint(point) and final_distance < x_step:
+            if final_state in stop_states and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
                 if VERBOSE:
                     print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
                 return succesful_state
+
             # break and run the other evolutions to check whether they can reach a point with 'stop_state'
             if VERBOSE:
-                print("%i:"%evol_num, "break")
+                print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
             break
 
         else:
@@ -153,10 +227,9 @@ def viability_kernel_step(coordinates, states, good_states, bad_state, succesful
 def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
     """extend 'neighbor_list' by 'tree_neighbors', a list that contains the nearest neighbors found trough cKDTree"""
 
-    index = np.asarray(index)
-    index = index.astype(int)
+    index = np.asarray(index).astype(int)
 
-    tree_neighbors = tree.query_ball_point(tree.data[index].flatten(), 1.5 * x_step)
+    tree_neighbors = tree.query_ball_point(tree.data[index].flatten(), MAX_NEIGHBOR_DISTANCE)
     tree_neighbors = [(x,) for x in tree_neighbors]
 
     neighbor_list.extend(tree_neighbors)
@@ -186,6 +259,8 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
     # assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
 
     assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
+    assert "MAX_FINAL_DISTANCE" in globals() # needs to be set by the user for now ... will be changed later
+    assert "MAX_NEIGHBOR_DISTANCE" in globals() # needs to be set by the user for now ... will be changed later
     global x_half_step
     x_half_step = x_step/2
     if not "STEPSIZE" in globals():
@@ -217,7 +292,7 @@ def plot_points(coords, states):
     assert set(states.flatten()).issubset(COLORS)
     for color_state in COLORS:
         plt.plot(coords[ states == color_state , 0], coords[ states == color_state , 1], color = COLORS[color_state],
-                 linestyle = "", marker = ".", markersize = 10 ,zorder=0)
+                 linestyle = "", marker = ".", markersize = 30 ,zorder=0)
 
 
 def plot_areas(coords, states):
@@ -245,11 +320,11 @@ def make_run_function(rhs,
 
     #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
     @nb.jit
-    def rhs_scaled_to_one_PS(x0, t, *args):
+    def rhs_scaled_to_one_PS(x0, t):
         x = np.zeros_like(x0)
         x[0] = scaling_factor[0] * x0[0] + offset[0]
         x[1] = scaling_factor[1] * x0[1] + offset[1]
-        val = rhs(x, t, *args)  # calculate the rhs
+        val = rhs(x, t, *ordered_params)  # calculate the rhs
         val[0] /= scaling_factor[0]
         val[1] /= scaling_factor[1]
         return val
@@ -279,7 +354,7 @@ def make_run_function(rhs,
 
     if returning == "run-function":
         return model_run
-    elif returning == "PS_plt_scaled_rhs":
+    elif returning == "PS": # the other one was too long, nobody can remember that
         # to check scaled right-hand-side
         return rhs_scaled_to_one_PS
 
@@ -371,6 +446,7 @@ def trajectory_length_index(traj, target_length):
 
 def normalized_grid(boundaries, x_num):
     """generates a normalized grid  in any dimension and gets the scaling factors and linear shift of each axis"""
+    global MAX_NEIGHBOR_DISTANCE, x_step, MAX_FINAL_DISTANCE
 
     dim = int(len(boundaries)/2)
 
@@ -397,6 +473,9 @@ def normalized_grid(boundaries, x_num):
     grid = np.reshape(grid, (-1, np.shape(grid)[-1]))
 
     x_step = 1/(x_num-1)
+
+    MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
+    MAX_FINAL_DISTANCE = np.sqrt(dim) * x_step / 2
 
     return grid, scaling_factor, offset, x_step
 

@@ -468,5 +468,64 @@ if __name__ == "__main__":
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
 
+    if "pendulum-hex" in args:
+        # test gravity pendulum
+        xmin, xmax = 0, 2 * np.pi
+        ymin, ymax = -2.2, 1.2
+        boundaries = [[xmin, xmax], [ymin, ymax]]
+        PSboundaries = [xmin, ymin, xmax, ymax]
+
+        # default values
+        a = 0.6
+        gpm.l = 0.5
+
+        # generating grid and step size values
+        xy, scalingfactor,  offset, x_step = viab.hexGrid(boundaries, 40, verb = True)
+        # viab.x_step = x_step
+        viab.STEPSIZE = 1 * x_step
+        # viab.MAX_FINAL_DISTANCE = 0.7 * x_step
+
+        # states before calculation and scaled sunny function
+        state = np.zeros(xy.shape[:-1])
+        sunny = viab.scaled_to_one_sunny(gpm.is_sunnyGPM, offset, scalingfactor)
+
+        # different instances of the model
+        moddef = gpm.GravPend(a=0, comment="default")
+        mod1 = gpm.GravPend(a=a, comment="management 1")
+
+        default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params, offset, scalingfactor)
+        default_PS = viab.make_run_function(moddef._rhs_PS, moddef._odeint_params, offset, scalingfactor, returning = "PS")
+        management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params, offset, scalingfactor)
+        management1_PS = viab.make_run_function(mod1._rhs_PS, mod1._odeint_params, offset, scalingfactor, returning = "PS")
+
+        # create the figure already so it can be used for the verbosity plots
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+        # viability calculation
+        start_time = time.time()
+
+        viab.topology_classification(xy, state, default_run, management1_run, sunny, periodic_boundaries = np.array([1, -1]))
+
+        time_diff = time.time() - start_time
+        print(time_diff)
+
+        # backscaling
+        # xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
+        # plotting
+        viab.plot_points(xy, state)
+        mPS.plotPhaseSpace(default_PS, [0, 0, 1, 1], style = topo.styleDefault, colorbar = False)
+        mPS.plotPhaseSpace(management1_PS, [0, 0, 1, 1], style = topo.styleMod1, colorbar = False)
+        # moddef.plotPhaseSpace(PSboundaries, topo.styleDefault)
+        # mod1.plotPhaseSpace(PSboundaries, topo.styleMod2)
+        # plt.axes().set_aspect("equal")
+        # plt.xlim([xmin, xmax])
+        # plt.ylim([ymin, ymax])
+
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+        viab.plot_areas(xy, state)
+        # plt.axes().set_aspect("equal")
+        # plt.xlim([xmin, xmax])
+        # plt.ylim([ymin, ymax])
+
     plt.show()
 
