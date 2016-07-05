@@ -21,6 +21,7 @@ import warnings as warn
 import itertools as it
 
 MAX_EVOLUTION_NUM = 20
+MAX_ITERATION_EDDIES = 10
 VERBOSE = 0
 
 # ---- states ----
@@ -33,7 +34,7 @@ LAKE = 3
 SUNNY_UP = 4
 DARK_UP = 5
 BACKWATERS = 6
-SUNNY_DOWN =7
+SUNNY_DOWN = 7
 DARK_DOWN = 8
 SUNNY_EDDIES = 9
 DARK_EDDIES = 10
@@ -41,27 +42,30 @@ SUNNY_ABYSS = 11
 DARK_ABYSS = 12
 TRENCH = 13
 
-OTHER_STATE = 14 # used for computation reasons only
+OTHER_STATE = 14  # used for computation reasons only
 
 
 # ---- Colors ----
 # identify the states with the corresponding colors in order to be consistent
 # with the color definitions from the original paper
+print(dir(topo))
 COLORS = {
-        UNSET  : "red",
-        -SHELTER : "blue",
-        -GLADE : "orange",
-        SHELTER  : topo.cShelter,
-        GLADE  : topo.cGlade,
-        SUNNY_UP  : topo.cSunnyUp,
-        DARK_UP  : topo.cDarkUp,
-        LAKE  : topo.cLake,
-        BACKWATERS  : topo.cBackwaters,
-        SUNNY_DOWN  : topo.cSunnyDown,
-        DARK_DOWN  : topo.cDarkDown,
-        SUNNY_ABYSS  : topo.cSunnyAbyss,
-        DARK_ABYSS : topo.cDarkAbyss,
-        TRENCH : topo.cTrench,
+        UNSET: "red",
+        -SHELTER: "blue",
+        -GLADE: "orange",
+        SHELTER: topo.cShelter,
+        GLADE: topo.cGlade,
+        LAKE: topo.cLake,
+        SUNNY_UP: topo.cSunnyUp,
+        DARK_UP: topo.cDarkUp,
+        BACKWATERS: topo.cBackwaters,
+        SUNNY_DOWN: topo.cSunnyDown,
+        DARK_DOWN: topo.cDarkDown,
+        SUNNY_EDDIES: topo.cSunnyEddie,
+        DARK_EDDIES: topo.cDarkEddie,
+        SUNNY_ABYSS: topo.cSunnyAbyss,
+        DARK_ABYSS: topo.cDarkAbyss,
+        TRENCH: topo.cTrench,
         }
 
 
@@ -80,8 +84,8 @@ def generate_2Dgrid(xmin, xmax, x_num, ymin, ymax):
 
 
 def hexGridSeriesGen(dim):
-    a = 1/4 # comes straight from the calculation
-    yield 1 # 1 is set as inital condition
+    a = 1/4  # comes straight from the calculation
+    yield 1  # 1 is set as inital condition
     for d in range(1, dim):
         yield np.sqrt( (1-(-a)**(d+1)) / (1 + a) )
 
@@ -294,7 +298,7 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
 
     # actually only on step is needed due to the recursive checks (i.e. first
     # checking all neighbors of a point that changed state)
-    viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
+    return viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
 
 
 def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
@@ -508,7 +512,8 @@ def backscaling_grid(grid, scalingfactor, offset):
 
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
-                            periodic_boundaries = [], upgradeable_initial_states = False
+                            periodic_boundaries = [], upgradeable_initial_states = False,
+                            compute_eddies = True
                             ):
     """calculates different regions of the state space using viability theory algorithms"""
 
@@ -593,20 +598,25 @@ def topology_classification(coordinates, states, default_evols, management_evols
         viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, tree)
         states[~is_sunny(coordinates) & (states == SUNNY_DOWN)] = DARK_DOWN
 
-    # set sunny Eddies/Abyss
-    print('###### set sunny Eddies/Abyss')
-    states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_ABYSS
+    # if compute_eddies:
+    # set preliminary sunny eddies so the trench calculation can be run
+    states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_EDDIES
+    # else:
+        # # set sunny Eddies/Abyss
+        # print('###### set sunny Eddies/Abyss')
+        # states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_ABYSS
 
-    # calculate dark Eddies/Abyss
+    # calculate trench and set the rest as preliminary estimation for the eddies
     print('###### calculating dark Eddies/Abyss')
     # look only at the coordinates with state == UNSET
-    states[(states == UNSET)] = OTHER_STATE
     viability_capture_basin(coordinates, states,
-                            [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_ABYSS], DARK_ABYSS, UNSET, OTHER_STATE, all_evols, tree)
+                            [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS], DARK_EDDIES, TRENCH, UNSET, all_evols, tree)
+
+    # the preliminary estimations for sunny and dark eddie are set
 
     # calculate trench
-    print('###### set trench')
-    states[(states == UNSET)] = TRENCH
+    # print('###### set trench')
+    # states[(states == UNSET)] = TRENCH
     # Konsistenzcheck? [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS] sollten alle nicht erreicht werden:
     # viability_capture_basin(coordinates, states, [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS], UNSET, TRENCH, TRENCH, all_evols, tree)
 
