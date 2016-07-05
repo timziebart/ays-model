@@ -23,21 +23,45 @@ import itertools as it
 MAX_EVOLUTION_NUM = 20
 VERBOSE = 0
 
+# ---- states ----
+# encode the different states as integers, so arrays of integers can be used
+# later in numpy arrays (which are very fast on integers)
+UNSET = 0
+SHELTER = 1
+GLADE = 2
+LAKE = 3
+SUNNY_UP = 4
+DARK_UP = 5
+BACKWATERS = 6
+SUNNY_DOWN =7
+DARK_DOWN = 8
+SUNNY_EDDIES = 9
+DARK_EDDIES = 10
+SUNNY_ABYSS = 11
+DARK_ABYSS = 12
+TRENCH = 13
+
+OTHER_STATE = 14 # used for computation reasons only
+
+
+# ---- Colors ----
+# identify the states with the corresponding colors in order to be consistent
+# with the color definitions from the original paper
 COLORS = {
-        0: "red",
-        -1: "red",
-        -2: "red",
-        1: topo.cShelter,
-        2: topo.cGlade,
-        3: topo.cSunnyUp,
-        4: topo.cDarkUp,
-        5: topo.cLake,
-        6: topo.cBackwaters,
-        7: topo.cSunnyDown,
-        8: topo.cDarkDown,
-        9: topo.cSunnyAbyss,
-        10: topo.cDarkAbyss,
-        11: topo.cTrench,
+        UNSET  : "red",
+        -SHELTER : "blue",
+        -GLADE : "orange",
+        SHELTER  : topo.cShelter,
+        GLADE  : topo.cGlade,
+        SUNNY_UP  : topo.cSunnyUp,
+        DARK_UP  : topo.cDarkUp,
+        LAKE  : topo.cLake,
+        BACKWATERS  : topo.cBackwaters,
+        SUNNY_DOWN  : topo.cSunnyDown,
+        DARK_DOWN  : topo.cDarkDown,
+        SUNNY_ABYSS  : topo.cSunnyAbyss,
+        DARK_ABYSS : topo.cDarkAbyss,
+        TRENCH : topo.cTrench,
         }
 
 
@@ -120,7 +144,6 @@ def hexGrid(boundaries, n0, verb = False):
     warn.warn("proper estimation of MAX_FINAL_DISTANCE is still necessary")
 
     return grid, scaling_factor, offset, x_step
-
 
 
 def dummy_constraint(p):
@@ -524,11 +547,11 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
     # calculate shelter
     print('###### calculating shelter')
-    states[(states == 0) & is_sunny(coordinates)] = 1 # initial state for shelter calculation
+    states[(states == UNSET) & is_sunny(coordinates)] = SHELTER # initial state for shelter calculation
     # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
-    viability_kernel(coordinates, states, [1, -1], 0, 1, 1, default_evols_list, tree)
+    viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols_list, tree)
 
-    if not np.any(states == 1):
+    if not np.any(states == SHELTER):
         print('shelter empty')
         shelter_empty = True
 
@@ -536,59 +559,59 @@ def topology_classification(coordinates, states, default_evols, management_evols
         # calculate glade
         print('###### calculating glade')
 
-        states[(states == 0) & is_sunny(coordinates)] = 3
+        states[(states == UNSET) & is_sunny(coordinates)] = SUNNY_UP
 
-        #states[~is_sunny(coordinates)] = 0 #??????????????????????
+        #states[~is_sunny(coordinates)] = UNSET #??????????????????????
         #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
-        viability_capture_basin(coordinates, states, [1, -1], 2, 0, 3, all_evols, tree)
+        viability_capture_basin(coordinates, states, [SHELTER, -SHELTER], GLADE, UNSET, SUNNY_UP, all_evols, tree)
 
         # calculate remaining upstream dark and sunny
         print('###### calculating rest of upstream (lake, dark and sunny)')
-        states[(states == 0)] = 4
-        viability_capture_basin(coordinates, states, [1, 2, -3, -4, -5], 3, 0, 4, all_evols, tree)
+        states[(states == UNSET)] = DARK_UP
+        viability_capture_basin(coordinates, states, [SHELTER, GLADE, -SUNNY_UP, -DARK_UP, -LAKE], SUNNY_UP, UNSET, DARK_UP, all_evols, tree)
 
-        states[~is_sunny(coordinates) & (states == 3)] = 4
+        states[~is_sunny(coordinates) & (states == SUNNY_UP)] = DARK_UP
 
         # calculate Lake
         print('###### calculating lake')
-        states[is_sunny(coordinates) & (states == 3)] = 5
-        viability_kernel(coordinates, states, [1, 2, 5, -5], 3, 5, 5, all_evols, tree)
+        states[is_sunny(coordinates) & (states == SUNNY_UP)] = LAKE
+        viability_kernel(coordinates, states, [SHELTER, GLADE, LAKE, -LAKE], SUNNY_UP, LAKE, LAKE, all_evols, tree)
 
     # calculate Bachwater
     print('###### calculating backwater')
-    states[is_sunny(coordinates) & (states == 0)] = 6
-    viability_kernel(coordinates, states, [6, -6], 0, 6, 6, all_evols, tree)
+    states[is_sunny(coordinates) & (states == UNSET)] = BACKWATERS
+    viability_kernel(coordinates, states, [BACKWATERS, -BACKWATERS], UNSET, BACKWATERS, BACKWATERS, all_evols, tree)
 
-    if not np.any(states == 6):
+    if not np.any(states == BACKWATERS):
         print('backwater empty')
         backwater_empty = True
 
     if not backwater_empty:
         # calculate remaining downstream dark and sunny
         print('###### calculating remaining downstream (dark and sunny)')
-        states[(states == 0)] = 8
-        viability_capture_basin(coordinates, states, [6, -7, -8], 7, 0, 8, all_evols, tree)
-        states[~is_sunny(coordinates) & (states == 7)] = 8
+        states[(states == UNSET)] = DARK_DOWN
+        viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, tree)
+        states[~is_sunny(coordinates) & (states == SUNNY_DOWN)] = DARK_DOWN
 
     # set sunny Eddies/Abyss
     print('###### set sunny Eddies/Abyss')
-    states[is_sunny(coordinates) & (states == 0)] = 9
+    states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_ABYSS
 
     # calculate dark Eddies/Abyss
     print('###### calculating dark Eddies/Abyss')
-    # look only at the coordinates with state == 0
-    states[(states == 0)] = 12
+    # look only at the coordinates with state == UNSET
+    states[(states == UNSET)] = OTHER_STATE
     viability_capture_basin(coordinates, states,
-                            [1, 2, 3, 4, 5, 6, 7, 9, -1, -2, -3, -4 , -5, -6, -7, -9], 10, 0, 12, all_evols, tree)
+                            [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_ABYSS], DARK_ABYSS, UNSET, OTHER_STATE, all_evols, tree)
 
     # calculate trench
     print('###### set trench')
-    states[(states == 0)] = 11
-    # Konsistenzcheck? [1, 2, 3, 4, 5, 6, 7, 9] sollten alle nicht erreicht werden:
-    # viability_capture_basin(coordinates, states, [1, 2, 3, 4, 5, 6, 7, 9], 0, 11, 11, all_evols, tree)
+    states[(states == UNSET)] = TRENCH
+    # Konsistenzcheck? [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS] sollten alle nicht erreicht werden:
+    # viability_capture_basin(coordinates, states, [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS], UNSET, TRENCH, TRENCH, all_evols, tree)
 
     # All initially given states are set to positive counterparts
-    states[(states < 0)] *= -1
+    states[(states < UNSET)] *= -1
 
     return states
 
