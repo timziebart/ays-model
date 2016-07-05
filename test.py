@@ -318,7 +318,7 @@ if __name__ == "__main__":
         prm.yMinimal = 3000
 
         # generating grid and step size values
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
+        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 180)
         viab.x_step = x_step
         viab.STEPSIZE = 1.5 * x_step
 

@@ -48,7 +48,6 @@ OTHER_STATE = 14  # used for computation reasons only
 # ---- Colors ----
 # identify the states with the corresponding colors in order to be consistent
 # with the color definitions from the original paper
-print(dir(topo))
 COLORS = {
         UNSET: "red",
         -SHELTER: "blue",
@@ -613,6 +612,23 @@ def topology_classification(coordinates, states, default_evols, management_evols
                             [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS], DARK_EDDIES, TRENCH, UNSET, all_evols, tree)
 
     # the preliminary estimations for sunny and dark eddie are set
+    viability_capture_basin(coordinates, states,
+                            [SUNNY_EDDIES, -SUNNY_EDDIES], DARK_EDDIES, DARK_ABYSS, DARK_EDDIES, all_evols, tree)
+    for _ in range(MAX_ITERATION_EDDIES):
+        states[(states == DARK_EDDIES)] = OTHER_STATE
+        changed = viability_capture_basin(coordinates, states,
+                                [SUNNY_EDDIES, -SUNNY_EDDIES], DARK_EDDIES, DARK_ABYSS, OTHER_STATE, all_evols, tree)
+        if not changed:
+            break
+        states[(states == SUNNY_EDDIES)] = OTHER_STATE
+        changed = viability_capture_basin(coordinates, states,
+                                [DARK_EDDIES, -DARK_EDDIES], SUNNY_EDDIES, SUNNY_ABYSS, OTHER_STATE, all_evols, tree)
+        if not changed:
+            break
+    else:
+        warn.warn("reached MAX_ITERATION_EDDIES during the Eddies calculation")
+
+
 
     # calculate trench
     # print('###### set trench')
