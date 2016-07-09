@@ -15,7 +15,7 @@ def plotPhaseSpace( evol, boundaries, steps = 2000, xlabel = "", ylabel = "", co
 	"""\
 plotPhaseSpace( evol, (Xmin, Ymin, Xmax, Ymax), steps = 2000, xlabel = "", ylabel = "", colorbar = True, style = {}, alpha = None , zeroByCond = None, transPlot = "x"):
 
-plot the phase space of the function evol, 
+plot the phase space of the function evol,
 
 Input:
 	evol = evolution function, i.e. deriv from Vera
@@ -44,16 +44,16 @@ Input:
 
 	# if Condition give, set everything to zero that fulfills it
 	if maskByCond:
-		mask = maskByCond(XY[0], XY[1]) 
+		mask = maskByCond(XY[0], XY[1])
 		XY[0] = np.ma.array(XY[0], mask = mask)
 		XY[1] = np.ma.array(XY[1], mask = mask)
 
 ## 		dummy0 = np.zeros((steps,steps))
 ## 		XY[0] = np.where(mask, XY[0], dummy0)
 ## 		XY[1] = np.where(mask, XY[1], dummy0)
-	
+
 	# calculate the changes ... input is numpy array
-	dX, dY =evol(XY,0) # that is where deriv from Vera is mapped to
+	dX, dY = evol(XY,0) # that is where deriv from Vera is mapped to
 
 	if invertAxes:
 		data = [Y, X, np.transpose(dY), np.transpose(dX)]
@@ -66,7 +66,7 @@ Input:
 	if type(style) == dict and "linestyle" in style.keys():
 		linestyle = style["linestyle"]
 		style.pop("linestyle")
-	
+
 	# do the actual plot
 	if style == "dx":
 		c = ax.streamplot(*data, color=dX, linewidth=5*dX/dX.max(), cmap=plt.cm.autumn)

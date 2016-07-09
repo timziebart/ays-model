@@ -318,7 +318,7 @@ if __name__ == "__main__":
         prm.yMinimal = 3000
 
         # generating grid and step size values
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 180)
+        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
         viab.x_step = x_step
         viab.STEPSIZE = 1.5 * x_step
 
@@ -326,8 +326,8 @@ if __name__ == "__main__":
         moddefPuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000, comment="default")
         mod1PuR = prm.PopAndRes(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000, comment="management 1")
 
-        defaultPuR_run = viab.make_run_function(moddefPuR._rhs_fast, moddefPuR._odeint_params, offset, scalingfactor)
-        management1PuR_run = viab.make_run_function(mod1PuR._rhs_fast, mod1PuR._odeint_params, offset, scalingfactor)
+        defaultPuR_run = viab.make_run_function(moddefPuR._rhs_fast, moddefPuR._odeint_params, offset, scalingfactor, remember = True)
+        management1PuR_run = viab.make_run_function(mod1PuR._rhs_fast, mod1PuR._odeint_params, offset, scalingfactor, remember = True)
 
         default_evols_list = [defaultPuR_run]
 
@@ -526,6 +526,132 @@ if __name__ == "__main__":
         # plt.axes().set_aspect("equal")
         # plt.xlim([xmin, xmax])
         # plt.ylim([ymin, ymax])
+
+    if "eddies" in args:
+        # test ediies calculation
+        xmin, xmax = -1, 1
+        ymin, ymax = -1, 1
+        boundaries = [[xmin, xmax], [ymin, ymax]]
+        PSboundaries = [xmin, ymin, xmax, ymax]
+
+        def rhs(xy, t):
+            x, y = xy
+            return [-y, x]
+        def rhsPS(xy, t):
+            print(xy.shape)
+            ret = np.zeros_like(xy)
+            ret[0] = - xy[1]
+            ret[1] =   xy[0]
+            return ret
+        def sunny(xy):
+            return xy[:,0] > 0
+
+
+        # generating grid and step size values
+        # xy, scalingfactor,  offset, x_step = viab.hexGrid(boundaries, 40, verb = True)
+        # viab.STEPSIZE = 1 * x_step
+        xy, scalingfactor,  offset, x_step = viab.normalized_grid(PSboundaries, 40)
+        viab.STEPSIZE = 1.5 * x_step
+
+        # states before calculation and scaled sunny function
+        state = np.zeros(xy.shape[:-1])
+        sunny = viab.scaled_to_one_sunny(sunny, offset, scalingfactor)
+
+        # create correctly scaled evolution functions
+        default_run = viab.make_run_function(rhs, (), offset, scalingfactor, remember = True)
+        default_PS = viab.make_run_function(rhsPS, (), offset, scalingfactor, returning = "PS")
+
+        # create the figure already so it can be used for the verbosity plots
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
+        # viability calculation
+        start_time = time.time()
+
+        viab.topology_classification(xy, state, default_run, [], sunny,
+                                     compute_eddies = True)
+
+        time_diff = time.time() - start_time
+        print(time_diff)
+
+        # backscaling
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
+        # plotting
+        viab.plot_points(xy, state)
+        mPS.plotPhaseSpace(rhsPS, PSboundaries, style = topo.styleDefault, colorbar = False)
+        # mPS.plotPhaseSpace(default_PS, [0, 0, 1, 1], style = topo.styleDefault, colorbar = False)
+        plt.axes().set_aspect("equal")
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
+
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+        viab.plot_areas(xy, state)
+        plt.axes().set_aspect("equal")
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
+
+    if "eddies-hex" in args:
+        # test ediies calculation
+        xmin, xmax = -1, 1
+        ymin, ymax = -1, 1
+        boundaries = [[xmin, xmax], [ymin, ymax]]
+        PSboundaries = [xmin, ymin, xmax, ymax]
+
+        def rhs(xy, t):
+            x, y = xy
+            return [-y, x]
+        def rhsPS(xy, t):
+            print(xy.shape)
+            ret = np.zeros_like(xy)
+            ret[0] = - xy[1]
+            ret[1] =   xy[0]
+            return ret
+        def sunny(xy):
+            return xy[:,0] > 0
+
+
+        # generating grid and step size values
+        xy, scalingfactor,  offset, x_step = viab.hexGrid(boundaries, 40, verb = True)
+        viab.STEPSIZE = 1 * x_step
+        # xy, scalingfactor,  offset, x_step = viab.normalized_grid(PSboundaries, 40)
+        # viab.STEPSIZE = 1.5 * x_step
+
+        # states before calculation and scaled sunny function
+        state = np.zeros(xy.shape[:-1])
+        sunny = viab.scaled_to_one_sunny(sunny, offset, scalingfactor)
+
+        # create correctly scaled evolution functions
+        default_run = viab.make_run_function(rhs, (), offset, scalingfactor, remember = True)
+        default_PS = viab.make_run_function(rhsPS, (), offset, scalingfactor, returning = "PS")
+
+        # create the figure already so it can be used for the verbosity plots
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
+        # viability calculation
+        start_time = time.time()
+
+        viab.topology_classification(xy, state, default_run, [], sunny,
+                                     compute_eddies = True)
+
+        time_diff = time.time() - start_time
+        print(time_diff)
+
+        # backscaling
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+
+        # plotting
+        viab.plot_points(xy, state)
+        mPS.plotPhaseSpace(rhsPS, PSboundaries, style = topo.styleDefault, colorbar = False)
+        # mPS.plotPhaseSpace(default_PS, [0, 0, 1, 1], style = topo.styleDefault, colorbar = False)
+        plt.axes().set_aspect("equal")
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
+
+        fig = plt.figure(figsize=(15, 15), tight_layout=True)
+        viab.plot_areas(xy, state)
+        plt.axes().set_aspect("equal")
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
 
     plt.show()
 

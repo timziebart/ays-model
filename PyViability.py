@@ -49,9 +49,9 @@ OTHER_STATE = 14  # used for computation reasons only
 # identify the states with the corresponding colors in order to be consistent
 # with the color definitions from the original paper
 COLORS = {
-        UNSET: "red",
+        UNSET: "blue",
         -SHELTER: "blue",
-        -GLADE: "orange",
+        -GLADE: "blue",
         SHELTER: topo.cShelter,
         GLADE: topo.cGlade,
         LAKE: topo.cLake,
@@ -163,7 +163,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    # VERBOSE = la.norm(start - np.array([0.125, 0.649])) < 0.02
+    # VERBOSE = la.norm(start - np.array([0,1])) < 0.02
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -256,7 +256,8 @@ def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
     index = np.asarray(index).astype(int)
 
     tree_neighbors = tree.query_ball_point(tree.data[index].flatten(), MAX_NEIGHBOR_DISTANCE)
-    tree_neighbors = [(x,) for x in tree_neighbors]
+    tree_neighbors = [(x,) for x in tree_neighbors if not x in neighbor_list]
+    # tree_neighbors = [(x,) for x in tree_neighbors]
 
     neighbor_list.extend(tree_neighbors)
 
@@ -303,11 +304,18 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
 def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
     """reuse the viability kernel algorithm to calculate the capture basin"""
 
-    return_value =  viability_kernel(coordinates, states, target_states + [reached_state], work_state, reached_state,
+    if work_state in states and any( ( target_state in states for target_state in target_states) ):
+        # num_work = np.count_nonzero(work_state == states)
+        viability_kernel(coordinates, states, target_states + [reached_state], work_state, reached_state,
                                      work_state, evolutions, tree)
+        # changed = (num_work == np.count_nonzero(reached_state == states))
+    else:
+        print("empty work or target set")
+        # changed = False
     # all the points that still have the state work_state are not part of the capture basin and are set to be bad_states
+    changed = (work_state in states)
     states[ states == work_state ] = bad_state
-    return return_value
+    return changed
 
 # below are just helper functions
 
@@ -341,7 +349,8 @@ def make_run_function(rhs,
                       ordered_params,
                       offset,
                       scaling_factor,
-                      returning = "run-function"
+                      returning = "run-function",
+                      remember = False # not properly implemented, just for short testing
                       ):
 
     #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
@@ -370,13 +379,31 @@ def make_run_function(rhs,
         return val / np.sqrt(np.sum(val ** 2, axis=-1))  # normalize it
 
 
-    @nb.jit
-    def model_run(p, stepsize):
-        traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
-        if VERBOSE:
-            plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+    if remember:
+        # this part is just for testing ... put new stuff in the 'else' part
+        global REMEMBERED
+        REMEMBERED = {}
+        # raise NotImplementedError("bla")
+        # @nb.jit
+        def model_run(p, stepsize):
+            p_tuple = tuple(p)
+            if p_tuple in REMEMBERED:
+                # print("reusing")
+                return REMEMBERED[p_tuple]
+            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
+            if VERBOSE:
+                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
 
-        return traj[-1]
+            REMEMBERED[p_tuple] = traj[-1]
+            return traj[-1]
+    else:
+        @nb.jit
+        def model_run(p, stepsize):
+            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
+            if VERBOSE:
+                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+
+            return traj[-1]
 
     if returning == "run-function":
         return model_run
@@ -518,7 +545,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
     # upgreading initial states to higher
     if upgradeable_initial_states:
-        raise NotImplementedError
+        raise NotImplementedError("upgrading of initally given states not yet implemented")
 
     # check, if there are periodic boundaries and if so, use different tree form
     if periodic_boundaries == []:
@@ -565,7 +592,6 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
         states[(states == UNSET) & is_sunny(coordinates)] = SUNNY_UP
 
-        #states[~is_sunny(coordinates)] = UNSET #??????????????????????
         #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
         viability_capture_basin(coordinates, states, [SHELTER, -SHELTER], GLADE, UNSET, SUNNY_UP, all_evols, tree)
 
@@ -597,44 +623,46 @@ def topology_classification(coordinates, states, default_evols, management_evols
         viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, tree)
         states[~is_sunny(coordinates) & (states == SUNNY_DOWN)] = DARK_DOWN
 
-    # if compute_eddies:
-    # set preliminary sunny eddies so the trench calculation can be run
-    states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_EDDIES
-    # else:
-        # # set sunny Eddies/Abyss
-        # print('###### set sunny Eddies/Abyss')
-        # states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_ABYSS
+
+
 
     # calculate trench and set the rest as preliminary estimation for the eddies
     print('###### calculating dark Eddies/Abyss')
+    states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_EDDIES
+
     # look only at the coordinates with state == UNSET
     viability_capture_basin(coordinates, states,
-                            [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS], DARK_EDDIES, TRENCH, UNSET, all_evols, tree)
+                            [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS],
+                            DARK_EDDIES, TRENCH, UNSET, all_evols, tree)
+    if compute_eddies:
 
-    # the preliminary estimations for sunny and dark eddie are set
-    viability_capture_basin(coordinates, states,
-                            [SUNNY_EDDIES, -SUNNY_EDDIES], DARK_EDDIES, DARK_ABYSS, DARK_EDDIES, all_evols, tree)
-    for _ in range(MAX_ITERATION_EDDIES):
-        states[(states == DARK_EDDIES)] = OTHER_STATE
-        changed = viability_capture_basin(coordinates, states,
-                                [SUNNY_EDDIES, -SUNNY_EDDIES], DARK_EDDIES, DARK_ABYSS, OTHER_STATE, all_evols, tree)
-        if not changed:
-            break
-        states[(states == SUNNY_EDDIES)] = OTHER_STATE
-        changed = viability_capture_basin(coordinates, states,
-                                [DARK_EDDIES, -DARK_EDDIES], SUNNY_EDDIES, SUNNY_ABYSS, OTHER_STATE, all_evols, tree)
-        if not changed:
-            break
+        # the preliminary estimations for sunny and dark eddie are set
+        states[(states == SUNNY_EDDIES)] = UNSET
+        viability_capture_basin(coordinates, states,
+                                [DARK_EDDIES, -DARK_EDDIES],
+                                SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, tree)
+
+
+        for num in range(MAX_ITERATION_EDDIES):
+            states[(states == DARK_EDDIES)] = UNSET
+            changed = viability_capture_basin(coordinates, states,
+                                    [SUNNY_EDDIES, -SUNNY_EDDIES],
+                                            DARK_EDDIES, DARK_ABYSS, UNSET, all_evols, tree)
+            if not changed:
+                break
+            states[(states == SUNNY_EDDIES)] = UNSET
+            changed = viability_capture_basin(coordinates, states,
+                                    [DARK_EDDIES, -DARK_EDDIES],
+                                            SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, tree)
+            if not changed:
+                break
+        else:
+            warn.warn("reached MAX_ITERATION_EDDIES = %i during the Eddies calculation"%MAX_ITERATION_EDDIES)
     else:
-        warn.warn("reached MAX_ITERATION_EDDIES during the Eddies calculation")
+        # assume all eddies are abysses
+            states[(states == SUNNY_EDDIES)] = SUNNY_ABYSS
+            states[(states == UNSET)] = DARK_ABYSS
 
-
-
-    # calculate trench
-    # print('###### set trench')
-    # states[(states == UNSET)] = TRENCH
-    # Konsistenzcheck? [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS] sollten alle nicht erreicht werden:
-    # viability_capture_basin(coordinates, states, [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_ABYSS], UNSET, TRENCH, TRENCH, all_evols, tree)
 
     # All initially given states are set to positive counterparts
     states[(states < UNSET)] *= -1
