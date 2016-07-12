@@ -509,17 +509,17 @@ if __name__ == "__main__":
         print(time_diff)
 
         # backscaling
-        # xy = viab.backscaling_grid(xy, scalingfactor, offset)
+        xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         # plotting
         viab.plot_points(xy, state)
-        mPS.plotPhaseSpace(default_PS, [0, 0, 1, 1], style = topo.styleDefault, colorbar = False)
-        mPS.plotPhaseSpace(management1_PS, [0, 0, 1, 1], style = topo.styleMod1, colorbar = False)
-        # moddef.plotPhaseSpace(PSboundaries, topo.styleDefault)
-        # mod1.plotPhaseSpace(PSboundaries, topo.styleMod2)
+        # mPS.plotPhaseSpace(default_PS, [0, 0, 1, 1], style = topo.styleDefault, colorbar = False)
+        # mPS.plotPhaseSpace(management1_PS, [0, 0, 1, 1], style = topo.styleMod1, colorbar = False)
+        moddef.plotPhaseSpace(PSboundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(PSboundaries, topo.styleMod2)
         # plt.axes().set_aspect("equal")
-        # plt.xlim([xmin, xmax])
-        # plt.ylim([ymin, ymax])
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
 
         fig = plt.figure(figsize=(15, 15), tight_layout=True)
         viab.plot_areas(xy, state)

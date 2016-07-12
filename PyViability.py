@@ -23,10 +23,13 @@ import itertools as it
 MAX_EVOLUTION_NUM = 20
 MAX_ITERATION_EDDIES = 10
 VERBOSE = 0
+KDTREE = None
+STATES = None
 
 # ---- states ----
 # encode the different states as integers, so arrays of integers can be used
 # later in numpy arrays (which are very fast on integers)
+# None state should never be used as it is used to indicate out of bounds
 UNSET = 0
 SHELTER = 1
 GLADE = 2
@@ -143,7 +146,7 @@ def hexGrid(boundaries, n0, verb = False):
     # print(grid)
 
     MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
-    MAX_FINAL_DISTANCE = 0.7 * Delta_0
+    MAX_FINAL_DISTANCE = 0.5 * Delta_0
     warn.warn("proper estimation of MAX_FINAL_DISTANCE is still necessary")
 
     return grid, scaling_factor, offset, x_step
@@ -154,8 +157,8 @@ def dummy_constraint(p):
     return np.ones(p.shape[:-1]).astype(np.bool)
 
 
-def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state, evolutions,
-                           tree, constraint = dummy_constraint):
+def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state,
+                           evolutions, state_evaluation):
     """Calculate whether a coordinate with value 'stop_value' can be reached from 'coordinates[coordinate_index]'."""
 
     start = coordinates[coordinate_index]
@@ -194,16 +197,17 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
                 # so run the evolution function again
                 continue # not yet close enough to another point
 
-            final_distance, tree_index = tree.query(point, 1)
-            final_state = states[tree_index]
+            final_state = state_evaluation(point)
+            # final_distance, tree_index = tree.query(point, 1)
+            # final_state = states[tree_index]
 
-            if VERBOSE:
-                print(coordinates[tree_index], final_state, constraint(point), final_distance, x_step)
+            # if VERBOSE:
+                # print(coordinates[tree_index], final_state, constraint(point), final_distance, x_step)
                 # print('----', tree_index, coordinates[tree_index])
                 # print(final_state in stop_states, constraint(point),final_distance < MAX_FINAL_DISTANCE)
                 # print(final_distance, MAX_FINAL_DISTANCE)
 
-            if final_state in stop_states and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
+            if final_state in stop_states: # and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
                 if VERBOSE:
                     print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
@@ -224,8 +228,26 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
         print("all:", coordinate_index, start, start_state, "-->", else_state)
     return else_state
 
+def state_evaluation_kdtree(point):
+    final_distance, tree_index = KDTREE.query(point, 1)
+    if final_distance > MAX_FINAL_DISTANCE:
+        return None
+    return STATES[tree_index]
 
-def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree):
+def create_kdtree(coordinates, states, is_sunny, periodicity):
+    global KDTREE, STATES
+    STATES = states
+    # check, if there are periodic boundaries and if so, use different tree form
+    if periodicity == []:
+        KDTREE = spat.cKDTree(coordinates)
+    else:
+        assert np.shape(coordinates)[-1] == len(periodic_boundaries), "Given boundaries don't match with " \
+                                                                            "dimensions of coordinates. " \
+                                                                            "Write '-1' if boundary is not periodic!"
+        KDTREE = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
+
+def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state,
+                          evolutions, state_evaluation):
     """do a single step of the viability calculation algorithm by checking which points stay immediately within the good_states"""
 
     changed = False
@@ -239,25 +261,25 @@ def viability_kernel_step(coordinates, states, good_states, bad_state, succesful
             old_state = states[index]
 
             if old_state == work_state:
-                new_state = viability_single_point(index, coordinates, states, good_states, succesful_state, bad_state, evolutions, tree)
+                new_state = viability_single_point(index, coordinates, states, good_states, succesful_state, bad_state,
+                                                   evolutions, state_evaluation)
 
                 if new_state != old_state:
                     changed = True
                     states[index] = new_state
                     # get_neighbor_indices(index, shape, neighbor_list = neighbors)
-                    get_neighbor_indices_via_cKD(index, tree,  neighbor_list=neighbors)
+                    get_neighbor_indices_via_cKD(index,  neighbor_list=neighbors)
 
     return changed
 
 
-def get_neighbor_indices_via_cKD(index, tree, neighbor_list=[]):
+def get_neighbor_indices_via_cKD(index, neighbor_list=[]):
     """extend 'neighbor_list' by 'tree_neighbors', a list that contains the nearest neighbors found trough cKDTree"""
 
     index = np.asarray(index).astype(int)
 
-    tree_neighbors = tree.query_ball_point(tree.data[index].flatten(), MAX_NEIGHBOR_DISTANCE)
+    tree_neighbors = KDTREE.query_ball_point(KDTREE.data[index].flatten(), MAX_NEIGHBOR_DISTANCE)
     tree_neighbors = [(x,) for x in tree_neighbors if not x in neighbor_list]
-    # tree_neighbors = [(x,) for x in tree_neighbors]
 
     neighbor_list.extend(tree_neighbors)
 
@@ -280,7 +302,11 @@ def get_neighbor_indices(index, shape, neighbor_list = []):
     return neighbor_list
 
 
-def viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree):
+def viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions,
+                     periodic_boundaries = [],
+                     pre_calculation_hook = create_kdtree,  # None means nothing to be done
+                     state_evaluation = state_evaluation_kdtree,
+                     ):
     """calculate the viability kernel by iterating through the viability kernel steps
     until convergence (no further change)"""
     # assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
@@ -296,18 +322,25 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
         # user
         STEPSIZE = 2 * x_step
 
+    if not pre_calculation_hook is None:
+        # run the pre-calculation hook (defaults to creation of the KD-Tree)
+        pre_calculation_hook(coordinates, states, None, periodic_boundaries)
+
     # actually only on step is needed due to the recursive checks (i.e. first
     # checking all neighbors of a point that changed state)
-    return viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
+    return viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, state_evaluation)
 
 
-def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
+def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions,
+                    pre_calculation_hook = create_kdtree,  # None means nothing to be done
+                    state_evaluation = state_evaluation_kdtree,
+                    ):
     """reuse the viability kernel algorithm to calculate the capture basin"""
 
     if work_state in states and any( ( target_state in states for target_state in target_states) ):
         # num_work = np.count_nonzero(work_state == states)
         viability_kernel(coordinates, states, target_states + [reached_state], work_state, reached_state,
-                                     work_state, evolutions, tree)
+                                     work_state, evolutions, pre_calculation_hook = pre_calculation_hook ,state_evaluation = state_evaluation)
         # changed = (num_work == np.count_nonzero(reached_state == states))
     else:
         print("empty work or target set")
@@ -538,8 +571,11 @@ def backscaling_grid(grid, scalingfactor, offset):
 
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
-                            periodic_boundaries = [], upgradeable_initial_states = False,
-                            compute_eddies = True
+                            periodic_boundaries = [],
+                            upgradeable_initial_states = False,
+                            compute_eddies = True,
+                            pre_calculation_hook = create_kdtree,  # None means nothing to be done
+                            state_evaluation = state_evaluation_kdtree,
                             ):
     """calculates different regions of the state space using viability theory algorithms"""
 
@@ -547,14 +583,9 @@ def topology_classification(coordinates, states, default_evols, management_evols
     if upgradeable_initial_states:
         raise NotImplementedError("upgrading of initally given states not yet implemented")
 
-    # check, if there are periodic boundaries and if so, use different tree form
-    if periodic_boundaries == []:
-        tree = spat.cKDTree(coordinates)
-    else:
-        assert np.shape(coordinates)[-1] == len(periodic_boundaries), "Given boundaries don't match with " \
-                                                                            "dimensions of coordinates. " \
-                                                                            "Write '-1' if boundary is not periodic!"
-        tree = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
+    if not pre_calculation_hook is None:
+        # run the pre-calculation hook (defaults to creation of the KD-Tree)
+        pre_calculation_hook(coordinates, states, is_sunny, periodic_boundaries)
 
     # checking data-type of input evolution functions
     if isinstance(default_evols, list):
@@ -573,14 +604,20 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
     all_evols = management_evols_list + default_evols_list
 
+    # better remove this and use directly the lower level stuff, see issue #13
+    viability_kwargs = dict(
+        pre_calculation_hook = None,
+        state_evaluation = state_evaluation,
+    )
+
     shelter_empty = False
     backwater_empty = False
 
     # calculate shelter
     print('###### calculating shelter')
     states[(states == UNSET) & is_sunny(coordinates)] = SHELTER # initial state for shelter calculation
-    # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, tree)
-    viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols_list, tree)
+    # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, **viability_kwargs)
+    viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols_list, **viability_kwargs)
 
     if not np.any(states == SHELTER):
         print('shelter empty')
@@ -592,25 +629,25 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
         states[(states == UNSET) & is_sunny(coordinates)] = SUNNY_UP
 
-        #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, tree):
-        viability_capture_basin(coordinates, states, [SHELTER, -SHELTER], GLADE, UNSET, SUNNY_UP, all_evols, tree)
+        #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, **viability_kwargs):
+        viability_capture_basin(coordinates, states, [SHELTER, -SHELTER], GLADE, UNSET, SUNNY_UP, all_evols, **viability_kwargs)
 
         # calculate remaining upstream dark and sunny
         print('###### calculating rest of upstream (lake, dark and sunny)')
         states[(states == UNSET)] = DARK_UP
-        viability_capture_basin(coordinates, states, [SHELTER, GLADE, -SUNNY_UP, -DARK_UP, -LAKE], SUNNY_UP, UNSET, DARK_UP, all_evols, tree)
+        viability_capture_basin(coordinates, states, [SHELTER, GLADE, -SUNNY_UP, -DARK_UP, -LAKE], SUNNY_UP, UNSET, DARK_UP, all_evols, **viability_kwargs)
 
         states[~is_sunny(coordinates) & (states == SUNNY_UP)] = DARK_UP
 
         # calculate Lake
         print('###### calculating lake')
         states[is_sunny(coordinates) & (states == SUNNY_UP)] = LAKE
-        viability_kernel(coordinates, states, [SHELTER, GLADE, LAKE, -LAKE], SUNNY_UP, LAKE, LAKE, all_evols, tree)
+        viability_kernel(coordinates, states, [SHELTER, GLADE, LAKE, -LAKE], SUNNY_UP, LAKE, LAKE, all_evols, **viability_kwargs)
 
     # calculate Bachwater
     print('###### calculating backwater')
     states[is_sunny(coordinates) & (states == UNSET)] = BACKWATERS
-    viability_kernel(coordinates, states, [BACKWATERS, -BACKWATERS], UNSET, BACKWATERS, BACKWATERS, all_evols, tree)
+    viability_kernel(coordinates, states, [BACKWATERS, -BACKWATERS], UNSET, BACKWATERS, BACKWATERS, all_evols, **viability_kwargs)
 
     if not np.any(states == BACKWATERS):
         print('backwater empty')
@@ -620,7 +657,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
         # calculate remaining downstream dark and sunny
         print('###### calculating remaining downstream (dark and sunny)')
         states[(states == UNSET)] = DARK_DOWN
-        viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, tree)
+        viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, **viability_kwargs)
         states[~is_sunny(coordinates) & (states == SUNNY_DOWN)] = DARK_DOWN
 
 
@@ -633,27 +670,27 @@ def topology_classification(coordinates, states, default_evols, management_evols
     # look only at the coordinates with state == UNSET
     viability_capture_basin(coordinates, states,
                             [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS],
-                            DARK_EDDIES, TRENCH, UNSET, all_evols, tree)
+                            DARK_EDDIES, TRENCH, UNSET, all_evols, **viability_kwargs)
     if compute_eddies:
 
         # the preliminary estimations for sunny and dark eddie are set
         states[(states == SUNNY_EDDIES)] = UNSET
         viability_capture_basin(coordinates, states,
                                 [DARK_EDDIES, -DARK_EDDIES],
-                                SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, tree)
+                                SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, **viability_kwargs)
 
 
         for num in range(MAX_ITERATION_EDDIES):
             states[(states == DARK_EDDIES)] = UNSET
             changed = viability_capture_basin(coordinates, states,
                                     [SUNNY_EDDIES, -SUNNY_EDDIES],
-                                            DARK_EDDIES, DARK_ABYSS, UNSET, all_evols, tree)
+                                            DARK_EDDIES, DARK_ABYSS, UNSET, all_evols, **viability_kwargs)
             if not changed:
                 break
             states[(states == SUNNY_EDDIES)] = UNSET
             changed = viability_capture_basin(coordinates, states,
                                     [DARK_EDDIES, -DARK_EDDIES],
-                                            SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, tree)
+                                    SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, **viability_kwargs)
             if not changed:
                 break
         else:
