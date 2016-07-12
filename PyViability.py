@@ -20,6 +20,9 @@ import warnings as warn
 
 import itertools as it
 
+
+warn.filterwarnings("error", category=integ.odepack.ODEintWarning)
+
 MAX_EVOLUTION_NUM = 20
 MAX_ITERATION_EDDIES = 10
 VERBOSE = 0
@@ -407,36 +410,53 @@ def make_run_function(rhs,
 
 
     @nb.jit
-    def normalized_rhs(x0, t, *args):
+    def trajectory_length_normalized_rhs(x0, t, *args):
         val = rhs_scaled_to_one(x0, t, *args)  # calculate the rhs
         return val / np.sqrt(np.sum(val ** 2, axis=-1))  # normalize it
 
+    @nb.jit
+    def distance_normalized_rhs(x, lam, x0, *args):
+        val = rhs_scaled_to_one(x, lam, *args)  # calculate the rhs
+        if lam == 0:
+            return val / np.sqrt(np.sum( val ** 2, axis=-1) )
+        return val * lam / np.sum( (x-x0) * val, axis=-1)  
 
-    if remember:
-        # this part is just for testing ... put new stuff in the 'else' part
-        global REMEMBERED
-        REMEMBERED = {}
-        # raise NotImplementedError("bla")
-        # @nb.jit
-        def model_run(p, stepsize):
-            p_tuple = tuple(p)
-            if p_tuple in REMEMBERED:
-                # print("reusing")
-                return REMEMBERED[p_tuple]
-            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
-            if VERBOSE:
-                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+    def model_run(p, stepsize):
+        try:
+            traj = integ.odeint(distance_normalized_rhs, p, [0, stepsize], args = (p,) + ordered_params)
+        except integ.odepack.ODEintWarning:
+            warn.warn("got an integration warning; assume %s to be a stable fixed point"%repr(p))
+            return p
+        if VERBOSE:
+            plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
 
-            REMEMBERED[p_tuple] = traj[-1]
-            return traj[-1]
-    else:
-        @nb.jit
-        def model_run(p, stepsize):
-            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
-            if VERBOSE:
-                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+        return traj[-1]
 
-            return traj[-1]
+#    if remember:
+#        # this part is just for testing ... put new stuff in the 'else' part
+#        global REMEMBERED
+#        REMEMBERED = {}
+#        # raise NotImplementedError("bla")
+#        # @nb.jit
+#        def model_run(p, stepsize):
+#            p_tuple = tuple(p)
+#            if p_tuple in REMEMBERED:
+#                # print("reusing")
+#                return REMEMBERED[p_tuple]
+#            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
+#            if VERBOSE:
+#                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+#
+#            REMEMBERED[p_tuple] = traj[-1]
+#            return traj[-1]
+#    else:
+#        @nb.jit
+#        def model_run(p, stepsize):
+#            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
+#            if VERBOSE:
+#                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+#
+#            return traj[-1]
 
     if returning == "run-function":
         return model_run
