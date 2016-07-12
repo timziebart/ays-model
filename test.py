@@ -480,10 +480,7 @@ if __name__ == "__main__":
         gpm.l = 0.5
 
         # generating grid and step size values
-        xy, scalingfactor,  offset, x_step = viab.hexGrid(boundaries, 40, verb = True)
-        # viab.x_step = x_step
-        viab.STEPSIZE = 1 * x_step
-        # viab.MAX_FINAL_DISTANCE = 0.7 * x_step
+        xy, scalingfactor,  offset, x_step = viab.hexGrid(boundaries, 80, verb = True)
 
         # states before calculation and scaled sunny function
         state = np.zeros(xy.shape[:-1])

@@ -20,14 +20,28 @@ import warnings as warn
 
 import itertools as it
 
-
+# raise the odeing warning as an error because it indicates that we are at a
+# fixed point (or the grid is not fine enough)
 warn.filterwarnings("error", category=integ.odepack.ODEintWarning)
 
+# these are automatically set during grid generation but need to be manually set
+# when using own grid
+BOUNDS_EPSILON = None # should be set during grid Generation
+STEPSIZE = None
+
+# some constants so the calculation does end
 MAX_EVOLUTION_NUM = 20
 MAX_ITERATION_EDDIES = 10
 VERBOSE = 0
+
+
+# The ones below are just used byt the default pre-calculation hook and the
+# default state evaluation. They are just here so they are not used for
+# something else.
 KDTREE = None
 STATES = None
+BOUNDS = None
+COORDINATES = None
 
 # ---- states ----
 # encode the different states as integers, so arrays of integers can be used
@@ -99,7 +113,7 @@ def hexGrid(boundaries, n0, verb = False):
     """
     boundaries = array with shape (d, 2), first index for dimension, second index for minimal and maximal values
     """
-    global MAX_NEIGHBOR_DISTANCE, x_step, MAX_FINAL_DISTANCE
+    global MAX_NEIGHBOR_DISTANCE, x_step, MAX_FINAL_DISTANCE, BOUNDS_EPSILON, STEPSIZE
     boundaries = np.asarray(boundaries)
     dim = boundaries.shape[0]
     offset = boundaries[:,0]
@@ -149,7 +163,9 @@ def hexGrid(boundaries, n0, verb = False):
     # print(grid)
 
     MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
-    MAX_FINAL_DISTANCE = 0.7 * Delta_0
+    # MAX_FINAL_DISTANCE = 0.7 * Delta_0
+    BOUNDS_EPSILON = 0.1 * Delta_0
+    STEPSIZE = 1.5 * Delta_0
     warn.warn("proper estimation of MAX_FINAL_DISTANCE is still necessary")
 
     return grid, scaling_factor, offset, x_step
@@ -233,23 +249,36 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
 
 def state_evaluation_kdtree(point):
+    if np.any( BOUNDS[:,0] > point ) or np.any( BOUNDS[:,1] < point ) :  # is the point out-of-bounds?
+        return None  # "out-of-bounds state"
     final_distance, tree_index = KDTREE.query(point, 1)
-    if final_distance > MAX_FINAL_DISTANCE:
-        return None
+    # if final_distance > MAX_FINAL_DISTANCE:  # <-- deprecated
+        # return None
     return STATES[tree_index]
 
 
 def create_kdtree(coordinates, states, is_sunny, periodicity):
-    global KDTREE, STATES
+    global KDTREE, STATES, BOUNDS
     STATES = states
+    periodicity = np.asarray(periodicity)
     # check, if there are periodic boundaries and if so, use different tree form
-    if periodicity == []:
+    if not periodicity.size:
         KDTREE = spat.cKDTree(coordinates)
+
     else:
         assert np.shape(coordinates)[-1] == len(periodicity), "Given boundaries don't match with " \
                                                                             "dimensions of coordinates. " \
                                                                             "Write '-1' if boundary is not periodic!"
         KDTREE = periodkdt.PeriodicCKDTree(periodicity, coordinates)
+    dim = coordinates.shape[-1]
+    BOUNDS = np.zeros((dim, 2))
+    for d in range(dim):
+        if periodicity.size and periodicity[d] > 0:
+            BOUNDS[d,:] = -np.inf, np.inf
+            # this basically means, because of periodicity, the trajectories
+            # cannot run out-of-bounds
+        else:
+            BOUNDS[d,:] = np.min(coordinates[:,d]) - BOUNDS_EPSILON, np.max(coordinates[:,d]) + BOUNDS_EPSILON
 
 
 def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state,
@@ -318,7 +347,8 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
     # assert coordinates.shape[:-1] == states.shape[:-1], "'coordinates' and 'states' don't match in shape"
 
     assert "x_step" in globals() # needs to be set by the user for now ... will be changed later
-    assert "MAX_FINAL_DISTANCE" in globals() # needs to be set by the user for now ... will be changed later
+    assert "BOUNDS_EPSILON" in globals() # needs to be set by the user for now ... will be changed later
+    # assert "MAX_FINAL_DISTANCE" in globals() # needs to be set by the user for now ... will be changed later
     assert "MAX_NEIGHBOR_DISTANCE" in globals() # needs to be set by the user for now ... will be changed later
     global x_half_step
     x_half_step = x_step/2
@@ -426,7 +456,10 @@ def make_run_function(rhs,
 
     def model_run(p, stepsize):
         try:
-            traj = integ.odeint(distance_normalized_rhs, p, [0, stepsize], args = (p,) + ordered_params)
+            traj = integ.odeint(distance_normalized_rhs, p, [0, stepsize],
+                                args = (p,) + ordered_params,
+                                printmessg = False
+                                )
         except integ.odepack.ODEintWarning:
             warn.warn("got an integration warning; assume %s to be a stable fixed point"%repr(p))
             return p
@@ -555,7 +588,7 @@ def trajectory_length_index(traj, target_length):
 
 def normalized_grid(boundaries, x_num):
     """generates a normalized grid  in any dimension and gets the scaling factors and linear shift of each axis"""
-    global MAX_NEIGHBOR_DISTANCE, x_step, MAX_FINAL_DISTANCE
+    global MAX_NEIGHBOR_DISTANCE, x_step, BOUNDS_EPSILON, STEPSIZE
 
     dim = int(len(boundaries)/2)
 
@@ -584,7 +617,9 @@ def normalized_grid(boundaries, x_num):
     x_step = 1/(x_num-1)
 
     MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
-    MAX_FINAL_DISTANCE = np.sqrt(dim) * x_step / 2
+    # MAX_FINAL_DISTANCE = np.sqrt(dim) * x_step / 2
+    BOUNDS_EPSILON = 0.1 * x_step
+    STEPSIZE = 1.5 * x_step
 
     return grid, scaling_factor, offset, x_step
 
