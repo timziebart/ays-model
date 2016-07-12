@@ -97,7 +97,7 @@ def hexGridSeriesGen(dim):
 
 def hexGrid(boundaries, n0, verb = False):
     """
-    boundaries = list with shape (d, 2), first index for dimension, second index for minimal and maximal values
+    boundaries = array with shape (d, 2), first index for dimension, second index for minimal and maximal values
     """
     global MAX_NEIGHBOR_DISTANCE, x_step, MAX_FINAL_DISTANCE
     boundaries = np.asarray(boundaries)
@@ -139,8 +139,8 @@ def hexGrid(boundaries, n0, verb = False):
         slicelist = [all_slice] * dim
         slicelist[d] = jump_slice
         slicelist += (slice(0,d), )
-        print(slicelist)
-        print(grid.shape, grid[tuple(slicelist)].shape)
+        # print(slicelist)
+        # print(grid.shape, grid[tuple(slicelist)].shape)
         grid[tuple(slicelist)] += shifts[:d]
         # grid[tuple(slicelist)][:d] = shifts[:d]
 
@@ -149,7 +149,7 @@ def hexGrid(boundaries, n0, verb = False):
     # print(grid)
 
     MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
-    MAX_FINAL_DISTANCE = 0.5 * Delta_0
+    MAX_FINAL_DISTANCE = 0.7 * Delta_0
     warn.warn("proper estimation of MAX_FINAL_DISTANCE is still necessary")
 
     return grid, scaling_factor, offset, x_step
@@ -231,11 +231,13 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
         print("all:", coordinate_index, start, start_state, "-->", else_state)
     return else_state
 
+
 def state_evaluation_kdtree(point):
     final_distance, tree_index = KDTREE.query(point, 1)
     if final_distance > MAX_FINAL_DISTANCE:
         return None
     return STATES[tree_index]
+
 
 def create_kdtree(coordinates, states, is_sunny, periodicity):
     global KDTREE, STATES
@@ -244,10 +246,11 @@ def create_kdtree(coordinates, states, is_sunny, periodicity):
     if periodicity == []:
         KDTREE = spat.cKDTree(coordinates)
     else:
-        assert np.shape(coordinates)[-1] == len(periodic_boundaries), "Given boundaries don't match with " \
+        assert np.shape(coordinates)[-1] == len(periodicity), "Given boundaries don't match with " \
                                                                             "dimensions of coordinates. " \
                                                                             "Write '-1' if boundary is not periodic!"
-        KDTREE = periodkdt.PeriodicCKDTree(periodic_boundaries, coordinates)
+        KDTREE = periodkdt.PeriodicCKDTree(periodicity, coordinates)
+
 
 def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state,
                           evolutions, state_evaluation):
@@ -419,7 +422,7 @@ def make_run_function(rhs,
         val = rhs_scaled_to_one(x, lam, *args)  # calculate the rhs
         if lam == 0:
             return val / np.sqrt(np.sum( val ** 2, axis=-1) )
-        return val * lam / np.sum( (x-x0) * val, axis=-1)  
+        return val * lam / np.sum( (x-x0) * val, axis=-1)
 
     def model_run(p, stepsize):
         try:
@@ -607,22 +610,11 @@ def topology_classification(coordinates, states, default_evols, management_evols
         # run the pre-calculation hook (defaults to creation of the KD-Tree)
         pre_calculation_hook(coordinates, states, is_sunny, periodic_boundaries)
 
-    # checking data-type of input evolution functions
-    if isinstance(default_evols, list):
-        default_evols_list = default_evols
-        # print('default_evols is a list')
-    else:
-        default_evols_list = [default_evols]
-        # print('default_evols is not a list')
+    # make sure, evols can be treated as lists
+    default_evols = list(default_evols)
+    management_evols = list(management_evols)
 
-    if isinstance(management_evols, list):
-        management_evols_list = management_evols
-        # print('management_evols is a list')
-    else:
-        management_evols_list = [management_evols]
-        # print('management_evols is not a list')
-
-    all_evols = management_evols_list + default_evols_list
+    all_evols = management_evols + default_evols
 
     # better remove this and use directly the lower level stuff, see issue #13
     viability_kwargs = dict(
@@ -637,7 +629,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
     print('###### calculating shelter')
     states[(states == UNSET) & is_sunny(coordinates)] = SHELTER # initial state for shelter calculation
     # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, **viability_kwargs)
-    viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols_list, **viability_kwargs)
+    viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols, **viability_kwargs)
 
     if not np.any(states == SHELTER):
         print('shelter empty')

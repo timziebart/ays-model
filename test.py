@@ -106,7 +106,7 @@ if __name__ == "__main__":
         # topology classification via viability algorithm
         start_time = time.time()
 
-        viab.topology_classification(xy, state, default_run, [management1_run, management2_run], sunny)
+        viab.topology_classification(xy, state, [default_run], [management1_run, management2_run], sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -188,7 +188,7 @@ if __name__ == "__main__":
         start_time = time.time()
 
         # topology classification via viability algorithm
-        viab.topology_classification(xy, state, defaultTC_run, management2TC_run, sunny)
+        viab.topology_classification(xy, state, [defaultTC_run], [management2TC_run], sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         # Viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+        viab.topology_classification(xy, states, [defaultPuR_run], [management1PuR_run], sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -292,7 +292,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+        viab.topology_classification(xy, states, [defaultPuR_run], [management1PuR_run], sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -344,7 +344,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+        viab.topology_classification(xy, states, [defaultPuR_run], [management1PuR_run], sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -396,7 +396,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, states, defaultPuR_run, management1PuR_run, sunny)
+        viab.topology_classification(xy, states, [defaultPuR_run], [management1PuR_run], sunny)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -441,7 +441,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, state, default_run, management1_run, sunny, periodic_boundaries = np.array([1, -1]))
+        viab.topology_classification(xy, state, [default_run], [management1_run], sunny, periodic_boundaries = np.array([1, -1]))
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -503,7 +503,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, state, default_run, management1_run, sunny, periodic_boundaries = np.array([1, -1]))
+        viab.topology_classification(xy, state, [default_run], [management1_run], sunny, periodic_boundaries = np.array([1, -1]))
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -567,7 +567,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, state, default_run, [], sunny,
+        viab.topology_classification(xy, state, [default_run], [], sunny,
                                      compute_eddies = True)
 
         time_diff = time.time() - start_time
@@ -630,7 +630,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, state, default_run, [], sunny,
+        viab.topology_classification(xy, state, [default_run], [], sunny,
                                      compute_eddies = True)
 
         time_diff = time.time() - start_time
