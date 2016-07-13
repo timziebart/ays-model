@@ -3,6 +3,8 @@ from __future__ import print_function, division
 
 import PTopologyL as topo
 
+import helper
+
 import periodic_kdtree as periodkdt
 
 import numpy as np
@@ -171,11 +173,6 @@ def hexGrid(boundaries, n0, verb = False):
     return grid, scaling_factor, offset, x_step
 
 
-def dummy_constraint(p):
-    """used when no constraint is applied"""
-    return np.ones(p.shape[:-1]).astype(np.bool)
-
-
 def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state,
                            evolutions, state_evaluation):
     """Calculate whether a coordinate with value 'stop_value' can be reached from 'coordinates[coordinate_index]'."""
@@ -185,7 +182,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    # VERBOSE = la.norm(start - np.array([0,1])) < 0.02
+    VERBOSE = la.norm(start - np.array([1,0.1])) < 0.05
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -197,19 +194,6 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
         for _ in range(MAX_EVOLUTION_NUM):
             point = evol(point, STEPSIZE)
-
-            if np.any(np.isnan(point)):
-                warn.warn("point {!r} became nan for one option, so I'm assuming it's a fixed point".format(start))
-                print(coordinate_index)
-
-                if start_state in stop_states:
-                    final_state = succesful_state
-
-                    if VERBOSE:
-                        print("%i:" % evol_num, coordinate_index, start, start_state, "-->", final_state)
-                    return final_state
-                # else
-                break
 
             if np.max(np.abs(point - start)) < x_half_step:
                 # not yet close enough to a different point
@@ -419,7 +403,7 @@ def make_run_function(rhs,
                       offset,
                       scaling_factor,
                       returning = "run-function",
-                      remember = False # not properly implemented, just for short testing
+                      remember = True
                       ):
 
     #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
@@ -454,45 +438,28 @@ def make_run_function(rhs,
             return val / np.sqrt(np.sum( val ** 2, axis=-1) )
         return val * lam / np.sum( (x-x0) * val, axis=-1)
 
+    @helper.remembering(remember = remember)
     def model_run(p, stepsize):
+        if VERBOSE:
+            integ_time = np.linspace(0, stepsize, 100)
+        else:
+            integ_time = [0, stepsize]
         try:
-            traj = integ.odeint(distance_normalized_rhs, p, [0, stepsize],
-                                args = (p,) + ordered_params,
-                                printmessg = False
-                                )
+            with helper.stdout_redirected():
+                traj = integ.odeint(distance_normalized_rhs, p, integ_time,
+                                    args = (p,) + ordered_params,
+                                    printmessg = False
+                                    )
+            if np.any(np.isnan(traj[-1])): # raise artifiially the warning if nan turns up
+                raise integ.odepack.ODEintWarning("got a nan")
         except integ.odepack.ODEintWarning:
-            warn.warn("got an integration warning; assume %s to be a stable fixed point"%repr(p))
+            warn.warn("got an integration warning; assume {!s} to be a stable fixed point".format(p),
+                      category=RuntimeWarning)
             return p
         if VERBOSE:
             plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
 
         return traj[-1]
-
-#    if remember:
-#        # this part is just for testing ... put new stuff in the 'else' part
-#        global REMEMBERED
-#        REMEMBERED = {}
-#        # raise NotImplementedError("bla")
-#        # @nb.jit
-#        def model_run(p, stepsize):
-#            p_tuple = tuple(p)
-#            if p_tuple in REMEMBERED:
-#                # print("reusing")
-#                return REMEMBERED[p_tuple]
-#            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
-#            if VERBOSE:
-#                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
-#
-#            REMEMBERED[p_tuple] = traj[-1]
-#            return traj[-1]
-#    else:
-#        @nb.jit
-#        def model_run(p, stepsize):
-#            traj = integ.odeint(normalized_rhs, p, [0, stepsize], args = ordered_params)
-#            if VERBOSE:
-#                plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
-#
-#            return traj[-1]
 
     if returning == "run-function":
         return model_run
@@ -602,8 +569,9 @@ def normalized_grid(boundaries, x_num):
         if boundaries[index] != 0:
             offset[index] = boundaries[index]
 
-    grid_prep = np.linspace(0, 1, x_num + 1)
-    grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
+    grid_prep = np.linspace(0, 1, x_num)
+    # grid_prep = np.linspace(0, 1, x_num + 1)
+    # grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
 
     meshgrid_arg = [grid_prep for _ in range(dim)]
 

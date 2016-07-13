@@ -194,16 +194,16 @@ if __name__ == "__main__":
         print(time_diff)
 
         # backscaling grid
-        xy = viab.backscaling_grid(xy, scalingfactor, offset)
+        # xy = viab.backscaling_grid(xy, scalingfactor, offset)
 
         # Plotting:
         viab.plot_points(xy, state)
 
-        moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
-        mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
-
-        plt.xlim([xmin, xmax])
-        plt.ylim([ymin, ymax])
+        # moddefTC.plotPhaseSpace(boundaries, topo.styleDefault)
+        # mod2TC.plotPhaseSpace(boundaries, topo.styleMod1)
+#
+        # plt.xlim([xmin, xmax])
+        # plt.ylim([ymin, ymax])
 
         plt.xlabel("$u_B$")
         plt.ylabel("$p_B$")
@@ -521,8 +521,8 @@ if __name__ == "__main__":
         fig = plt.figure(figsize=(15, 15), tight_layout=True)
         viab.plot_areas(xy, state)
         # plt.axes().set_aspect("equal")
-        # plt.xlim([xmin, xmax])
-        # plt.ylim([ymin, ymax])
+        plt.xlim([xmin, xmax])
+        plt.ylim([ymin, ymax])
 
     if "eddies" in args:
         # test ediies calculation
@@ -598,7 +598,6 @@ if __name__ == "__main__":
             x, y = xy
             return [-y, x]
         def rhsPS(xy, t):
-            print(xy.shape)
             ret = np.zeros_like(xy)
             ret[0] = - xy[1]
             ret[1] =   xy[0]
