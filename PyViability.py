@@ -182,7 +182,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    VERBOSE = la.norm(start - np.array([1,0.1])) < 0.05
+    # VERBOSE = la.norm(start - np.array([1,0.1])) < 0.05
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -221,12 +221,12 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
                 print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
             break
 
-        else:
-            # didn't find an option leading to a point with 'stop_state'
-            if VERBOSE:
-                print("%i:"%evol_num, coordinate_index, start, start_state, "-->", start_state, "didn't leave")
-            return start_state
+        # else:
+            # if VERBOSE:
+                # print("%i:"%evol_num, coordinate_index, start, start_state, "-->", start_state, "didn't leave")
+            # return start_state
 
+    # didn't find an option leading to a point with 'stop_state'
     if VERBOSE:
         print("all:", coordinate_index, start, start_state, "-->", else_state)
     return else_state
