@@ -177,12 +177,6 @@ EXAMPLES = {
                                  grid_type="simplex-based",
                                  ),
 }
-        # a = 0.2 # harvest value
-        # prod = 2 # factor of productivity for y
-#
-        # moddef = pm.PlantXY(prod=prod, ax=a, ay=a, comment="default")
-        # mod1 = pm.PlantXY(prod=prod, ax=a / 2, ay=a / 2, comment="management 1")
-        # mod2 = pm.PlantXY(prod=prod, ax=2 * a, ay=0, comment="management 2")
 
 AVAILABLE_EXAMPLES = sorted(EXAMPLES)
 
