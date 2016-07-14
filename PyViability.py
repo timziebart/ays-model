@@ -510,20 +510,15 @@ def make_run_function(rhs,
                       remember = True
                       ):
 
-    #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
+    # ----------- just for 2D Phase-Space-plot
     def rhs_scaled_to_one_PS(x0, t):
         """\
 rescales space only, because that should be enough for the phase space plot
 """
-        # x = np.zeros_like(x0)
-        # x[0] = scaling_factor[0] * x0[0] + offset[0]
-        # x[1] = scaling_factor[1] * x0[1] + offset[1]
         val = rhs(scaling_factor[:,None, None] * x0 + offset[:, None, None], t, *ordered_params)  # calculate the rhs
         val /= scaling_factor[: ,None , None]
-        # val[0] /= scaling_factor[0]
-        # val[1] /= scaling_factor[1]
         return val
-    # ---------------------------------------------------------------------------
+    # ----------------------------------------
 
 
     @nb.jit
