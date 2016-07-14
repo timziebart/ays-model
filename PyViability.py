@@ -111,6 +111,84 @@ def hexGridSeriesGen(dim):
         yield np.sqrt( (1-(-a)**(d+1)) / (1 + a) )
 
 
+def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True):
+    global MAX_NEIGHBOR_DISTANCE, BOUNDS_EPSILON, STEPSIZE, x_step
+
+    assert grid_type in ["simplex-based", "orthogonal"], "unkown grid type '{!s}'".format(grid_type)
+
+    boundaries = np.asarray(boundaries)
+    periodicity = np.asarray(periodicity)
+
+    dim = boundaries.shape[0]
+    offset = boundaries[:,0]
+    scaling_factor = boundaries[:,1] - boundaries[:,0]
+
+    if not periodicity.size:
+        periodicity = - np.ones((dim,))
+
+    assert periodicity.shape == (dim,), "given boundaries do not match periodicity input"
+
+    if grid_type in ["orthogonal"]:
+        grid_prep_aperiodic = np.linspace(0, 1, n0)
+        grid_prep_periodic = np.linspace(0, 1, n0-1, endpoint=False)
+        # the last point is not set as it would be the same as the first one in
+        # a periodic grid
+        grid_args = [grid_prep_periodic if periodicity[d] > 0 else grid_prep_aperiodic for d in range(dim)]
+
+        # create the grid
+        grid = np.asarray(np.meshgrid(*grid_args))
+
+        # move the axis with the dimenion to the back
+        grid = np.rollaxis(grid, 0, dim + 1)
+
+        x_step = grid_prep_periodic[1]
+        assert x_step == grid_prep_aperiodic[1], "bug?"
+        MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
+        BOUNDS_EPSILON = 0.1 * x_step
+        STEPSIZE = 1.5 * x_step
+    elif grid_type in ["simplex-based"]:
+        if dim > 2:
+            raise NotImplementedError("the current implementation is not correct for dimension >2")
+
+        Delta_0 = 1/n0
+        eps = Delta_0 / 3 # introduced so in the first line there are exactly n0 and there are no shifts over 1 in any dimension afterwards
+        Delta_all = Delta_0 * np.array(list(hexGridSeriesGen(dim)))
+
+        x_step = Delta_0 # Delta_0 is side length of the simplices
+
+        grid = np.array(np.meshgrid( *[ np.arange(0, 1 - eps , Delta_d) for Delta_d in Delta_all ], indexing = "ij" ))
+        grid = np.rollaxis( grid, 0, grid.ndim )
+
+        assert len(grid.shape) == dim + 1
+        assert grid.shape[-1] == dim
+
+        # this is the problematic stuff, only true for dim == 2
+        shifts = Delta_all / 2
+
+        all_slice = slice(0, None)
+        jump_slice = slice(1, None, 2)
+
+        for d in range(1, dim): # starting at 1, because in dimension 0 nothing changes anyway
+            # in the last dimension, shift every second line
+            slicelist = [all_slice] * dim
+            slicelist[d] = jump_slice
+            slicelist += (slice(0,d), )
+            grid[tuple(slicelist)] += shifts[:d]
+
+        # when recursively going through, then add the direct neighbors only
+        MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
+        BOUNDS_EPSILON = 0.1 * Delta_0
+        STEPSIZE = 1.5 *Delta_0 # seems to be correct
+
+    # flattening the array
+    grid = np.reshape(grid, (-1, dim))
+
+    if verbosity:
+        print("created {:d} points".format(grid.shape[0]))
+
+    return grid, scaling_factor, offset, x_step
+
+
 def hexGrid(boundaries, n0, verb = False):
     """
     boundaries = array with shape (d, 2), first index for dimension, second index for minimal and maximal values
@@ -173,6 +251,45 @@ def hexGrid(boundaries, n0, verb = False):
     return grid, scaling_factor, offset, x_step
 
 
+def normalized_grid(boundaries, x_num):
+    """generates a normalized grid  in any dimension and gets the scaling factors and linear shift of each axis"""
+    global MAX_NEIGHBOR_DISTANCE, x_step, BOUNDS_EPSILON, STEPSIZE
+
+    dim = int(len(boundaries)/2)
+
+    scaling_factor = np.ones(dim)
+
+    offset = np.zeros(dim)
+
+    for index in range(0, dim):
+        scaling_factor[index] = boundaries[index + dim] - boundaries[index]
+
+        if boundaries[index] != 0:
+            offset[index] = boundaries[index]
+
+    grid_prep = np.linspace(0, 1, x_num)
+    # grid_prep = np.linspace(0, 1, x_num + 1)
+    # grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
+
+    meshgrid_arg = [grid_prep for _ in range(dim)]
+
+    grid = np.asarray(np.meshgrid(*meshgrid_arg))
+
+    grid = np.rollaxis(grid, 0, dim + 1)
+
+    # reshaping coordinates and states in order to use kdtree
+    grid = np.reshape(grid, (-1, np.shape(grid)[-1]))
+
+    x_step = 1/(x_num-1)
+
+    MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
+    # MAX_FINAL_DISTANCE = np.sqrt(dim) * x_step / 2
+    BOUNDS_EPSILON = 0.1 * x_step
+    STEPSIZE = 1.5 * x_step
+
+    return grid, scaling_factor, offset, x_step
+
+
 def viability_single_point(coordinate_index, coordinates, states, stop_states, succesful_state, else_state,
                            evolutions, state_evaluation):
     """Calculate whether a coordinate with value 'stop_value' can be reached from 'coordinates[coordinate_index]'."""
@@ -201,14 +318,6 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
                 continue # not yet close enough to another point
 
             final_state = state_evaluation(point)
-            # final_distance, tree_index = tree.query(point, 1)
-            # final_state = states[tree_index]
-
-            # if VERBOSE:
-                # print(coordinates[tree_index], final_state, constraint(point), final_distance, x_step)
-                # print('----', tree_index, coordinates[tree_index])
-                # print(final_state in stop_states, constraint(point),final_distance < MAX_FINAL_DISTANCE)
-                # print(final_distance, MAX_FINAL_DISTANCE)
 
             if final_state in stop_states: # and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
@@ -220,11 +329,6 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
             if VERBOSE:
                 print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
             break
-
-        # else:
-            # if VERBOSE:
-                # print("%i:"%evol_num, coordinate_index, start, start_state, "-->", start_state, "didn't leave")
-            # return start_state
 
     # didn't find an option leading to a point with 'stop_state'
     if VERBOSE:
@@ -407,8 +511,10 @@ def make_run_function(rhs,
                       ):
 
     #----------- just for 2D Phase-Space-plot to check the scaled right-hand-side
-    @nb.jit
     def rhs_scaled_to_one_PS(x0, t):
+        """\
+rescales space only, because that should be enough for the phase space plot
+"""
         x = np.zeros_like(x0)
         x[0] = scaling_factor[0] * x0[0] + offset[0]
         x[1] = scaling_factor[1] * x0[1] + offset[1]
@@ -551,45 +657,6 @@ def trajectory_length_index(traj, target_length):
             index_1 = middle_index
 
     return index_1
-
-
-def normalized_grid(boundaries, x_num):
-    """generates a normalized grid  in any dimension and gets the scaling factors and linear shift of each axis"""
-    global MAX_NEIGHBOR_DISTANCE, x_step, BOUNDS_EPSILON, STEPSIZE
-
-    dim = int(len(boundaries)/2)
-
-    scaling_factor = np.ones(dim)
-
-    offset = np.zeros(dim)
-
-    for index in range(0, dim):
-        scaling_factor[index] = boundaries[index + dim] - boundaries[index]
-
-        if boundaries[index] != 0:
-            offset[index] = boundaries[index]
-
-    grid_prep = np.linspace(0, 1, x_num)
-    # grid_prep = np.linspace(0, 1, x_num + 1)
-    # grid_prep = (grid_prep[:-1] + grid_prep[1:]) / 2
-
-    meshgrid_arg = [grid_prep for _ in range(dim)]
-
-    grid = np.asarray(np.meshgrid(*meshgrid_arg))
-
-    grid = np.rollaxis(grid, 0, dim + 1)
-
-    # reshaping coordinates and states in order to use kdtree
-    grid = np.reshape(grid, (-1, np.shape(grid)[-1]))
-
-    x_step = 1/(x_num-1)
-
-    MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
-    # MAX_FINAL_DISTANCE = np.sqrt(dim) * x_step / 2
-    BOUNDS_EPSILON = 0.1 * x_step
-    STEPSIZE = 1.5 * x_step
-
-    return grid, scaling_factor, offset, x_step
 
 
 def backscaling_grid(grid, scalingfactor, offset):

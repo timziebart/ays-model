@@ -3,6 +3,7 @@ from __future__ import division, print_function
 
 
 import PyViability as viab
+import helper
 import PlantModel as pm
 import TechChangeModel as tcm
 import PopulationAndResourceModel as prm
@@ -10,22 +11,198 @@ import GravityPendulumModel as gpm
 import PTopologyL as topo
 
 import myPhaseSpaceL as mPS
+
 import sys
 import time
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patch
 import numpy as np
+import datetime as dt
+import functools as ft
+import numba as nb
 
-from scipy.integrate import odeint
 
-def patchit(*traj, **kwargs):
-        ax.add_patch(patch.Polygon(np.transpose(np.hstack(traj)) , facecolor = kwargs["color"], **topo.stylePatch))
+def generate_example(default_rhss,
+                     management_rhss,
+                     sunny_fct,
+                     boundaries,
+                     default_parameters = [],
+                     management_parameters = [],
+                     n0=80,
+                     grid_type="orthogonal",
+                     periodicity=[],
+                     backscaling=True,
+                     plot_points=True,
+                     plot_areas=False,
+                     default_rhssPS = None,
+                     management_rhssPS = None,
+                     ):
+
+    plotPS = lambda rhs, boundaries, style: mPS.plotPhaseSpace(rhs, [boundaries[0][0], boundaries[1][0], boundaries[0][1], boundaries[1][1]], colorbar=False, style=style)
+
+    if not default_parameters:
+        default_parameters = [{}] * len(default_rhss)
+    if not management_parameters:
+        management_parameters = [{}] * len(management_rhss)
+
+    xlim, ylim = boundaries
+    if default_rhssPS is None:
+        default_rhssPS = default_rhss
+    if management_rhssPS is None:
+        management_rhssPS = management_rhss
+
+    def example_function():
+        grid, scaling_factor,  offset, _ = viab.generate_grid(boundaries,
+                                                        n0,
+                                                        grid_type,
+                                                        periodicity = periodicity) #noqa
+        states = np.zeros(grid.shape[:-1])
+
+        default_runs = [viab.make_run_function(nb.jit(rhs), helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor) for rhs, parameters in zip(default_rhss, default_parameters)] #noqa
+        management_runs = [viab.make_run_function(nb.jit(rhs), helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor) for rhs, parameters in zip(management_rhss, management_parameters)] #noqa
+
+        sunny = viab.scaled_to_one_sunny(sunny_fct, offset, scaling_factor)
+
+        # adding the figure here already if VERBOSE is set
+        # this makes only sense, if backscaling is switched off
+        if (not backscaling) and plot_points:
+            fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
+        start_time = time.time()
+        viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity)
+        time_diff = time.time() - start_time
+
+        print("run time: {!s} s".format(dt.timedelta(seconds=time_diff)))
+
+        if backscaling:
+            grid = viab.backscaling_grid(grid, scaling_factor, offset)
+
+            if plot_points:
+                fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
+                viab.plot_points(grid, states)
+
+                [plotPS(ft.partial(rhs, **parameters), boundaries, topo.styleDefault) #noqa
+                    for rhs, parameters in zip(default_rhssPS, default_parameters)] #noqa
+                [plotPS(ft.partial(rhs, **parameters), boundaries, style)
+                    for rhs, parameters, style in zip(management_rhssPS, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
+
+                plt.xlim(xlim)
+                plt.ylim(ylim)
+
+
+            if plot_areas:
+                fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
+                viab.plot_areas(grid, states)
+
+                [plotPS(ft.partial(rhs, **parameters), boundaries, topo.styleDefault) #noqa
+                    for rhs, parameters in zip(default_rhssPS, default_parameters)] #noqa
+                [plotPS(ft.partial(rhs, **parameters), boundaries, style)
+                    for rhs, parameters, style in zip(management_rhssPS, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
+
+                plt.xlim(xlim)
+                plt.ylim(ylim)
+
+        else:
+            plot_limits = [0,1]
+
+            default_PSs = [viab.make_run_function(rhs, helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor, returning="PS") #noqa
+                            for rhs, parameters in zip(default_rhssPS, default_parameters)] #noqa
+            management_PSs = [viab.make_run_function(rhs, helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor, returning="PS") #noqa
+                                for rhs, parameters in zip(management_rhssPS, management_parameters)] #noqa
+
+            if plot_points:
+                # figure already created above
+
+                viab.plot_points(grid, states)
+
+                [plotPS(rhs, [plot_limits]*2, topo.styleDefault) for rhs, parameters in zip(default_PSs, default_parameters)]
+                [plotPS(rhs, [plot_limits]*2, style) for rhs, parameters, style in zip(management_PSs, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
+
+                plt.xlim(plot_limits)
+                plt.ylim(plot_limits)
+
+
+            if plot_areas:
+                fig = plt.figure(figsize=(15, 15), tight_layout=True)
+
+                viab.plot_areas(grid, states)
+
+                [plotPS(rhs, [plot_limits]*2, topo.styleDefault) for rhs, parameters in zip(default_PSs, default_parameters)]
+                [plotPS(rhs, [plot_limits]*2, style) for rhs, parameters, style in zip(management_PSs, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
+
+                plt.xlim(plot_limits)
+                plt.ylim(plot_limits)
+
+    return example_function
+
+
+
+EXAMPLES = {
+            "pendulum":generate_example([gpm.pendulum_rhs],
+                                          [gpm.pendulum_rhs],
+                                          gpm.pendulum_sunny,
+                                          [[0, 2*np.pi],[-2.2,1.2]],
+                                          default_parameters=[{"a":0.0}],
+                                          management_parameters=[{"a":0.6}],
+                                          periodicity=[1, -1],
+                                          ),
+            "pendulum-hex":generate_example([gpm.pendulum_rhs],  # hex-grid generation not yet done
+                                            [gpm.pendulum_rhs],
+                                            gpm.pendulum_sunny,
+                                            [[0, 2*np.pi],[-2.2,1.2]],
+                                            default_parameters=[{"a":0.0}],
+                                            management_parameters=[{"a":0.6}],
+                                            periodicity=[1, -1],
+                                            grid_type="simplex-based",
+                                            ),
+            "plants":generate_example([pm.plants_rhs],
+                                      [pm.plants_rhs]*2,
+                                      pm.plants_sunny,
+                                      [[0, 1],[0, 1]],
+                                      default_parameters=[{"ax":0.2, "ay":0.2, "prod":2}],
+                                      management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
+                                      ),
+            "plants-hex":generate_example([pm.plants_rhs],
+                                          [pm.plants_rhs]*2,
+                                          pm.plants_sunny,
+                                          [[0, 1],[0, 1]],
+                                          default_parameters=[{"ax":0.2, "ay":0.2, "prod":2}],
+                                          management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
+                                          grid_type="simplex-based",
+                                          ),
+}
+        # a = 0.2 # harvest value
+        # prod = 2 # factor of productivity for y
+#
+        # moddef = pm.PlantXY(prod=prod, ax=a, ay=a, comment="default")
+        # mod1 = pm.PlantXY(prod=prod, ax=a / 2, ay=a / 2, comment="management 1")
+        # mod2 = pm.PlantXY(prod=prod, ax=2 * a, ay=0, comment="management 2")
+
+AVAILABLE_EXAMPLES = sorted(EXAMPLES)
 
 if __name__ == "__main__":
 
 
     args = sys.argv[1:]
+
+    if "help" in args:
+        print("available examples are: " + ", ".join(AVAILABLE_EXAMPLES))
+        sys.exit(0)
+
+    if "all" in args:
+        args = AVAILABLE_EXAMPLES
+
+    assert set(args).issubset(AVAILABLE_EXAMPLES), "You mentioned an example " \
+        "that I don't know ..."
+
+    for example in args:
+        print("computing example: " + example)
+        EXAMPLES[example]()
+
+    plt.show()
+    assert False
 
     if "colortest" in args:
         fig = plt.figure(figsize=(15, 15), tight_layout = True)
@@ -48,89 +225,6 @@ if __name__ == "__main__":
         state[:] = 1
 
         viab.plot_areas(xy, state)
-
-    if "plants" in args:
-        # test plant model
-
-        # boundaries of PhaseSpace
-        xmin, xmax = 0, 1
-        boundaries = [xmin, xmin, xmax, xmax]
-        xmin, ymin, xmax, ymax = boundaries
-
-        # default values
-        a = 0.2 # harvest value
-        pm.xplusy = 0.65 # min sum of both for being desirable state
-        prod = 2 # factor of productivity for y
-
-        # plot preparation
-        fig = plt.figure(figsize=(15, 15), tight_layout=True)
-        ax = fig.add_subplot(111)
-        b3 = np.array([[0, pm.xplusy, 0], [pm.xplusy, 0, 0]])
-        patchit(b3, color=topo.cDarkUp)
-
-        # steady_states_def = moddef.steadyState()
-        # steady_states1= mod1.steadyState()
-        # steady_states2 = mod2.steadyState()
-
-        # normalized grid
-        xy, scalingfactor, offset, x_step = viab.normalized_grid(boundaries, 80)
-
-        # states for grid
-        state = np.zeros(xy.shape[:-1])
-
-        # Some initial states for 80*80 grid to avoid runtime warnings
-        init_states = [(4880, -1), (4960, -1), (5040, -1), (61, -5), (62, -5), (63, -5), (0, -4), (1, -4),
-                       (40, -4), (41, -4), (42, -4), (43, -4)]
-        for i in range(len(init_states)):
-            state[init_states[i][0]] = init_states[i][1]
-
-        # Integration length for odeint
-        viab.x_step = x_step
-        x_half_step = x_step / 2
-        viab.STEPSIZE = 1.5 * x_step
-
-        # different instances of the model
-        moddef = pm.PlantXY(prod=prod, ax=a, ay=a, comment="default")
-        mod1 = pm.PlantXY(prod=prod, ax=a / 2, ay=a / 2, comment="management 1")
-        mod2 = pm.PlantXY(prod=prod, ax=2 * a, ay=0, comment="management 2")
-
-        default_run = viab.make_run_function(moddef._rhs_fast, moddef._odeint_params, offset, scalingfactor)
-        management1_run = viab.make_run_function(mod1._rhs_fast, mod1._odeint_params, offset, scalingfactor)
-        management2_run = viab.make_run_function(mod2._rhs_fast, mod2._odeint_params, offset, scalingfactor)
-
-        default_evols_list = [default_run]
-
-        # scaled sunny function
-        sunny = viab.scaled_to_one_sunny(pm.is_sunny, offset, scalingfactor)
-
-        # topology classification via viability algorithm
-        start_time = time.time()
-
-        viab.topology_classification(xy, state, [default_run], [management1_run, management2_run], sunny)
-
-        time_diff = time.time() - start_time
-        print(time_diff)
-
-        xy = viab.backscaling_grid(xy, scalingfactor, offset)
-
-        # plotting
-        viab.plot_points(xy, state)
-        plt.xlim([xmin, xmax])
-        plt.ylim([ymin, ymax])
-
-        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-        mod1.plotPhaseSpace(boundaries, topo.styleMod1)
-        mod2.plotPhaseSpace(boundaries, topo.styleMod2)
-
-        fig = plt.figure(figsize=(15, 15), tight_layout = True)
-        viab.plot_areas(xy, state)
-        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-        mod1.plotPhaseSpace(boundaries, topo.styleMod1)
-        mod2.plotPhaseSpace(boundaries, topo.styleMod2)
-
-        plt.xlim([xmin, xmax])
-        plt.ylim([ymin, ymax])
-        plt.gca().set_aspect('equal', adjustable='box')
 
     if "techChange" in args:
         # boundaries of PhaseSpace
@@ -416,14 +510,17 @@ if __name__ == "__main__":
         # test gravity pendulum
         xmin, xmax = 0, 2 * np.pi
         ymin, ymax = -2.2, 1.2
-        boundaries = [xmin, ymin, xmax, ymax]
+        boundaries = [[xmin, xmax], [ymin, ymax]]
+        PSboundaries = [xmin, ymin, xmax, ymax]
+        periodicity = [1, -1] # on the x-axis but not the y-axis
 
         # default values
         a = 0.6
         gpm.l = 0.5
 
         # generating grid and step size values
-        xy, scalingfactor,  offset, x_step = viab.normalized_grid(boundaries, 80)
+        # xy, scalingfactor,  offset, x_step = viab.normalized_grid(boundaries, 80)
+        xy, scalingfactor,  offset, x_step = viab.generate_grid(boundaries, 80, "orthogonal", periodicity = periodicity)
         viab.x_step = x_step
         viab.STEPSIZE = 1.5 * x_step
 
@@ -441,7 +538,7 @@ if __name__ == "__main__":
         # viability calculation
         start_time = time.time()
 
-        viab.topology_classification(xy, state, [default_run], [management1_run], sunny, periodic_boundaries = np.array([1, -1]))
+        viab.topology_classification(xy, state, [default_run], [management1_run], sunny, periodic_boundaries = periodicity)
 
         time_diff = time.time() - start_time
         print(time_diff)
@@ -451,8 +548,8 @@ if __name__ == "__main__":
         # plotting
         viab.plot_points(xy, state)
 
-        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-        mod1.plotPhaseSpace(boundaries, topo.styleMod2)
+        moddef.plotPhaseSpace(PSboundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(PSboundaries, topo.styleMod2)
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
@@ -462,8 +559,8 @@ if __name__ == "__main__":
 
         viab.plot_areas(xy, state)
 
-        moddef.plotPhaseSpace(boundaries, topo.styleDefault)
-        mod1.plotPhaseSpace(boundaries, topo.styleMod2)
+        moddef.plotPhaseSpace(PSboundaries, topo.styleDefault)
+        mod1.plotPhaseSpace(PSboundaries, topo.styleMod2)
 
         plt.xlim([xmin, xmax])
         plt.ylim([ymin, ymax])
