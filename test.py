@@ -148,6 +148,7 @@ EXAMPLES = {
                                  default_parameters=[{"a":0.0}],
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
+                                 backscaling=False,
                                  ),
             "pendulum-hex":
                 generate_example([gpm.pendulum_rhs],  # hex-grid generation not yet done
