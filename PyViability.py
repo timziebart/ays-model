@@ -299,7 +299,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    # VERBOSE = la.norm(start - np.array([1,0.1])) < 0.05
+    VERBOSE = la.norm(start - np.array([0.13, 0.34])) < 0.05
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -557,7 +557,12 @@ rescales space only, because that should be enough for the phase space plot
         except integ.odepack.ODEintWarning:
             warn.warn("got an integration warning; assume {!s} to be a stable fixed point".format(p),
                       category=RuntimeWarning)
+            if VERBOSE:
+                # plot the point, but a bit larger than the color one later
+                plt.plot(p[0], p[1], color = "red",
+                    linestyle = "", marker = ".", markersize = 45 ,zorder=0)
             return p
+
         if VERBOSE:
             plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
 

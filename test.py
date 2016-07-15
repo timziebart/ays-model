@@ -177,6 +177,38 @@ EXAMPLES = {
                                  management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
                                  grid_type="simplex-based",
                                  ),
+            "easter-a":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
+                                 [[0, 35000],[0, 18000]],
+                                 default_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000)],
+                                 management_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
+                                 backscaling=False,
+                                 ),
+            "easter-c":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=4000, yMinimal=3000),
+                                 [[0, 9000],[0, 9000]],
+                                 default_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 management_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 ),
+            "easter-c-hex":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=4000, yMinimal=3000),
+                                 [[0, 9000],[0, 9000]],
+                                 default_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 management_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 grid_type="simplex-based"
+                                 ),
 }
 
 AVAILABLE_EXAMPLES = sorted(EXAMPLES)
