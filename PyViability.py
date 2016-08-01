@@ -111,6 +111,19 @@ def hexGridSeriesGen(dim):
         yield np.sqrt( (1-(-a)**(d+1)) / (1 + a) )
 
 
+def Delta_series(Delta_0, dim):
+    q = Delta_0 ** 2
+    return [np.sqrt(q * (n+2) / (2*n + 2)) for n in range(dim)]
+
+
+def p_series(Delta_0, dim):
+    p_all = np.zeros((dim, dim))
+    for n, Delta_n in enumerate(Delta_series(Delta_0, dim)):
+        p_all[:n, n] = np.sum(p_all[:n, :n], axis=1) / (n+1)
+        p_all[n, n] = Delta_n
+    return p_all
+
+
 def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True):
     global MAX_NEIGHBOR_DISTANCE, BOUNDS_EPSILON, STEPSIZE, x_step
 
@@ -153,7 +166,7 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
         STEPSIZE = 1.5 * x_step
 
     elif grid_type in ["simplex-based"]:
-        if np.any(periodicity):
+        if np.any(periodicity_bool):
             raise NotImplementedError("The generation of the simplex-based grid is not yet compatible with periodic state spaces.")
         # Delta_0 is the initial distance, ie. the one in the lowest dimension
         Delta_0 = 1 / n0
@@ -168,7 +181,7 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
         # x_max is in general !=1 because n_all was cut off to integers
         x_max = n_all * Delta_all
         # correct scaling factor a bit because the grid has _not_ [0,1]^dim as boundaries
-        scaling_factor /= x_max
+        scaling_factor = scaling_factor / x_max
 
         # generate the base vectors
         p_all = p_series(Delta_0, dim)
