@@ -213,6 +213,9 @@ EXAMPLES = {
 
 AVAILABLE_EXAMPLES = sorted(EXAMPLES)
 
+## check that the special input "help" and "all" are not example names
+assert not set(["all", "help"]).issubset(AVAILABLE_EXAMPLES)
+
 if __name__ == "__main__":
 
 
