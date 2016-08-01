@@ -172,13 +172,13 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
 
         # generate the base vectors
         p_all = p_series(Delta_0, dim)
-        
-        # generate a pre-grid that contains the coefficients for each base vector 
+
+        # generate a pre-grid that contains the coefficients for each base vector
         pre_grid = np.array(np.meshgrid(*[np.arange(n) for n in n_all]))
 
         # generate the actual grid
         grid = np.tensordot(p_all, pre_grid, axes=[(1,), (0)])
-        grid = np.reshape(grid, (dim, -1)) 
+        grid = np.reshape(grid, (dim, -1))
 
         # move everything within the boundaries given by x_max
         grid %= x_max[:, np.newaxis]
