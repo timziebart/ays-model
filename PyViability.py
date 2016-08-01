@@ -128,12 +128,14 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
 
     assert periodicity.shape == (dim,), "given boundaries do not match periodicity input"
 
+    periodicity_bool = (periodicity > 0)
+
     if grid_type in ["orthogonal"]:
         grid_prep_aperiodic = np.linspace(0, 1, n0)
         grid_prep_periodic = np.linspace(0, 1, n0-1, endpoint=False)
         # the last point is not set as it would be the same as the first one in
         # a periodic grid
-        grid_args = [grid_prep_periodic if periodicity[d] > 0 else grid_prep_aperiodic for d in range(dim)]
+        grid_args = [grid_prep_periodic if periodicity_bool[d] else grid_prep_aperiodic for d in range(dim)]
 
         # create the grid
         grid = np.asarray(np.meshgrid(*grid_args))
@@ -141,47 +143,54 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
         # move the axis with the dimenion to the back
         grid = np.rollaxis(grid, 0, dim + 1)
 
+        # flattening the array
+        grid = np.reshape(grid, (-1, dim))
+
         x_step = grid_prep_periodic[1]
         assert x_step == grid_prep_aperiodic[1], "bug?"
         MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
         BOUNDS_EPSILON = 0.1 * x_step
         STEPSIZE = 1.5 * x_step
+
     elif grid_type in ["simplex-based"]:
-        if dim > 2:
-            raise NotImplementedError("the current implementation is not correct for dimension >2")
+        if np.any(periodicity):
+            raise NotImplementedError("The generation of the simplex-based grid is not yet compatible with periodic state spaces.")
+        # Delta_0 is the initial distance, ie. the one in the lowest dimension
+        Delta_0 = 1 / n0
+        # calculate the spacing in each dimension
+        Delta_all = np.array(list(Delta_series(Delta_0, dim)))
 
-        Delta_0 = 1/n0
-        eps = Delta_0 / 3 # introduced so in the first line there are exactly n0 and there are no shifts over 1 in any dimension afterwards
-        Delta_all = Delta_0 * np.array(list(hexGridSeriesGen(dim)))
+        # n_all is the number of points in each dimension
+        n_all = (1 / Delta_all).astype(np.int)
+        n_all -= n_all % 2 # else the modulo below could shift the grid
 
-        x_step = Delta_0 # Delta_0 is side length of the simplices
+        # boundaries of the generated grid are [0, x_max[0]] x [0, x_max[1]] x ...
+        # x_max is in general !=1 because n_all was cut off to integers
+        x_max = n_all * Delta_all
+        # correct scaling factor a bit because the grid has _not_ [0,1]^dim as boundaries
+        scaling_factor /= x_max
 
-        grid = np.array(np.meshgrid( *[ np.arange(0, 1 - eps , Delta_d) for Delta_d in Delta_all ], indexing = "ij" ))
-        grid = np.rollaxis( grid, 0, grid.ndim )
+        # generate the base vectors
+        p_all = p_series(Delta_0, dim)
+        
+        # generate a pre-grid that contains the coefficients for each base vector 
+        pre_grid = np.array(np.meshgrid(*[np.arange(n) for n in n_all]))
 
-        assert len(grid.shape) == dim + 1
-        assert grid.shape[-1] == dim
+        # generate the actual grid
+        grid = np.tensordot(p_all, pre_grid, axes=[(1,), (0)])
+        grid = np.reshape(grid, (dim, -1)) 
 
-        # this is the problematic stuff, only true for dim == 2
-        shifts = Delta_all / 2
+        # move everything within the boundaries given by x_max
+        grid %= x_max[:, np.newaxis]
 
-        all_slice = slice(0, None)
-        jump_slice = slice(1, None, 2)
-
-        for d in range(1, dim): # starting at 1, because in dimension 0 nothing changes anyway
-            # in the last dimension, shift every second line
-            slicelist = [all_slice] * dim
-            slicelist[d] = jump_slice
-            slicelist += (slice(0,d), )
-            grid[tuple(slicelist)] += shifts[:d]
+        # move the axis with the dimenion to the back
+        grid = np.rollaxis(grid, 0, 2)
 
         # when recursively going through, then add the direct neighbors only
         MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
+        x_step = Delta_0 # Delta_0 is side length of the simplices
         BOUNDS_EPSILON = 0.1 * Delta_0
         STEPSIZE = 1.5 *Delta_0 # seems to be correct
-
-    # flattening the array
-    grid = np.reshape(grid, (-1, dim))
 
     if verbosity:
         print("created {:d} points".format(grid.shape[0]))
