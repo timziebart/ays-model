@@ -221,15 +221,16 @@ if __name__ == "__main__":
 
     args = sys.argv[1:]
 
-    if "help" in args:
-        print("available examples are: " + ", ".join(AVAILABLE_EXAMPLES))
+    if "help" in args or not args:
+        print("available examples are: " + " ".join(AVAILABLE_EXAMPLES))
         sys.exit(0)
 
     if "all" in args:
         args = AVAILABLE_EXAMPLES
 
-    assert set(args).issubset(AVAILABLE_EXAMPLES), "You mentioned an example " \
-        "that I don't know ..."
+    assert set(args).issubset(AVAILABLE_EXAMPLES), "You mentioned examples " \
+        "that I don't know: " + \
+        " ".join(set(args).difference(AVAILABLE_EXAMPLES))
 
     for example in args:
         print("computing example: " + example)
