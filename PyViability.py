@@ -117,6 +117,8 @@ def Delta_series(Delta_0, dim):
 
 
 def p_series(Delta_0, dim):
+    """returns the p vectors as an array p[i, j] where j enumerates the \
+vector (and thus dimension) and i the component"""
     p_all = np.zeros((dim, dim))
     for n, Delta_n in enumerate(Delta_series(Delta_0, dim)):
         p_all[:n, n] = np.sum(p_all[:n, :n], axis=1) / (n+1)
@@ -143,23 +145,28 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
 
     periodicity_bool = (periodicity > 0)
 
+    #############################
+    # generate the basic grid
+    #############################
+    grid_prep_aperiodic = np.linspace(0, 1, n0)
+    grid_prep_periodic = np.linspace(0, 1, n0-1, endpoint=False)
+    # the last point is not set as it would be the same as the first one in
+    # a periodic grid
+    grid_args = [grid_prep_periodic if periodicity_bool[d] else grid_prep_aperiodic for d in range(dim)]
+
+    # create the grid
+    grid = np.asarray(np.meshgrid(*grid_args))
+
+    # move the axis with the dimenion to the back
+    grid = np.rollaxis(grid, 0, dim + 1)
+
+    # flattening the array
+    grid = np.reshape(grid, (-1, dim))
+
+    x_step = grid_prep_periodic[1]
+
     if grid_type in ["orthogonal"]:
-        grid_prep_aperiodic = np.linspace(0, 1, n0)
-        grid_prep_periodic = np.linspace(0, 1, n0-1, endpoint=False)
-        # the last point is not set as it would be the same as the first one in
-        # a periodic grid
-        grid_args = [grid_prep_periodic if periodicity_bool[d] else grid_prep_aperiodic for d in range(dim)]
 
-        # create the grid
-        grid = np.asarray(np.meshgrid(*grid_args))
-
-        # move the axis with the dimenion to the back
-        grid = np.rollaxis(grid, 0, dim + 1)
-
-        # flattening the array
-        grid = np.reshape(grid, (-1, dim))
-
-        x_step = grid_prep_periodic[1]
         assert x_step == grid_prep_aperiodic[1], "bug?"
         MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
         BOUNDS_EPSILON = 0.1 * x_step
@@ -167,43 +174,49 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
 
     elif grid_type in ["simplex-based"]:
         if np.any(periodicity_bool):
+            # the periodic binary tree can handle orthogonal periodicity only
             raise NotImplementedError("The generation of the simplex-based grid is not yet compatible with periodic state spaces.")
-        # Delta_0 is the initial distance, ie. the one in the lowest dimension
-        Delta_0 = 1 / n0
-        # calculate the spacing in each dimension
-        Delta_all = np.array(list(Delta_series(Delta_0, dim)))
 
-        # n_all is the number of points in each dimension
-        n_all = (1 / Delta_all).astype(np.int)
-        n_all -= n_all % 2 # else the modulo below could shift the grid
+        basis_vectors = p_series(1., dim)
 
-        # boundaries of the generated grid are [0, x_max[0]] x [0, x_max[1]] x ...
-        # x_max is in general !=1 because n_all was cut off to integers
-        x_max = n_all * Delta_all
-        # correct scaling factor a bit because the grid has _not_ [0,1]^dim as boundaries
-        scaling_factor = scaling_factor / x_max
+        grid = np.tensordot(grid, basis_vectors, axes=[(1,), (1,)])
 
-        # generate the base vectors
-        p_all = p_series(Delta_0, dim)
-
-        # generate a pre-grid that contains the coefficients for each base vector
-        pre_grid = np.array(np.meshgrid(*[np.arange(n) for n in n_all]))
-
-        # generate the actual grid
-        grid = np.tensordot(p_all, pre_grid, axes=[(1,), (0)])
-        grid = np.reshape(grid, (dim, -1))
-
-        # move everything within the boundaries given by x_max
-        grid %= x_max[:, np.newaxis]
-
-        # move the axis with the dimenion to the back
-        grid = np.rollaxis(grid, 0, 2)
+        # # Delta_0 is the initial distance, ie. the one in the lowest dimension
+        # Delta_0 = 1 / n0
+        # # calculate the spacing in each dimension
+        # Delta_all = np.array(list(Delta_series(Delta_0, dim)))
+#
+        # # n_all is the number of points in each dimension
+        # n_all = (1 / Delta_all).astype(np.int)
+        # n_all -= n_all % 2 # else the modulo below could shift the grid
+#
+        # # boundaries of the generated grid are [0, x_max[0]] x [0, x_max[1]] x ...
+        # # x_max is in general !=1 because n_all was cut off to integers
+        # x_max = n_all * Delta_all
+        # # correct scaling factor a bit because the grid has _not_ [0,1]^dim as boundaries
+        # scaling_factor = scaling_factor / x_max
+#
+        # # generate the base vectors
+        # p_all = p_series(Delta_0, dim)
+#
+        # # generate a pre-grid that contains the coefficients for each base vector
+        # pre_grid = np.array(np.meshgrid(*[np.arange(n) for n in n_all]))
+#
+        # # generate the actual grid
+        # grid = np.tensordot(p_all, pre_grid, axes=[(1,), (0)])
+        # grid = np.reshape(grid, (dim, -1))
+#
+        # # move everything within the boundaries given by x_max
+        # grid %= x_max[:, np.newaxis]
+#
+        # # move the axis with the dimenion to the back
+        # grid = np.rollaxis(grid, 0, 2)
 
         # when recursively going through, then add the direct neighbors only
-        MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
-        x_step = Delta_0 # Delta_0 is side length of the simplices
-        BOUNDS_EPSILON = 0.1 * Delta_0
-        STEPSIZE = 1.5 *Delta_0 # seems to be correct
+        MAX_NEIGHBOR_DISTANCE = 1.01 * x_step
+        # x_step = Delta_0 # Delta_0 is side length of the simplices
+        BOUNDS_EPSILON = 0.1 * x_step
+        STEPSIZE = 1.5 * x_step # seems to be correct
 
     if verbosity:
         print("created {:d} points".format(grid.shape[0]))

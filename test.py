@@ -56,7 +56,7 @@ def generate_example(default_rhss,
                                                         n0,
                                                         grid_type,
                                                         periodicity = periodicity) #noqa
-        states = np.zeros(grid.shape[:-1])
+        states = np.zeros(grid.shape[:-1], dtype=np.int16)
 
         default_runs = [viab.make_run_function(nb.jit(rhs), helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor) for rhs, parameters in zip(default_rhss, default_parameters)] #noqa
         management_runs = [viab.make_run_function(nb.jit(rhs), helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor) for rhs, parameters in zip(management_rhss, management_parameters)] #noqa
