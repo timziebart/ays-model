@@ -200,7 +200,8 @@ EXAMPLES = {
                                  management_parameters=[
                                      dict(rvar=1, pBmin=0.15, pE=0.3, delta=0.025, smax=0.3, sBmax=0.5)],
                                  management_rhssPS=[tcm.techChange_rhsPS],
-                                 grid_type="simplex-based"
+                                 grid_type="simplex-based",
+                                 backscaling=False,
                                  ),
             "easter-a":
                 generate_example([prm.easter_rhs],
@@ -222,7 +223,8 @@ EXAMPLES = {
                                      dict(phi=4, r=0.04, gamma=4 * 10 ** (-6), delta=-0.1, kappa=12000)],
                                  management_parameters=[
                                      dict(phi=4, r=0.04, gamma=2.8 * 10 ** (-6), delta=-0.1, kappa=12000)],
-                                 grid_type="simplex-based"
+                                 grid_type="simplex-based",
+                                 backscaling=False,
                                  ),
             "easter-b":
                 generate_example([prm.easter_rhs],

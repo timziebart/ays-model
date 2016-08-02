@@ -32,7 +32,7 @@ BOUNDS_EPSILON = None # should be set during grid Generation
 STEPSIZE = None
 
 # some constants so the calculation does end
-MAX_EVOLUTION_NUM = 20
+# MAX_EVOLUTION_NUM = 20
 MAX_ITERATION_EDDIES = 10
 VERBOSE = 0
 
@@ -321,7 +321,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    VERBOSE = la.norm(start - np.array([0.13, 0.34])) < 0.05
+    VERBOSE = la.norm(start - np.array([0.133, 0.348])) < 0.01
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -329,28 +329,34 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
         print()
 
     for evol_num, evol in enumerate(evolutions):
-        point = start
+        point = evol(start, STEPSIZE)
 
-        for _ in range(MAX_EVOLUTION_NUM):
-            point = evol(point, STEPSIZE)
+        # the stuff below for later, if something like that should be
+        # reintroduced
 
-            if np.max(np.abs(point - start)) < x_half_step:
-                # not yet close enough to a different point
-                # so run the evolution function again
-                continue # not yet close enough to another point
+        # point = start
+        # for _ in range(MAX_EVOLUTION_NUM):
+            # point = evol(point, STEPSIZE)
+#
+            # if np.max(np.abs(point - start)) < x_half_step:
+                # # not yet close enough to a different point
+                # # so run the evolution function again
+                # if VERBOSE:
+                    # print("too close, continue")
+                # continue # not yet close enough to another point
 
-            final_state = state_evaluation(point)
+        final_state = state_evaluation(point)
 
-            if final_state in stop_states: # and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
+        if final_state in stop_states: # and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
-                if VERBOSE:
-                    print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
-                return succesful_state
-
-            # break and run the other evolutions to check whether they can reach a point with 'stop_state'
             if VERBOSE:
-                print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
-            break
+                print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
+            return succesful_state
+
+        # break and run the other evolutions to check whether they can reach a point with 'stop_state'
+        if VERBOSE:
+            print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
+        break
 
     # didn't find an option leading to a point with 'stop_state'
     if VERBOSE:
@@ -360,6 +366,8 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
 def state_evaluation_kdtree(point):
     if np.any( BOUNDS[:,0] > point ) or np.any( BOUNDS[:,1] < point ) :  # is the point out-of-bounds?
+        if VERBOSE:
+            print("out-of-bounds")
         return None  # "out-of-bounds state"
     final_distance, tree_index = KDTREE.query(point, 1)
     # if final_distance > MAX_FINAL_DISTANCE:  # <-- deprecated
