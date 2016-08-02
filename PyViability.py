@@ -688,7 +688,7 @@ def backscaling_grid(grid, scalingfactor, offset):
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
                             periodic_boundaries = [],
                             upgradeable_initial_states = False,
-                            compute_eddies = True,
+                            compute_eddies = False,
                             pre_calculation_hook = create_kdtree,  # None means nothing to be done
                             state_evaluation = state_evaluation_kdtree,
                             ):

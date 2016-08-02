@@ -67,6 +67,7 @@ def generate_example(default_rhss,
         # this makes only sense, if backscaling is switched off
         if (not backscaling) and plot_points:
             fig = plt.figure(figsize=(15, 15), tight_layout=True)
+            fig.suptitle('example: ' + example, fontsize=20)
 
         start_time = time.time()
         viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity)
@@ -78,7 +79,8 @@ def generate_example(default_rhss,
             grid = viab.backscaling_grid(grid, scaling_factor, offset)
 
             if plot_points:
-                fig = plt.figure(figsize=(15, 15), tight_layout=True)
+                fig = plt.figure()#figsize=(15, 15), tight_layout=True)
+                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_points(grid, states)
 
@@ -177,9 +179,32 @@ EXAMPLES = {
                                  management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
                                  grid_type="simplex-based",
                                  ),
+            "techChange":
+                generate_example([tcm.techChange_rhs],
+                                 [tcm.techChange_rhs],
+                                 tcm.techChange_sunny,
+                                 [[0, 1], [0, 2]],
+                                 default_parameters=[
+                                     dict(rvar = 1, pBmin = 0.15, pE = 0.3, delta = 0.025, smax = 0.3, sBmax = None)],
+                                 management_parameters=[
+                                     dict(rvar = 1, pBmin = 0.15, pE = 0.3, delta = 0.025, smax = 0.3, sBmax = 0.5)],
+                                 management_rhssPS = [tcm.techChange_rhsPS],
+                                 ),
+            "techChange-hex":
+                generate_example([tcm.techChange_rhs],
+                                 [tcm.techChange_rhs],
+                                 tcm.techChange_sunny,
+                                 [[0, 1], [0, 2]],
+                                 default_parameters=[
+                                     dict(rvar=1, pBmin=0.15, pE=0.3, delta=0.025, smax=0.3, sBmax=None)],
+                                 management_parameters=[
+                                     dict(rvar=1, pBmin=0.15, pE=0.3, delta=0.025, smax=0.3, sBmax=0.5)],
+                                 management_rhssPS=[tcm.techChange_rhsPS],
+                                 grid_type="simplex-based"
+                                 ),
             "easter-a":
                 generate_example([prm.easter_rhs],
-                                 [prm.easter_rhs],
+                                 [], #[prm.easter_rhs],
                                  ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
                                  [[0, 35000],[0, 18000]],
                                  default_parameters=[
@@ -188,16 +213,49 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
                                  backscaling=False,
                                  ),
-            "easter-c":
+            "easter-a-hex":
                 generate_example([prm.easter_rhs],
                                  [prm.easter_rhs],
-                                 ft.partial(prm.easter_sunny, xMinimal=4000, yMinimal=3000),
-                                 [[0, 9000],[0, 9000]],
+                                 ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
+                                 [[0, 35000], [0, 18000]],
+                                 default_parameters=[
+                                     dict(phi=4, r=0.04, gamma=4 * 10 ** (-6), delta=-0.1, kappa=12000)],
+                                 management_parameters=[
+                                     dict(phi=4, r=0.04, gamma=2.8 * 10 ** (-6), delta=-0.1, kappa=12000)],
+                                 grid_type="simplex-based"
+                                 ),
+            "easter-b":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=1200, yMinimal=2000),
+                                 [[0, 9000], [0, 9000]],
                                  default_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                  management_parameters=[
-                                     dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                     dict(phi = 4, r = 0.04, gamma = 13.6 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                  ),
+            "easter-b-hex":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=1200, yMinimal=2000),
+                                 [[0, 9000], [0, 9000]],
+                                 default_parameters=[
+                                     dict(phi=4, r=0.04, gamma=8 * 10 ** (-6), delta=-0.15, kappa=6000)],
+                                 management_parameters=[
+                                     dict(phi=4, r=0.04, gamma=13.6 * 10 ** (-6), delta=-0.15, kappa=6000)],
+                                 grid_type="simplex-based"
+                                 ),
+
+            "easter-c":
+                generate_example([prm.easter_rhs],
+                                [prm.easter_rhs],
+                                ft.partial(prm.easter_sunny, xMinimal=4000, yMinimal=3000),
+                                [[0, 9000],[0, 9000]],
+                                default_parameters=[
+                                    dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                management_parameters=[
+                                    dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                ),
             "easter-c-hex":
                 generate_example([prm.easter_rhs],
                                  [prm.easter_rhs],
@@ -209,6 +267,28 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                  grid_type="simplex-based"
                                  ),
+            "easter-d":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=4000, yMinimal=3000),
+                                 [[0, 9000], [0, 9000]],
+                                 default_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 management_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 11.2 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 ),
+            "easter-d-hex":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=4000, yMinimal=3000),
+                                 [[0, 9000], [0, 9000]],
+                                 default_parameters=[
+                                     dict(phi=4, r=0.04, gamma=8 * 10 ** (-6), delta=-0.15, kappa=6000)],
+                                 management_parameters=[
+                                     dict(phi=4, r=0.04, gamma=11.2 * 10 ** (-6), delta=-0.15, kappa=6000)],
+                                 grid_type="simplex-based"
+                                 ),
+
 }
 
 AVAILABLE_EXAMPLES = sorted(EXAMPLES)
