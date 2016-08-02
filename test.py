@@ -8,6 +8,7 @@ import PlantModel as pm
 import TechChangeModel as tcm
 import PopulationAndResourceModel as prm
 import GravityPendulumModel as gpm
+import ConsumptionModel as cm
 import PTopologyL as topo
 
 import myPhaseSpaceL as mPS
@@ -79,7 +80,7 @@ def generate_example(default_rhss,
             grid = viab.backscaling_grid(grid, scaling_factor, offset)
 
             if plot_points:
-                fig = plt.figure()#figsize=(15, 15), tight_layout=True)
+                fig = plt.figure(figsize=(15, 15), tight_layout=True)
                 fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_points(grid, states)
@@ -95,6 +96,7 @@ def generate_example(default_rhss,
 
             if plot_areas:
                 fig = plt.figure(figsize=(15, 15), tight_layout=True)
+                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_areas(grid, states)
 
@@ -116,6 +118,7 @@ def generate_example(default_rhss,
 
             if plot_points:
                 # figure already created above
+                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_points(grid, states)
 
@@ -128,6 +131,7 @@ def generate_example(default_rhss,
 
             if plot_areas:
                 fig = plt.figure(figsize=(15, 15), tight_layout=True)
+                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_areas(grid, states)
 
@@ -205,7 +209,7 @@ EXAMPLES = {
                                  ),
             "easter-a":
                 generate_example([prm.easter_rhs],
-                                 [], #[prm.easter_rhs],
+                                 [prm.easter_rhs],
                                  ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
                                  [[0, 35000],[0, 18000]],
                                  default_parameters=[
@@ -288,6 +292,27 @@ EXAMPLES = {
                                      dict(phi=4, r=0.04, gamma=8 * 10 ** (-6), delta=-0.15, kappa=6000)],
                                  management_parameters=[
                                      dict(phi=4, r=0.04, gamma=11.2 * 10 ** (-6), delta=-0.15, kappa=6000)],
+                                 grid_type="simplex-based"
+                                 ),
+            "consum":
+                generate_example([],
+                                 [cm.consum_rhs]*2,
+                                 cm.consum_sunny,
+                                 [[0, 2], [0, 3]],
+                                 default_parameters = [],
+                                 management_parameters = [dict(u = -0.5),
+                                                       dict(u = 0.5)],
+                                 management_rhssPS = [cm.consum_rhsPS]*2,
+                                 ),
+            "consum-hex":
+                generate_example([],
+                                 [cm.consum_rhs] * 2,
+                                 cm.consum_sunny,
+                                 [[0, 2], [0, 3]],
+                                 default_parameters=[],
+                                 management_parameters=[dict(u=-0.5),
+                                                        dict(u=0.5)],
+                                 management_rhssPS=[cm.consum_rhsPS] * 2,
                                  grid_type="simplex-based"
                                  ),
 
