@@ -162,7 +162,7 @@ EXAMPLES = {
                                  default_parameters=[{"a":0.0}],
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
-                                 backscaling=False,
+                                 # backscaling=False,
                                  ),
             "pendulum-hex":
                 generate_example([gpm.pendulum_rhs],  # hex-grid generation not yet done
@@ -213,7 +213,7 @@ EXAMPLES = {
                                      dict(rvar=1, pBmin=0.15, pE=0.3, delta=0.025, smax=0.3, sBmax=0.5)],
                                  management_rhssPS=[tcm.techChange_rhsPS],
                                  grid_type="simplex-based",
-                                 backscaling=False,
+                                 # backscaling=False,
                                  ),
             "easter-a":
                 generate_example([prm.easter_rhs],
@@ -249,6 +249,7 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 13.6 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 # backscaling=False,
                                  ),
             "easter-b-hex":
                 generate_example([prm.easter_rhs],
@@ -259,7 +260,8 @@ EXAMPLES = {
                                      dict(phi=4, r=0.04, gamma=8 * 10 ** (-6), delta=-0.15, kappa=6000)],
                                  management_parameters=[
                                      dict(phi=4, r=0.04, gamma=13.6 * 10 ** (-6), delta=-0.15, kappa=6000)],
-                                 grid_type="simplex-based"
+                                 grid_type="simplex-based",
+                                 # backscaling=False,
                                  ),
 
             "easter-c":

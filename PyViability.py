@@ -35,6 +35,7 @@ STEPSIZE = None
 # MAX_EVOLUTION_NUM = 20
 MAX_ITERATION_EDDIES = 10
 VERBOSE = 0
+GENERAL_VERBOSE = 0
 
 
 # The ones below are just used byt the default pre-calculation hook and the
@@ -342,7 +343,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    # VERBOSE = la.norm(start - np.array([0.133, 0.348])) < 0.01
+    # VERBOSE = la.norm(start - np.array([1.1645, 0.306])) < 0.02
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -374,10 +375,10 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
                 print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
             return succesful_state
 
-        # break and run the other evolutions to check whether they can reach a point with 'stop_state'
+        # run the other evolutions to check whether they can reach a point with 'stop_state'
         if VERBOSE:
             print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
-        break
+        # break
 
     # didn't find an option leading to a point with 'stop_state'
     if VERBOSE:
@@ -662,7 +663,7 @@ def scaled_to_one_sunny(is_sunny, offset, scaling_vector):
     S = scaling_vector
     Sinv = la.inv(S)
 
-    # @nb.jit
+    @nb.jit
     def scaled_sunny(grid):
         new_grid = np.tensordot(grid, Sinv, axes=[(1,), (1,)]) + offset[None, :]
         # new_grid = backscaling_grid(grid, scaling_vector, offset)
