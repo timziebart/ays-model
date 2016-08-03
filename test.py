@@ -66,11 +66,11 @@ def generate_example(default_rhss,
         # adding the figure here already if VERBOSE is set
         # this makes only sense, if backscaling is switched off
         if (not backscaling) and plot_points:
-            fig = plt.figure(figsize=(15, 15), tight_layout=True)
-            fig.suptitle('example: ' + example, fontsize=20)
+            figure_size = (15, 5 * np.sqrt(3) if grid_type == "simplex-based" else 15)
+            fig = plt.figure(figsize=figure_size, tight_layout=True)
 
         start_time = time.time()
-        viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity)
+        viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity, grid_type=grid_type)
         time_diff = time.time() - start_time
 
         print("run time: {!s} s".format(dt.timedelta(seconds=time_diff)))
@@ -79,10 +79,10 @@ def generate_example(default_rhss,
             grid = viab.backscaling_grid(grid, scaling_factor, offset)
 
             if plot_points:
-                fig = plt.figure()#figsize=(15, 15), tight_layout=True)
-                fig.suptitle('example: ' + example, fontsize=20)
+                fig = plt.figure(figsize=(15, 15), tight_layout=True)
 
                 viab.plot_points(grid, states)
+                plt.gca().set_title('example: ' + example, fontsize=20)
 
                 [plotPS(ft.partial(rhs, **parameters), boundaries, topo.styleDefault) #noqa
                     for rhs, parameters in zip(default_rhssPS, default_parameters)] #noqa
@@ -97,6 +97,7 @@ def generate_example(default_rhss,
                 fig = plt.figure(figsize=(15, 15), tight_layout=True)
 
                 viab.plot_areas(grid, states)
+                plt.gca().set_title('example: ' + example, fontsize=20)
 
                 [plotPS(ft.partial(rhs, **parameters), boundaries, topo.styleDefault) #noqa
                     for rhs, parameters in zip(default_rhssPS, default_parameters)] #noqa
@@ -107,7 +108,8 @@ def generate_example(default_rhss,
                 plt.ylim(ylim)
 
         else:
-            plot_limits = [0,1]
+            plot_x_limits = [0, 1.5 if grid_type == "simplex-based" else 1]
+            plot_y_limits = [0, np.sqrt(3)/2 if grid_type == "simplex-based" else 1]
 
             default_PSs = [viab.make_run_function(rhs, helper.get_ordered_parameters(rhs, parameters), offset, scaling_factor, returning="PS") #noqa
                             for rhs, parameters in zip(default_rhssPS, default_parameters)] #noqa
@@ -118,24 +120,30 @@ def generate_example(default_rhss,
                 # figure already created above
 
                 viab.plot_points(grid, states)
+                plt.gca().set_title('example: ' + example, fontsize=20)
 
-                [plotPS(rhs, [plot_limits]*2, topo.styleDefault) for rhs, parameters in zip(default_PSs, default_parameters)]
-                [plotPS(rhs, [plot_limits]*2, style) for rhs, parameters, style in zip(management_PSs, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
+                [plotPS(rhs, [plot_x_limits, plot_y_limits], topo.styleDefault) for rhs, parameters in zip(default_PSs, default_parameters)]
+                [plotPS(rhs, [plot_x_limits, plot_y_limits], style) for rhs, parameters, style in zip(management_PSs, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
 
-                plt.xlim(plot_limits)
-                plt.ylim(plot_limits)
+                plt.axis("equal")
+
+                plt.xlim(plot_x_limits)
+                plt.ylim(plot_y_limits)
 
 
             if plot_areas:
                 fig = plt.figure(figsize=(15, 15), tight_layout=True)
 
                 viab.plot_areas(grid, states)
+                plt.gca().set_title('example: ' + example, fontsize=20)
 
-                [plotPS(rhs, [plot_limits]*2, topo.styleDefault) for rhs, parameters in zip(default_PSs, default_parameters)]
-                [plotPS(rhs, [plot_limits]*2, style) for rhs, parameters, style in zip(management_PSs, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
+                [plotPS(rhs, [plot_x_limits, plot_y_limits], topo.styleDefault) for rhs, parameters in zip(default_PSs, default_parameters)]
+                [plotPS(rhs, [plot_x_limits, plot_y_limits], style) for rhs, parameters, style in zip(management_PSs, management_parameters, [topo.styleMod1, topo.styleMod2])] #noqa
 
-                plt.xlim(plot_limits)
-                plt.ylim(plot_limits)
+                plt.axis("equal")
+
+                plt.xlim(plot_x_limits)
+                plt.ylim(plot_y_limits)
 
     return example_function
 
@@ -205,14 +213,15 @@ EXAMPLES = {
                                  ),
             "easter-a":
                 generate_example([prm.easter_rhs],
-                                 [], #[prm.easter_rhs],
+                                 [prm.easter_rhs],
                                  ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
                                  [[0, 35000],[0, 18000]],
                                  default_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000)],
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
-                                 backscaling=False,
+                                 # plot_areas=True,
+                                 backscaling=True,
                                  ),
             "easter-a-hex":
                 generate_example([prm.easter_rhs],
@@ -224,7 +233,8 @@ EXAMPLES = {
                                  management_parameters=[
                                      dict(phi=4, r=0.04, gamma=2.8 * 10 ** (-6), delta=-0.1, kappa=12000)],
                                  grid_type="simplex-based",
-                                 backscaling=False,
+                                 # plot_areas=True,
+                                 backscaling=True,
                                  ),
             "easter-b":
                 generate_example([prm.easter_rhs],
@@ -305,6 +315,7 @@ if __name__ == "__main__":
 
     if "help" in args or not args:
         print("available examples are: " + " ".join(AVAILABLE_EXAMPLES))
+        print("the argument 'all' lets all examples be computed")
         sys.exit(0)
 
     if "all" in args:
