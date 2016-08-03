@@ -28,7 +28,7 @@ warn.filterwarnings("error", category=integ.odepack.ODEintWarning)
 
 # these are automatically set during grid generation but need to be manually set
 # when using own grid
-BOUNDS_EPSILON = None # should be set during grid Generation
+BOUNDS_EPSILON = None  # should be set during grid Generation
 STEPSIZE = None
 
 # some constants so the calculation does end
@@ -43,6 +43,8 @@ VERBOSE = 0
 KDTREE = None
 STATES = None
 BOUNDS = None
+BASIS_VECTORS = None
+BASIS_VECTORS_INV = None
 COORDINATES = None
 
 # ---- states ----
@@ -108,7 +110,7 @@ def hexGridSeriesGen(dim):
     a = 1/4  # comes straight from the calculation
     yield 1  # 1 is set as inital condition
     for d in range(1, dim):
-        yield np.sqrt( (1-(-a)**(d+1)) / (1 + a) )
+        yield np.sqrt((1-(-a)**(d+1)) / (1 + a))
 
 
 def Delta_series(Delta_0, dim):
@@ -117,6 +119,9 @@ def Delta_series(Delta_0, dim):
 
 
 def p_series(Delta_0, dim):
+    """\
+    returns the p vectors as an array p[i, j] where j enumerates the \
+    vector (and thus dimension) and i the component"""
     p_all = np.zeros((dim, dim))
     for n, Delta_n in enumerate(Delta_series(Delta_0, dim)):
         p_all[:n, n] = np.sum(p_all[:n, :n], axis=1) / (n+1)
@@ -124,7 +129,7 @@ def p_series(Delta_0, dim):
     return p_all
 
 
-def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True):
+def generate_grid(boundaries, n0, grid_type, periodicity=[], verbosity=True):
     global MAX_NEIGHBOR_DISTANCE, BOUNDS_EPSILON, STEPSIZE, x_step
 
     assert grid_type in ["simplex-based", "orthogonal"], "unkown grid type '{!s}'".format(grid_type)
@@ -133,7 +138,7 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
     periodicity = np.asarray(periodicity)
 
     dim = boundaries.shape[0]
-    offset = boundaries[:,0]
+    offset = boundaries[:, 0]
     scaling_factor = boundaries[:,1] - boundaries[:,0]
 
     if not periodicity.size:
@@ -143,72 +148,88 @@ def generate_grid(boundaries, n0, grid_type, periodicity = [], verbosity = True)
 
     periodicity_bool = (periodicity > 0)
 
+    #############################
+    # generate the basic grid
+    #############################
+    grid_prep_aperiodic = np.linspace(0, 1, n0)
+    grid_prep_periodic = np.linspace(0, 1, n0-1, endpoint=False)
+    # the last point is not set as it would be the same as the first one in
+    # a periodic grid
+    grid_args = [grid_prep_periodic if periodicity_bool[d] else grid_prep_aperiodic for d in range(dim)]
+
+    # create the grid
+    grid = np.asarray(np.meshgrid(*grid_args))
+
+    # move the axis with the dimenion to the back
+    grid = np.rollaxis(grid, 0, dim + 1)
+
+    # flattening the array
+    grid = np.reshape(grid, (-1, dim))
+
+    x_step = grid_prep_periodic[1]
+
     if grid_type in ["orthogonal"]:
-        grid_prep_aperiodic = np.linspace(0, 1, n0)
-        grid_prep_periodic = np.linspace(0, 1, n0-1, endpoint=False)
-        # the last point is not set as it would be the same as the first one in
-        # a periodic grid
-        grid_args = [grid_prep_periodic if periodicity_bool[d] else grid_prep_aperiodic for d in range(dim)]
 
-        # create the grid
-        grid = np.asarray(np.meshgrid(*grid_args))
-
-        # move the axis with the dimenion to the back
-        grid = np.rollaxis(grid, 0, dim + 1)
-
-        # flattening the array
-        grid = np.reshape(grid, (-1, dim))
-
-        x_step = grid_prep_periodic[1]
+        scaling_vectors = np.diag(1 / scaling_factor)
         assert x_step == grid_prep_aperiodic[1], "bug?"
         MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
         BOUNDS_EPSILON = 0.1 * x_step
         STEPSIZE = 1.5 * x_step
 
     elif grid_type in ["simplex-based"]:
-        if np.any(periodicity_bool):
-            raise NotImplementedError("The generation of the simplex-based grid is not yet compatible with periodic state spaces.")
-        # Delta_0 is the initial distance, ie. the one in the lowest dimension
-        Delta_0 = 1 / n0
-        # calculate the spacing in each dimension
-        Delta_all = np.array(list(Delta_series(Delta_0, dim)))
+        if np.any(periodicity_bool[1:]):
+            # the periodic binary tree can handle orthogonal periodicity only
+            # because the first basis vector for the simplex based grid is
+            # parallel to the x-axis, orthogonality in the first dimension is
+            # okai and the if statement above tests only periodicity_bool[1:]
+            raise NotImplementedError("The generation of the simplex-based grid is not yet compatible with periodic state spaces (except in the first dimension).")
 
-        # n_all is the number of points in each dimension
-        n_all = (1 / Delta_all).astype(np.int)
-        n_all -= n_all % 2 # else the modulo below could shift the grid
+        basis_vectors = p_series(1., dim)
+        scaling_vectors = basis_vectors / scaling_factor[None, :]
 
-        # boundaries of the generated grid are [0, x_max[0]] x [0, x_max[1]] x ...
-        # x_max is in general !=1 because n_all was cut off to integers
-        x_max = n_all * Delta_all
-        # correct scaling factor a bit because the grid has _not_ [0,1]^dim as boundaries
-        scaling_factor = scaling_factor / x_max
+        grid = np.tensordot(grid, basis_vectors, axes=[(1,), (1,)])
 
-        # generate the base vectors
-        p_all = p_series(Delta_0, dim)
-
-        # generate a pre-grid that contains the coefficients for each base vector
-        pre_grid = np.array(np.meshgrid(*[np.arange(n) for n in n_all]))
-
-        # generate the actual grid
-        grid = np.tensordot(p_all, pre_grid, axes=[(1,), (0)])
-        grid = np.reshape(grid, (dim, -1))
-
-        # move everything within the boundaries given by x_max
-        grid %= x_max[:, np.newaxis]
-
-        # move the axis with the dimenion to the back
-        grid = np.rollaxis(grid, 0, 2)
+        # # Delta_0 is the initial distance, ie. the one in the lowest dimension
+        # Delta_0 = 1 / n0
+        # # calculate the spacing in each dimension
+        # Delta_all = np.array(list(Delta_series(Delta_0, dim)))
+#
+        # # n_all is the number of points in each dimension
+        # n_all = (1 / Delta_all).astype(np.int)
+        # n_all -= n_all % 2 # else the modulo below could shift the grid
+#
+        # # boundaries of the generated grid are [0, x_max[0]] x [0, x_max[1]] x ...
+        # # x_max is in general !=1 because n_all was cut off to integers
+        # x_max = n_all * Delta_all
+        # # correct scaling factor a bit because the grid has _not_ [0,1]^dim as boundaries
+        # scaling_factor = scaling_factor / x_max
+#
+        # # generate the base vectors
+        # p_all = p_series(Delta_0, dim)
+#
+        # # generate a pre-grid that contains the coefficients for each base vector
+        # pre_grid = np.array(np.meshgrid(*[np.arange(n) for n in n_all]))
+#
+        # # generate the actual grid
+        # grid = np.tensordot(p_all, pre_grid, axes=[(1,), (0)])
+        # grid = np.reshape(grid, (dim, -1))
+#
+        # # move everything within the boundaries given by x_max
+        # grid %= x_max[:, np.newaxis]
+#
+        # # move the axis with the dimenion to the back
+        # grid = np.rollaxis(grid, 0, 2)
 
         # when recursively going through, then add the direct neighbors only
-        MAX_NEIGHBOR_DISTANCE = 1.01 * Delta_0
-        x_step = Delta_0 # Delta_0 is side length of the simplices
-        BOUNDS_EPSILON = 0.1 * Delta_0
-        STEPSIZE = 1.5 *Delta_0 # seems to be correct
+        MAX_NEIGHBOR_DISTANCE = 1.01 * x_step
+        # x_step = Delta_0 # Delta_0 is side length of the simplices
+        BOUNDS_EPSILON = 0.1 * x_step
+        STEPSIZE = 1.5 * x_step # seems to be correct
 
     if verbosity:
         print("created {:d} points".format(grid.shape[0]))
 
-    return grid, scaling_factor, offset, x_step
+    return grid, scaling_vectors, offset, x_step
 
 
 def hexGrid(boundaries, n0, verb = False):
@@ -321,7 +342,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
     global VERBOSE
     # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    VERBOSE = la.norm(start - np.array([0.133, 0.348])) < 0.01
+    # VERBOSE = la.norm(start - np.array([0.133, 0.348])) < 0.01
     # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # VERBOSE = True
 
@@ -365,7 +386,8 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
 
 def state_evaluation_kdtree(point):
-    if np.any( BOUNDS[:,0] > point ) or np.any( BOUNDS[:,1] < point ) :  # is the point out-of-bounds?
+    projected_values = np.tensordot(BASIS_VECTORS_INV, point, axes=[(1,), (0,)])
+    if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
         if VERBOSE:
             print("out-of-bounds")
         return None  # "out-of-bounds state"
@@ -375,28 +397,54 @@ def state_evaluation_kdtree(point):
     return STATES[tree_index]
 
 
-def create_kdtree(coordinates, states, is_sunny, periodicity):
-    global KDTREE, STATES, BOUNDS
+def pre_calculation_hook_kdtree(coordinates, states, is_sunny, periodicity, grid_type):
+    global KDTREE, STATES, BASIS_VECTORS, BASIS_VECTORS_INV, BOUNDS
     STATES = states
-    periodicity = np.asarray(periodicity)
-    # check, if there are periodic boundaries and if so, use different tree form
-    if not periodicity.size:
-        KDTREE = spat.cKDTree(coordinates)
 
-    else:
-        assert np.shape(coordinates)[-1] == len(periodicity), "Given boundaries don't match with " \
+    periodicity_bool = (periodicity > 0)
+
+    # check, if there are periodic boundaries and if so, use different tree form
+    if np.any(periodicity_bool):
+        assert np.shape(coordinates)[-1] == len(periodicity_bool), "Given boundaries don't match with " \
                                                                             "dimensions of coordinates. " \
                                                                             "Write '-1' if boundary is not periodic!"
+        assert (grid_type in ["orthogonal"]) or ((grid_type in ["simplex-based"]) and not np.any(periodicity_bool[1:])),\
+            "does PeriodicCKDTREE support the periodicity for your grid?"
         KDTREE = periodkdt.PeriodicCKDTree(periodicity, coordinates)
+    else:
+        KDTREE = spat.cKDTree(coordinates)
+
     dim = coordinates.shape[-1]
     BOUNDS = np.zeros((dim, 2))
+
+    if grid_type == "orthogonal":
+        basis_vectors = np.eye(dim)
+    elif grid_type == "simplex-based":
+        basis_vectors = p_series(1, dim)
+
+    BASIS_VECTORS = basis_vectors
+    BASIS_VECTORS_INV = la.inv(BASIS_VECTORS)
+
     for d in range(dim):
-        if periodicity.size and periodicity[d] > 0:
+        if periodicity_bool[d]:
             BOUNDS[d,:] = -np.inf, np.inf
             # this basically means, because of periodicity, the trajectories
             # cannot run out-of-bounds
         else:
-            BOUNDS[d,:] = np.min(coordinates[:,d]) - BOUNDS_EPSILON, np.max(coordinates[:,d]) + BOUNDS_EPSILON
+            # project the values on the basis vector with a scalar product
+            # for that reason, basis vectors need to be normalized
+            # projected_values = np.tensordot(coordinates, basis_vectors[:,d], axes=[(1,), (0,)])
+
+            # actually the idea above is correct and this is simply the result
+            BOUNDS[d,:] = -BOUNDS_EPSILON, 1 + BOUNDS_EPSILON
+
+            # BOUNDS[d,:] = np.min(projected_values) - BOUNDS_EPSILON, np.max(projected_values) + BOUNDS_EPSILON
+            # BOUNDS[d,:] = np.min(coordinates[:,d]) - BOUNDS_EPSILON, np.max(coordinates[:,d]) + BOUNDS_EPSILON
+
+    projected_values = np.tensordot(coordinates, BASIS_VECTORS_INV, axes=[(1,), (1,)])
+    assert np.all( BOUNDS[None, :,0] < projected_values) \
+        and np.all( BOUNDS[None, :,1] > projected_values ),\
+        "BOUNDS and coordinates do not fit together, did you set the correct grid_type argument?"
 
 
 def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state,
@@ -457,7 +505,7 @@ def get_neighbor_indices(index, shape, neighbor_list = []):
 
 def viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions,
                      periodic_boundaries = [],
-                     pre_calculation_hook = create_kdtree,  # None means nothing to be done
+                     pre_calculation_hook = pre_calculation_hook_kdtree,  # None means nothing to be done
                      state_evaluation = state_evaluation_kdtree,
                      ):
     """calculate the viability kernel by iterating through the viability kernel steps
@@ -486,7 +534,7 @@ def viability_kernel(coordinates, states, good_states, bad_state, succesful_stat
 
 
 def viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions,
-                    pre_calculation_hook = create_kdtree,  # None means nothing to be done
+                    pre_calculation_hook = pre_calculation_hook_kdtree,  # None means nothing to be done
                     state_evaluation = state_evaluation_kdtree,
                     ):
     """reuse the viability kernel algorithm to calculate the capture basin"""
@@ -535,26 +583,32 @@ def plot_areas(coords, states):
 def make_run_function(rhs,
                       ordered_params,
                       offset,
-                      scaling_factor,
+                      scaling_vector,
                       returning = "run-function",
                       remember = True
                       ):
 
+    S = scaling_vector
+    Sinv = la.inv(S)
+
     # ----------- just for 2D Phase-Space-plot
-    def rhs_scaled_to_one_PS(x0, t):
+    def rhs_scaled_to_one_PS(y, t):
         """\
 rescales space only, because that should be enough for the phase space plot
 """
-        val = rhs(scaling_factor[:,None, None] * x0 + offset[:, None, None], t, *ordered_params)  # calculate the rhs
-        val /= scaling_factor[: ,None , None]
+        x = offset[:, None, None] + np.tensordot(Sinv, y, axes=[(1,), (0,)])
+        val = rhs(x, t, *ordered_params)  # calculate the rhs
+        # val = rhs(scaling_factor[:,None, None] * x0 + offset[:, None, None], t, *ordered_params)  # calculate the rhs
+        val = np.tensordot(S, val, axes=[(1,), (0,)])
         return val
     # ----------------------------------------
 
 
     @nb.jit
-    def rhs_scaled_to_one(x0, t, *args):
-        x = scaling_factor * x0 + offset
-        val = rhs(x, t, *args) / scaling_factor # calculate the rhs
+    def rhs_scaled_to_one(y, t, *args):
+        x = offset + np.dot(Sinv, y)
+        # x = scaling_factor * x0 + offset
+        val = np.dot(S, rhs(x, t, *args)) # calculate the rhs
         return val
 
 
@@ -585,7 +639,7 @@ rescales space only, because that should be enough for the phase space plot
             if np.any(np.isnan(traj[-1])): # raise artifiially the warning if nan turns up
                 raise integ.odepack.ODEintWarning("got a nan")
         except integ.odepack.ODEintWarning:
-            warn.warn("got an integration warning; assume {!s} to be a stable fixed point".format(p),
+            warn.warn("got an integration warning; assume {!s} to be a stable fixed point and returning the starting point".format(p),
                       category=RuntimeWarning)
             if VERBOSE:
                 # plot the point, but a bit larger than the color one later
@@ -604,11 +658,15 @@ rescales space only, because that should be enough for the phase space plot
         return rhs_scaled_to_one_PS
 
 
-def scaled_to_one_sunny(is_sunny, offset, scaling_factor):
+def scaled_to_one_sunny(is_sunny, offset, scaling_vector):
+    S = scaling_vector
+    Sinv = la.inv(S)
 
-    @nb.jit
+    # @nb.jit
     def scaled_sunny(grid):
-        new_grid = grid * scaling_factor + offset
+        new_grid = np.tensordot(grid, Sinv, axes=[(1,), (1,)]) + offset[None, :]
+        # new_grid = backscaling_grid(grid, scaling_vector, offset)
+        # new_grid = np.dot(Sinv, grid) + offset
         val = is_sunny(new_grid)  # calculate the rhs
         return val  # normalize it
 
@@ -689,26 +747,41 @@ def trajectory_length_index(traj, target_length):
     return index_1
 
 
-def backscaling_grid(grid, scalingfactor, offset):
-    return grid * scalingfactor + offset
+# @nb.jit
+def backscaling_grid(grid, scaling_vector, offset):
+    S = scaling_vector
+    Sinv = la.inv(S)
+    new_grid = np.tensordot(grid, Sinv, axes=[(1,), (1,)]) + offset[None, :]
+    return new_grid
 
 
 def topology_classification(coordinates, states, default_evols, management_evols, is_sunny,
                             periodic_boundaries = [],
                             upgradeable_initial_states = False,
                             compute_eddies = False,
-                            pre_calculation_hook = create_kdtree,  # None means nothing to be done
+                            pre_calculation_hook = pre_calculation_hook_kdtree,  # None means nothing to be done
                             state_evaluation = state_evaluation_kdtree,
+                            grid_type = "orthogonal",
                             ):
     """calculates different regions of the state space using viability theory algorithms"""
 
-    # upgreading initial states to higher
+    # upgrading initial states to higher is not yet implemented
     if upgradeable_initial_states:
         raise NotImplementedError("upgrading of initally given states not yet implemented")
 
+    coordinates = np.asarray(coordinates)
+    states = np.asarray(states)
+
+    grid_size, dim = coordinates.shape
+    assert states.shape == (grid_size,), "coordinates and states input doesn't match"
+
+    if periodic_boundaries == []:
+        periodic_boundaries = - np.ones(dim)
+    periodic_boundaries = np.asarray(periodic_boundaries)
+
     if not pre_calculation_hook is None:
         # run the pre-calculation hook (defaults to creation of the KD-Tree)
-        pre_calculation_hook(coordinates, states, is_sunny, periodic_boundaries)
+        pre_calculation_hook(coordinates, states, is_sunny, periodic_boundaries, grid_type)
 
     # make sure, evols can be treated as lists
     default_evols = list(default_evols)
