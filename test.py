@@ -93,10 +93,12 @@ def generate_example(default_rhss,
                 plt.xlim(xlim)
                 plt.ylim(ylim)
 
+                if SAVE:
+                    fig.savefig(example + "-points.jpg")
+
 
             if plot_areas:
                 fig = plt.figure(figsize=(15, 15), tight_layout=True)
-                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_areas(grid, states)
                 plt.gca().set_title('example: ' + example, fontsize=20)
@@ -109,6 +111,9 @@ def generate_example(default_rhss,
                 plt.xlim(xlim)
                 plt.ylim(ylim)
 
+                if SAVE:
+                    fig.savefig(example + "-areas.jpg")
+
         else:
             plot_x_limits = [0, 1.5 if grid_type == "simplex-based" else 1]
             plot_y_limits = [0, np.sqrt(3)/2 if grid_type == "simplex-based" else 1]
@@ -120,7 +125,6 @@ def generate_example(default_rhss,
 
             if plot_points:
                 # figure already created above
-                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_points(grid, states)
                 plt.gca().set_title('example: ' + example, fontsize=20)
@@ -133,10 +137,12 @@ def generate_example(default_rhss,
                 plt.xlim(plot_x_limits)
                 plt.ylim(plot_y_limits)
 
+                if SAVE:
+                    fig.savefig(example + "-points.jpg")
+
 
             if plot_areas:
                 fig = plt.figure(figsize=(15, 15), tight_layout=True)
-                fig.suptitle('example: ' + example, fontsize=20)
 
                 viab.plot_areas(grid, states)
                 plt.gca().set_title('example: ' + example, fontsize=20)
@@ -148,6 +154,9 @@ def generate_example(default_rhss,
 
                 plt.xlim(plot_x_limits)
                 plt.ylim(plot_y_limits)
+
+                if SAVE:
+                    fig.savefig(example + "-areas.jpg")
 
     return example_function
 
@@ -191,7 +200,7 @@ EXAMPLES = {
                                  management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
                                  grid_type="simplex-based",
                                  ),
-            "techChange":
+            "tech-change":
                 generate_example([tcm.techChange_rhs],
                                  [tcm.techChange_rhs],
                                  tcm.techChange_sunny,
@@ -202,7 +211,7 @@ EXAMPLES = {
                                      dict(rvar = 1, pBmin = 0.15, pE = 0.3, delta = 0.025, smax = 0.3, sBmax = 0.5)],
                                  management_rhssPS = [tcm.techChange_rhsPS],
                                  ),
-            "techChange-hex":
+            "tech-change-hex":
                 generate_example([tcm.techChange_rhs],
                                  [tcm.techChange_rhs],
                                  tcm.techChange_sunny,
@@ -239,6 +248,31 @@ EXAMPLES = {
                                  grid_type="simplex-based",
                                  # plot_areas=True,
                                  backscaling=True,
+                                 ),
+            "easter-a-no-backscaling":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
+                                 [[0, 35000],[0, 18000]],
+                                 default_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000)],
+                                 management_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
+                                 # plot_areas=True,
+                                 backscaling=False,
+                                 ),
+            "easter-a-hex-no-backscaling":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=1000, yMinimal=3000),
+                                 [[0, 35000], [0, 18000]],
+                                 default_parameters=[
+                                     dict(phi=4, r=0.04, gamma=4 * 10 ** (-6), delta=-0.1, kappa=12000)],
+                                 management_parameters=[
+                                     dict(phi=4, r=0.04, gamma=2.8 * 10 ** (-6), delta=-0.1, kappa=12000)],
+                                 grid_type="simplex-based",
+                                 # plot_areas=True,
+                                 backscaling=False,
                                  ),
             "easter-b":
                 generate_example([prm.easter_rhs],
@@ -332,8 +366,10 @@ EXAMPLES = {
 
 AVAILABLE_EXAMPLES = sorted(EXAMPLES)
 
-## check that the special input "help" and "all" are not example names
-assert not set(["all", "help"]).issubset(AVAILABLE_EXAMPLES)
+SPECIAL_KEYWORDS = ["all", "help", "save"]
+
+## check that the special input keywords are not example names
+assert not set(SPECIAL_KEYWORDS).issubset(AVAILABLE_EXAMPLES)
 
 if __name__ == "__main__":
 
@@ -342,8 +378,15 @@ if __name__ == "__main__":
 
     if "help" in args or not args:
         print("available examples are: " + " ".join(AVAILABLE_EXAMPLES))
-        print("the argument 'all' lets all examples be computed")
+        print("special input keywords: " + " ".join(SPECIAL_KEYWORDS))
         sys.exit(0)
+
+    SAVE = ("save" in args)
+    if SAVE:
+        try:
+            args.remove("save")
+        except ValueError:
+            pass
 
     if "all" in args:
         args = AVAILABLE_EXAMPLES

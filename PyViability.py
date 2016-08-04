@@ -351,7 +351,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
         print()
 
     for evol_num, evol in enumerate(evolutions):
-        point = evol(start, STEPSIZE)
+        traj = evol(start, STEPSIZE)
 
         # the stuff below for later, if something like that should be
         # reintroduced
@@ -367,7 +367,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
                     # print("too close, continue")
                 # continue # not yet close enough to another point
 
-        final_state = state_evaluation(point)
+        final_state = state_evaluation(traj)
 
         if final_state in stop_states: # and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
@@ -386,7 +386,8 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     return else_state
 
 
-def state_evaluation_kdtree(point):
+def state_evaluation_kdtree(traj):
+    point = traj[-1]
     projected_values = np.tensordot(BASIS_VECTORS_INV, point, axes=[(1,), (0,)])
     if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
         if VERBOSE:
@@ -646,12 +647,13 @@ rescales space only, because that should be enough for the phase space plot
                 # plot the point, but a bit larger than the color one later
                 plt.plot(p[0], p[1], color = "red",
                     linestyle = "", marker = ".", markersize = 45 ,zorder=0)
-            return p
+            return np.asarray([p, p])
 
         if VERBOSE:
             plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
-
-        return traj[-1]
+            return np.asarray([traj[0], traj[-1]])
+        else:
+            return traj
 
     if returning == "run-function":
         return model_run
