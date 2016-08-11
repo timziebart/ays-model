@@ -34,7 +34,7 @@ STEPSIZE = None
 # some constants so the calculation does end
 # MAX_EVOLUTION_NUM = 20
 MAX_ITERATION_EDDIES = 10
-VERBOSE = 0
+DEBUGGING = 0
 GENERAL_VERBOSE = 0
 
 
@@ -47,6 +47,7 @@ BOUNDS = None
 BASIS_VECTORS = None
 BASIS_VECTORS_INV = None
 COORDINATES = None
+ALL_NEIGHBORS_DISTANCE = None
 
 # ---- states ----
 # encode the different states as integers, so arrays of integers can be used
@@ -131,7 +132,7 @@ def p_series(Delta_0, dim):
 
 
 def generate_grid(boundaries, n0, grid_type, periodicity=[], verbosity=True):
-    global MAX_NEIGHBOR_DISTANCE, BOUNDS_EPSILON, STEPSIZE, x_step
+    global MAX_NEIGHBOR_DISTANCE, BOUNDS_EPSILON, STEPSIZE, ALL_NEIGHBORS_DISTANCE, x_step
 
     assert grid_type in ["simplex-based", "orthogonal"], "unkown grid type '{!s}'".format(grid_type)
 
@@ -176,6 +177,7 @@ def generate_grid(boundaries, n0, grid_type, periodicity=[], verbosity=True):
         MAX_NEIGHBOR_DISTANCE = 1.5 * x_step
         BOUNDS_EPSILON = 0.1 * x_step
         STEPSIZE = 1.5 * x_step
+        ALL_NEIGHBORS_DISTANCE = np.sqrt(dim) * x_step + BOUNDS_EPSILON
 
     elif grid_type in ["simplex-based"]:
         if np.any(periodicity_bool[1:]):
@@ -226,6 +228,7 @@ def generate_grid(boundaries, n0, grid_type, periodicity=[], verbosity=True):
         # x_step = Delta_0 # Delta_0 is side length of the simplices
         BOUNDS_EPSILON = 0.1 * x_step
         STEPSIZE = 1.5 * x_step # seems to be correct
+        ALL_NEIGHBORS_DISTANCE = la.norm(np.sum(basis_vectors, axis=1)) * x_step + BOUNDS_EPSILON
 
     if verbosity:
         print("created {:d} points".format(grid.shape[0]))
@@ -341,13 +344,14 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     start = coordinates[coordinate_index]
     start_state = states[coordinate_index]
 
-    global VERBOSE
-    # VERBOSE = (coordinate_index == (10 * 80 - 64,))
-    # VERBOSE = la.norm(start - np.array([1.1645, 0.306])) < 0.02
-    # VERBOSE = VERBOSE or la.norm(start - np.array([0.1, 0.606])) < 0.02
-    # VERBOSE = True
+    global DEBUGGING
+    # DEBUGGING = (coordinate_index == (10 * 80 - 64,))
+    # DEBUGGING = la.norm(start - np.array([0.987, 0.633])) < 0.01
+    # DEBUGGING = DEBUGGING and start_state == 1
+    # DEBUGGING = DEBUGGING or la.norm(start - np.array([0.1, 0.606])) < 0.02
+    # DEBUGGING = True
 
-    if VERBOSE:
+    if DEBUGGING:
         print()
 
     for evol_num, evol in enumerate(evolutions):
@@ -363,7 +367,7 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
             # if np.max(np.abs(point - start)) < x_half_step:
                 # # not yet close enough to a different point
                 # # so run the evolution function again
-                # if VERBOSE:
+                # if DEBUGGING:
                     # print("too close, continue")
                 # continue # not yet close enough to another point
 
@@ -371,26 +375,67 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
 
         if final_state in stop_states: # and constraint(point) and final_distance < MAX_FINAL_DISTANCE:
 
-            if VERBOSE:
+            if DEBUGGING:
                 print( "%i:"%evol_num, coordinate_index, start, start_state, "-->", final_state )
             return succesful_state
 
         # run the other evolutions to check whether they can reach a point with 'stop_state'
-        if VERBOSE:
+        if DEBUGGING:
             print("%i:"%evol_num, coordinate_index, start, start_state, "## break")
         # break
 
     # didn't find an option leading to a point with 'stop_state'
-    if VERBOSE:
+    if DEBUGGING:
         print("all:", coordinate_index, start, start_state, "-->", else_state)
     return else_state
+
+
+def state_evaluation_kdtree_line(traj):
+    start_point = traj[0]
+    final_point = traj[-1]
+
+    # check whether out-of-bounds
+    projected_values = np.tensordot(BASIS_VECTORS_INV, final_point, axes=[(1,), (0,)])
+    if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
+        if DEBUGGING:
+            print("out-of-bounds")
+        return None  # "out-of-bounds state"
+
+    # assert False, "out of bounds doesn't seem to work?"
+
+    # if not out-of-bounds, determine where it went to
+
+    neighbor_indices = KDTREE.query_ball_point(start_point, ALL_NEIGHBORS_DISTANCE)
+    neighbors = KDTREE.data[neighbor_indices]
+    _start_point_index = np.argmax(np.logical_and.reduce(np.isclose(neighbors, start_point[None, :]), axis=1))
+    neighbor_indices.pop(_start_point_index)
+    neighbors = np.delete(neighbors, _start_point_index, axis=0)
+    del _start_point_index
+
+    a = final_point - start_point
+    b = neighbors - start_point[None, :]
+    _p = np.tensordot(a, b, axes=[(0,), (1,)])
+
+    distances_to_line_squared = np.sum(b * b, axis=1) - \
+         _p * np.abs(_p) / np.dot(a, a)  # the signum of _p is used to find the correct side
+
+    _n_index = np.argmin(distances_to_line_squared)
+
+    closest_index = neighbor_indices[_n_index]
+
+    final_state = STATES[closest_index]
+
+    if DEBUGGING:
+        print("evaluation:", start_point, "via", final_point, "to", KDTREE.data[closest_index], "with state", final_state)
+
+    return final_state
 
 
 def state_evaluation_kdtree(traj):
     point = traj[-1]
     projected_values = np.tensordot(BASIS_VECTORS_INV, point, axes=[(1,), (0,)])
     if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
-        if VERBOSE:
+        if DEBUGGING:
             print("out-of-bounds")
         return None  # "out-of-bounds state"
     final_distance, tree_index = KDTREE.query(point, 1)
@@ -628,7 +673,7 @@ rescales space only, because that should be enough for the phase space plot
 
     @helper.remembering(remember = remember)
     def model_run(p, stepsize):
-        if VERBOSE:
+        if DEBUGGING:
             integ_time = np.linspace(0, stepsize, 100)
         else:
             integ_time = [0, stepsize]
@@ -643,13 +688,13 @@ rescales space only, because that should be enough for the phase space plot
         except integ.odepack.ODEintWarning:
             warn.warn("got an integration warning; assume {!s} to be a stable fixed point and returning the starting point".format(p),
                       category=RuntimeWarning)
-            if VERBOSE:
+            if DEBUGGING:
                 # plot the point, but a bit larger than the color one later
                 plt.plot(p[0], p[1], color = "red",
                     linestyle = "", marker = ".", markersize = 45 ,zorder=0)
             return np.asarray([p, p])
 
-        if VERBOSE:
+        if DEBUGGING:
             plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
             return np.asarray([traj[0], traj[-1]])
         else:
@@ -700,7 +745,7 @@ def make_run_function2(model_object, timestep,
             traj = traj[:final_index]
 ##             if length > 1.5*x_step: # better: use a random walk criteria to find the factor (and a possible exponent)
 ##             # shorten the trajectory until length is roughly x_step
-            if VERBOSE:
+            if DEBUGGING:
                 plt.plot(traj[:, 0], traj[:, 1], color = "red", linewidth = 3)
             #else:
              #   plt.plot(traj[:, 0], traj[:, 1], color = "blue", linewidth = 5)
@@ -716,7 +761,7 @@ def make_run_function2(model_object, timestep,
             if length > 1.5 * x_step:  # better: use a random walk criteria to find the factor (and a possible exponent)
                 # shorten the trajectory until length is roughly x_step
                 traj = traj[:int(traj.shape[0] * 1.5 * x_step / length)]
-            if VERBOSE:
+            if DEBUGGING:
                 plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
                 ##             else:
                 ##                 plt.plot(traj[:, 0], traj[:, 1], color = "blue", linewidth = 1)
@@ -763,7 +808,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
                             upgradeable_initial_states = False,
                             compute_eddies = False,
                             pre_calculation_hook = pre_calculation_hook_kdtree,  # None means nothing to be done
-                            state_evaluation = state_evaluation_kdtree,
+                            state_evaluation = state_evaluation_kdtree_line,
                             grid_type = "orthogonal",
                             ):
     """calculates different regions of the state space using viability theory algorithms"""

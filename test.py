@@ -161,7 +161,6 @@ def generate_example(default_rhss,
     return example_function
 
 
-
 EXAMPLES = {
             "pendulum":
                 generate_example([gpm.pendulum_rhs],
@@ -171,7 +170,16 @@ EXAMPLES = {
                                  default_parameters=[{"a":0.0}],
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
-                                 # backscaling=False,
+                                 ),
+            "pendulum-no-backscaling":
+                generate_example([gpm.pendulum_rhs],
+                                 [gpm.pendulum_rhs],
+                                 gpm.pendulum_sunny,
+                                 [[0, 2*np.pi],[-2.2,1.2]],
+                                 default_parameters=[{"a":0.0}],
+                                 management_parameters=[{"a":0.6}],
+                                 periodicity=[1, -1],
+                                 backscaling=False,
                                  ),
             "pendulum-hex":
                 generate_example([gpm.pendulum_rhs],  # hex-grid generation not yet done
@@ -233,8 +241,6 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000)],
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
-                                 # plot_areas=True,
-                                 backscaling=True,
                                  ),
             "easter-a-hex":
                 generate_example([prm.easter_rhs],
@@ -246,8 +252,6 @@ EXAMPLES = {
                                  management_parameters=[
                                      dict(phi=4, r=0.04, gamma=2.8 * 10 ** (-6), delta=-0.1, kappa=12000)],
                                  grid_type="simplex-based",
-                                 # plot_areas=True,
-                                 backscaling=True,
                                  ),
             "easter-a-no-backscaling":
                 generate_example([prm.easter_rhs],
@@ -258,7 +262,7 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000)],
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
-                                 # plot_areas=True,
+                                 plot_areas=True,
                                  backscaling=False,
                                  ),
             "easter-a-hex-no-backscaling":
@@ -271,7 +275,7 @@ EXAMPLES = {
                                  management_parameters=[
                                      dict(phi=4, r=0.04, gamma=2.8 * 10 ** (-6), delta=-0.1, kappa=12000)],
                                  grid_type="simplex-based",
-                                 # plot_areas=True,
+                                 plot_areas=True,
                                  backscaling=False,
                                  ),
             "easter-b":
@@ -284,6 +288,18 @@ EXAMPLES = {
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 13.6 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                  # backscaling=False,
+                                 ),
+            "easter-b-no-backscaling":
+                generate_example([prm.easter_rhs],
+                                 [prm.easter_rhs],
+                                 ft.partial(prm.easter_sunny, xMinimal=1200, yMinimal=2000),
+                                 [[0, 9000], [0, 9000]],
+                                 default_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 management_parameters=[
+                                     dict(phi = 4, r = 0.04, gamma = 13.6 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 plot_areas=True,
+                                 backscaling=False,
                                  ),
             "easter-b-hex":
                 generate_example([prm.easter_rhs],
