@@ -158,6 +158,11 @@ def generate_example(default_rhss,
                 if SAVE:
                     fig.savefig(example + "-areas.jpg")
 
+        num = states.size
+        num_len = len(str(num))
+        for region in ["UNSET", "SHELTER", "GLADE", "LAKE", "SUNNY_UP", "DARK_UP", "BACKWATERS", "SUNNY_DOWN", "DARK_DOWN", "SUNNY_EDDIES", "DARK_EDDIES", "SUNNY_ABYSS", "DARK_ABYSS", "TRENCH"]:
+            print(("{:<15}: {:>6.2f}%").format(region, np.count_nonzero(states == getattr(viab, region)) / num * 100))
+
     return example_function
 
 
@@ -182,7 +187,7 @@ EXAMPLES = {
                                  backscaling=False,
                                  ),
             "pendulum-hex":
-                generate_example([gpm.pendulum_rhs],  # hex-grid generation not yet done
+                generate_example([gpm.pendulum_rhs],
                                  [gpm.pendulum_rhs],
                                  gpm.pendulum_sunny,
                                  [[0, 2*np.pi],[-2.2,1.2]],
@@ -190,6 +195,17 @@ EXAMPLES = {
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
                                  grid_type="simplex-based",
+                                 ),
+            "pendulum-hex-no-backscaling":
+                generate_example([gpm.pendulum_rhs],
+                                 [gpm.pendulum_rhs],
+                                 gpm.pendulum_sunny,
+                                 [[0, 2*np.pi],[-2.2,1.2]],
+                                 default_parameters=[{"a":0.0}],
+                                 management_parameters=[{"a":0.6}],
+                                 periodicity=[1, -1],
+                                 grid_type="simplex-based",
+                                 backscaling=False,
                                  ),
             "plants":
                 generate_example([pm.plants_rhs],
@@ -412,7 +428,10 @@ if __name__ == "__main__":
         " ".join(set(args).difference(AVAILABLE_EXAMPLES))
 
     for example in args:
+        print()
+        print("#"*40)
         print("computing example: " + example)
+        print("#"*40)
         EXAMPLES[example]()
 
     plt.show()

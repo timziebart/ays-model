@@ -345,8 +345,10 @@ def viability_single_point(coordinate_index, coordinates, states, stop_states, s
     start_state = states[coordinate_index]
 
     global DEBUGGING
+    # DEBUGGING = True
+    # DEBUGGING = (start_state == 1)
     # DEBUGGING = (coordinate_index == (10 * 80 - 64,))
-    # DEBUGGING = la.norm(start - np.array([0.987, 0.633])) < 0.01
+    DEBUGGING = DEBUGGING and la.norm(start - np.array([1.164, 0.679])) < 0.01
     # DEBUGGING = DEBUGGING and start_state == 1
     # DEBUGGING = DEBUGGING or la.norm(start - np.array([0.1, 0.606])) < 0.02
     # DEBUGGING = True
@@ -407,21 +409,62 @@ def state_evaluation_kdtree_line(traj):
 
     neighbor_indices = KDTREE.query_ball_point(start_point, ALL_NEIGHBORS_DISTANCE)
     neighbors = KDTREE.data[neighbor_indices]
-    _start_point_index = np.argmax(np.logical_and.reduce(np.isclose(neighbors, start_point[None, :]), axis=1))
-    neighbor_indices.pop(_start_point_index)
-    neighbors = np.delete(neighbors, _start_point_index, axis=0)
-    del _start_point_index
+    if hasattr(KDTREE, "bounds"):
+        if DEBUGGING:
+            print("bounds", KDTREE.bounds)
+        bool_bounds = (KDTREE.bounds > 0)
+        newbounds = KDTREE.bounds[bool_bounds]
+        _start_point = np.copy(start_point)
+        _start_point[bool_bounds] = start_point[bool_bounds] % newbounds
+    else:
+        _start_point = start_point
+    _start_point_local_index = np.argmax(np.logical_and.reduce(np.isclose(neighbors, _start_point[None, :]), axis=1))
+    _start_point_global_index = neighbor_indices.pop(_start_point_local_index)
+    neighbors = np.delete(neighbors, _start_point_local_index, axis=0)
+    del _start_point_local_index
+
+    if DEBUGGING:
+        # print("start_point", start_point)
+        # print(neighbors.shape)
+        # print("neighbors")
+        # print(neighbors)
+        plt.plot(start_point[0], start_point[1], color = "black",
+                linestyle = "", marker = ".", markersize = 40 ,zorder=0)
+        plt.plot(_start_point[0], _start_point[1], color = "black",
+                linestyle = "", marker = ".", markersize = 40 ,zorder=0)
+        plt.plot(neighbors[:, 0], neighbors[:, 1], color = "blue",
+                linestyle = "", marker = ".", markersize = 50 ,zorder=0)
 
     a = final_point - start_point
-    b = neighbors - start_point[None, :]
-    _p = np.tensordot(a, b, axes=[(0,), (1,)])
+    if np.allclose(a, 0):
+        closest_index = _start_point_global_index
+    else:
+        b = neighbors - start_point[None, :]
 
-    distances_to_line_squared = np.sum(b * b, axis=1) - \
-         _p * np.abs(_p) / np.dot(a, a)  # the signum of _p is used to find the correct side
+        # take care of the periodic boundaries
+        if hasattr(KDTREE, "bounds"):
+            newbounds = np.ones_like(KDTREE.bounds)
+            # newbounds = np.array(KDTREE.bounds)
+            # newbounds[newbounds <= 0] = np.infty
+            shiftbounds = 0.5 * np.ones_like(newbounds)
+            warn.warn("using cheap fix for periodic boundary here")
+            # if DEBUGGING:
+                # print("a", a)
+                # print("b", b)
+            a = (a + shiftbounds) % newbounds - shiftbounds
+            b = (b + shiftbounds[None, :]) % newbounds[None, :] - shiftbounds[None, :]
+            # if DEBUGGING:
+                # print("a", a)
+                # print("b", b)
 
-    _n_index = np.argmin(distances_to_line_squared)
+        _p = np.tensordot(a, b, axes=[(0,), (1,)])
 
-    closest_index = neighbor_indices[_n_index]
+        distances_to_line_squared = np.sum(b * b, axis=1) - \
+            _p * np.abs(_p) / np.dot(a, a)  # the signum of _p is used to find the correct side
+
+        _n_index = np.argmin(distances_to_line_squared)
+
+        closest_index = neighbor_indices[_n_index]
 
     final_state = STATES[closest_index]
 
