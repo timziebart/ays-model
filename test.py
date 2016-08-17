@@ -4,11 +4,14 @@ from __future__ import division, print_function
 
 import PyViability as viab
 import helper
+
 import PlantModel as pm
 import TechChangeModel as tcm
 import PopulationAndResourceModel as prm
 import GravityPendulumModel as gpm
 import ConsumptionModel as cm
+import AWModel as awm
+
 import PTopologyL as topo
 
 import myPhaseSpaceL as mPS
@@ -27,16 +30,16 @@ def generate_example(default_rhss,
                      management_rhss,
                      sunny_fct,
                      boundaries,
-                     default_parameters = [],
-                     management_parameters = [],
+                     default_parameters=[],
+                     management_parameters=[],
                      n0=80,
                      grid_type="orthogonal",
                      periodicity=[],
                      backscaling=True,
                      plot_points=True,
                      plot_areas=False,
-                     default_rhssPS = None,
-                     management_rhssPS = None,
+                     default_rhssPS=None,
+                     management_rhssPS=None,
                      ):
 
     plotPS = lambda rhs, boundaries, style: mPS.plotPhaseSpace(rhs, [boundaries[0][0], boundaries[1][0], boundaries[0][1], boundaries[1][1]], colorbar=False, style=style)
@@ -167,6 +170,23 @@ def generate_example(default_rhss,
 
 
 EXAMPLES = {
+            "aw-model":
+                generate_example([awm.AW_rescaled_rhs],
+                                 [awm.AW_rescaled_rhs],
+                                 awm.AW_rescaled_sunny,
+                                 [[0, awm.A_max],[1e-8, 1 - 1e-8]],
+                                 default_parameters=[{"beta":awm.beta_default}],
+                                 management_parameters=[{"beta":awm.beta_DG}],
+                                 ),
+            "aw-model-hex":
+                generate_example([awm.AW_rescaled_rhs],
+                                 [awm.AW_rescaled_rhs],
+                                 awm.AW_rescaled_sunny,
+                                 [[0, awm.A_max],[1e-8, 1 - 1e-8]],
+                                 default_parameters=[{"beta":awm.beta_default}],
+                                 management_parameters=[{"beta":awm.beta_DG}],
+                                 grid_type="simplex-based",
+                                 ),
             "pendulum":
                 generate_example([gpm.pendulum_rhs],
                                  [gpm.pendulum_rhs],
