@@ -975,6 +975,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
         # assume all eddies are abysses
             states[(states == SUNNY_EDDIES)] = SUNNY_ABYSS
             states[(states == UNSET)] = DARK_ABYSS
+            states[(states == DARK_EDDIES)] = DARK_ABYSS
 
 
     # All initially given states are set to positive counterparts

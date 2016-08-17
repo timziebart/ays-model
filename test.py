@@ -35,6 +35,7 @@ def generate_example(default_rhss,
                      n0=80,
                      grid_type="orthogonal",
                      periodicity=[],
+                     compute_eddies=False,
                      backscaling=True,
                      plot_points=True,
                      plot_areas=False,
@@ -74,7 +75,7 @@ def generate_example(default_rhss,
             fig = plt.figure(figsize=figure_size, tight_layout=True)
 
         start_time = time.time()
-        viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity, grid_type=grid_type)
+        viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity, grid_type=grid_type, compute_eddies=compute_eddies)
         time_diff = time.time() - start_time
 
         print("run time: {!s} s".format(dt.timedelta(seconds=time_diff)))
@@ -195,6 +196,7 @@ EXAMPLES = {
                                  default_parameters=[{"a":0.0}],
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
+                                 compute_eddies=True,
                                  ),
             "pendulum-no-backscaling":
                 generate_example([gpm.pendulum_rhs],
@@ -204,6 +206,7 @@ EXAMPLES = {
                                  default_parameters=[{"a":0.0}],
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
+                                 compute_eddies=True,
                                  backscaling=False,
                                  ),
             "pendulum-hex":
@@ -215,6 +218,7 @@ EXAMPLES = {
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
                                  grid_type="simplex-based",
+                                 compute_eddies=True,
                                  ),
             "pendulum-hex-no-backscaling":
                 generate_example([gpm.pendulum_rhs],
@@ -225,6 +229,7 @@ EXAMPLES = {
                                  management_parameters=[{"a":0.6}],
                                  periodicity=[1, -1],
                                  grid_type="simplex-based",
+                                 compute_eddies=True,
                                  backscaling=False,
                                  ),
             "plants":
@@ -359,6 +364,7 @@ EXAMPLES = {
                                     dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                 management_parameters=[
                                     dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                compute_eddies=True,
                                 ),
             "easter-c-hex":
                 generate_example([prm.easter_rhs],
@@ -369,6 +375,7 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 8 * 10 ** (-6), delta = -0.15, kappa = 6000)],
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 16 * 10 ** (-6), delta = -0.15, kappa = 6000)],
+                                 compute_eddies=True,
                                  grid_type="simplex-based"
                                  ),
             "easter-d":
