@@ -674,12 +674,13 @@ def make_run_function(rhs,
                       ordered_params,
                       offset,
                       scaling_vector,
-                      returning = "run-function",
+                      returning = "integration",
                       remember = True
                       ):
 
     S = scaling_vector
     Sinv = la.inv(S)
+
 
     # ----------- just for 2D Phase-Space-plot
     def rhs_scaled_to_one_PS(y, t):
@@ -707,6 +708,26 @@ rescales space only, because that should be enough for the phase space plot
         val = rhs_scaled_to_one(x0, t, *args)  # calculate the rhs
         return val / np.sqrt(np.sum(val ** 2, axis=-1))  # normalize it
 
+
+    @nb.jit
+    def normalized_linear_approximation(x, dt):
+        xdot = trajectory_length_normalized_rhs(x, dt, *ordered_params)
+        traj = np.array([x, x + xdot*dt])
+        if np.any(np.isinf(xdot)): # raise artifiially the warning if inf turns up
+            warn.warn("got a inf in the RHS function; assume {!s} to be a stable fixed point and returning the starting point".format(p),
+                      category=RuntimeWarning)
+            traj[1] = traj[0]
+            if DEBUGGING:
+                # plot the point, but a bit larger than the color one later
+                plt.plot(p[0], p[1], color = "red",
+                    linestyle = "", marker = ".", markersize = 45 ,zorder=0)
+            return np.asarray([p, p])
+
+        elif DEBUGGING:
+            plt.plot(traj[:, 0], traj[:, 1], color="red", linewidth=3)
+        return traj
+
+
     @nb.jit
     def distance_normalized_rhs(x, lam, x0, *args):
         val = rhs_scaled_to_one(x, lam, *args)  # calculate the rhs
@@ -714,8 +735,9 @@ rescales space only, because that should be enough for the phase space plot
             return val / np.sqrt(np.sum( val ** 2, axis=-1) )
         return val * lam / np.sum( (x-x0) * val, axis=-1)
 
+
     @helper.remembering(remember = remember)
-    def model_run(p, stepsize):
+    def integration(p, stepsize):
         if DEBUGGING:
             integ_time = np.linspace(0, stepsize, 100)
         else:
@@ -743,10 +765,14 @@ rescales space only, because that should be enough for the phase space plot
         else:
             return traj
 
-    if returning == "run-function":
-        return model_run
+    if returning == "integration":
+        return integration
+    elif returning == "linear":
+        return normalized_linear_approximation
     elif returning == "PS":
         return rhs_scaled_to_one_PS
+    else:
+        raise NameError("I don't know what to do with returning={!r}".format(returning))
 
 
 def scaled_to_one_sunny(is_sunny, offset, scaling_vector):

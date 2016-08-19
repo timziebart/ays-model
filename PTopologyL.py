@@ -17,7 +17,7 @@ allcolors = {}
 for child in root.getchildren():
 	allcolors[child.attrib['{http://openoffice.org/2000/drawing}name']] = child.attrib['{http://openoffice.org/2000/drawing}color']
 
-print("loading colors from %s"%colorpath)
+# print("loading colors from %s"%colorpath)
 
 topColors = [key for key in allcolors.keys() if key.startswith("TOP")]
 topColors.sort()
@@ -32,35 +32,35 @@ topDict = {
 		"TOP Lakes (upstream)" : "cLake",
 		"TOP Sunny Upstream (remaining)" : "cSunnyUp",
 		"TOP Dark Upstream" : "cDarkUp",
-  
-## 		"TOP Downstream (borders)" 
+
+## 		"TOP Downstream (borders)"
 		"TOP Backwaters (downstream)" : "cBackwaters",
 		"TOP Sunny Downstream (remaining)" : "cSunnyDown",
 		"TOP Dark Downstream" : "cDarkDown",
-  
-##   "TOP Eddies (border)" 
+
+##   "TOP Eddies (border)"
 		"TOP Sunny Eddies" : "cSunnyEddie",
 		"TOP Dark Eddies" : "cDarkEddie",
 
-##   "TOP Abysses (border)" 
+##   "TOP Abysses (border)"
 	      	"TOP Sunny Abysses" : "cSunnyAbyss",
 		"TOP Dark Abysses" : "cDarkAbyss",
-  
+
 		"TOP Trenches" : "cTrench"}
 
 # check if all necessary colors are defined
 assert set(allcolors.keys()).issuperset(topDict.keys()), "some colors are not defined (color file is %s)"%colorpath
 
 for colTop, colC in sorted(topDict.items()):
-	print("{:<35} as {:<13} : {:<7}".format(colTop, colC, allcolors[colTop]))
+	# print("{:<35} as {:<13} : {:<7}".format(colTop, colC, allcolors[colTop]))
 	exec("%s = '%s'"%(colC, allcolors[colTop]))
 
-print ()
-print ("added by Hand:")
+# print ()
+# print ("added by Hand:")
 cBound = "#444444"
 cAreaBound = "#FFFFFF"
-for col in ["cBound", "cAreaBound"]:
-	print (" "*39 + "{:<13} :{:<7}".format(col, eval(col)))
+# for col in ["cBound", "cAreaBound"]:
+	# print (" "*39 + "{:<13} :{:<7}".format(col, eval(col)))
 
 
 
