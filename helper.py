@@ -8,7 +8,6 @@ import inspect
 
 REMEMBERED = {}  # used by remembering decorator
 
-
 def get_parameter_order(func):
     args, _, _, defaults = inspect.getargspec(func)
     assert len(args) >= 2, "your rhs function takes only %i arguments, but it "\

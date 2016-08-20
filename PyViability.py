@@ -38,7 +38,7 @@ DEBUGGING = 0
 GENERAL_VERBOSE = 0
 
 
-# The ones below are just used byt the default pre-calculation hook and the
+# The ones below are just used by the default pre-calculation hook and the
 # default state evaluation. They are just here so they are not used for
 # something else.
 KDTREE = None
@@ -53,6 +53,7 @@ ALL_NEIGHBORS_DISTANCE = None
 # encode the different states as integers, so arrays of integers can be used
 # later in numpy arrays (which are very fast on integers)
 # None state should never be used as it is used to indicate out of bounds
+REGIONS = ["UNSET", "SHELTER", "GLADE", "LAKE", "SUNNY_UP", "DARK_UP", "BACKWATERS", "SUNNY_DOWN", "DARK_DOWN", "SUNNY_EDDIES", "DARK_EDDIES", "SUNNY_ABYSS", "DARK_ABYSS", "TRENCH"]
 UNSET = 0
 SHELTER = 1
 GLADE = 2
@@ -67,6 +68,8 @@ DARK_EDDIES = 10
 SUNNY_ABYSS = 11
 DARK_ABYSS = 12
 TRENCH = 13
+
+assert set(REGIONS).issubset(globals())
 
 OTHER_STATE = 14  # used for computation reasons only
 
@@ -645,6 +648,22 @@ def viability_capture_basin(coordinates, states, target_states, reached_state, b
 # below are just helper functions
 
 
+def print_evaluation(states):
+	total = states.size
+	total_length = str(len(str(total)))
+	num_sum = 0
+	current_globals = globals()
+	print("Evaluation:")
+	for region in REGIONS:
+		num = np.count_nonzero(states == current_globals[region])
+		num_sum += num
+		print(("{:<15}: {:>6.2f}% ( {:>"+total_length+"} )").format(region,  num / total * 100, num))
+	print()
+	if num_sum != total:
+		print(("{:<15}: {:>6.2f}% ( {:>"+total_length+"} )").format("UNKNOWN",  (total - num_sum) / total * 100, total - num_sum))
+		print()
+
+
 def plot_points(coords, states):
     """plot the current states in the viability calculation as points"""
 
@@ -745,7 +764,7 @@ rescales space only, because that should be enough for the phase space plot
         try:
             with helper.stdout_redirected():
                 traj = integ.odeint(distance_normalized_rhs, p, integ_time,
-                                    args = (p,) + ordered_params,
+                                    args=(p,) + ordered_params,
                                     printmessg = False
                                     )
             if np.any(np.isnan(traj[-1])): # raise artifiially the warning if nan turns up
