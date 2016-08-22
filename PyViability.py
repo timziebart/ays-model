@@ -46,6 +46,7 @@ STATES = None
 BOUNDS = None
 BASIS_VECTORS = None
 BASIS_VECTORS_INV = None
+OUT_OF_BOUNDS = None
 COORDINATES = None
 ALL_NEIGHBORS_DISTANCE = None
 
@@ -399,12 +400,13 @@ def state_evaluation_kdtree_line(traj):
     start_point = traj[0]
     final_point = traj[-1]
 
-    # check whether out-of-bounds
-    projected_values = np.tensordot(BASIS_VECTORS_INV, final_point, axes=[(1,), (0,)])
-    if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
-        if DEBUGGING:
-            print("out-of-bounds")
-        return None  # "out-of-bounds state"
+    if OUT_OF_BOUNDS:
+        # check whether out-of-bounds
+        projected_values = np.tensordot(BASIS_VECTORS_INV, final_point, axes=[(1,), (0,)])
+        if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
+            if DEBUGGING:
+                print("out-of-bounds")
+            return None  # "out-of-bounds state"
 
     # assert False, "out of bounds doesn't seem to work?"
 
@@ -479,65 +481,84 @@ def state_evaluation_kdtree_line(traj):
 
 def state_evaluation_kdtree(traj):
     point = traj[-1]
-    projected_values = np.tensordot(BASIS_VECTORS_INV, point, axes=[(1,), (0,)])
-    if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
-        if DEBUGGING:
-            print("out-of-bounds")
-        return None  # "out-of-bounds state"
+    if OUT_OF_BOUNDS:
+        projected_values = np.tensordot(BASIS_VECTORS_INV, point, axes=[(1,), (0,)])
+        if np.any( BOUNDS[:,0] > projected_values) or np.any( BOUNDS[:,1] < projected_values ) :  # is the point out-of-bounds?
+            if DEBUGGING:
+                print("out-of-bounds")
+            return None  # "out-of-bounds state"
     final_distance, tree_index = KDTREE.query(point, 1)
     # if final_distance > MAX_FINAL_DISTANCE:  # <-- deprecated
         # return None
     return STATES[tree_index]
 
 
-def pre_calculation_hook_kdtree(coordinates, states, is_sunny, periodicity, grid_type):
+def pre_calculation_hook_kdtree(coordinates, states,
+                                is_sunny=None,
+                                periodicity=None,
+                                grid_type=None,
+                                out_of_bounds=True):
     global KDTREE, STATES, BASIS_VECTORS, BASIS_VECTORS_INV, BOUNDS
     STATES = states
 
+    dim = np.shape(coordinates)[-1]
     periodicity_bool = (periodicity > 0)
 
     # check, if there are periodic boundaries and if so, use different tree form
     if np.any(periodicity_bool):
-        assert np.shape(coordinates)[-1] == len(periodicity_bool), "Given boundaries don't match with " \
-                                                                            "dimensions of coordinates. " \
-                                                                            "Write '-1' if boundary is not periodic!"
+        assert dim == len(periodicity_bool), "Given boundaries don't match with " \
+                                                    "dimensions of coordinates. " \
+                                                    "Write '-1' if boundary is not periodic!"
         assert (grid_type in ["orthogonal"]) or ((grid_type in ["simplex-based"]) and not np.any(periodicity_bool[1:])),\
             "does PeriodicCKDTREE support the periodicity for your grid?"
         KDTREE = periodkdt.PeriodicCKDTree(periodicity, coordinates)
     else:
         KDTREE = spat.cKDTree(coordinates)
 
-    dim = coordinates.shape[-1]
-    BOUNDS = np.zeros((dim, 2))
+    OUT_OF_BOUNDS = not (out_of_bounds is False)
+    if OUT_OF_BOUNDS:
+        if out_of_bounds is True:
+            out_of_bounds = [[True, True]] * dim
+        out_of_bounds = np.asarray(out_of_bounds)
 
-    if grid_type == "orthogonal":
-        basis_vectors = np.eye(dim)
-    elif grid_type == "simplex-based":
-        basis_vectors = p_series(1, dim)
+        if out_of_bounds.shape == (dim,):
+            out_of_bounds = np.repeat(out_of_bounds[:, None], 2, axis=1)
+        assert out_of_bounds.shape == (dim, 2)
 
-    BASIS_VECTORS = basis_vectors
-    BASIS_VECTORS_INV = la.inv(BASIS_VECTORS)
 
-    for d in range(dim):
-        if periodicity_bool[d]:
-            BOUNDS[d,:] = -np.inf, np.inf
-            # this basically means, because of periodicity, the trajectories
-            # cannot run out-of-bounds
-        else:
-            # project the values on the basis vector with a scalar product
-            # for that reason, basis vectors need to be normalized
-            # projected_values = np.tensordot(coordinates, basis_vectors[:,d], axes=[(1,), (0,)])
+        dim = coordinates.shape[-1]
+        BOUNDS = np.zeros((dim, 2))
 
-            # actually the idea above is correct and this is simply the result
-            BOUNDS[d,:] = -BOUNDS_EPSILON, 1 + BOUNDS_EPSILON
+        if grid_type == "orthogonal":
+            basis_vectors = np.eye(dim)
+        elif grid_type == "simplex-based":
+            basis_vectors = p_series(1, dim)
 
-            # BOUNDS[d,:] = np.min(projected_values) - BOUNDS_EPSILON, np.max(projected_values) + BOUNDS_EPSILON
-            # BOUNDS[d,:] = np.min(coordinates[:,d]) - BOUNDS_EPSILON, np.max(coordinates[:,d]) + BOUNDS_EPSILON
+        BASIS_VECTORS = basis_vectors
+        BASIS_VECTORS_INV = la.inv(BASIS_VECTORS)
 
-    projected_values = np.tensordot(coordinates, BASIS_VECTORS_INV, axes=[(1,), (1,)])
-    assert np.all( BOUNDS[None, :,0] < projected_values) \
-        and np.all( BOUNDS[None, :,1] > projected_values ),\
-        "BOUNDS and coordinates do not fit together, did you set the correct grid_type argument?"
+        for d in range(dim):
+            if periodicity_bool[d]:
+                BOUNDS[d,:] = -np.inf, np.inf
+                # this basically means, because of periodicity, the trajectories
+                # cannot run out-of-bounds
+            else:
+                # project the values on the basis vector with a scalar product
+                # for that reason, basis vectors need to be normalized
+                # projected_values = np.tensordot(coordinates, basis_vectors[:,d], axes=[(1,), (0,)])
+
+                # actually the idea above is correct and this is simply the result
+                # combined with the checking whether out-of-bounds should be
+                # applied
+                BOUNDS[d,:] = np.where(out_of_bounds[d], (-BOUNDS_EPSILON, 1 + BOUNDS_EPSILON), (-np.infty, np.infty))
+
+                # BOUNDS[d,:] = np.min(projected_values) - BOUNDS_EPSILON, np.max(projected_values) + BOUNDS_EPSILON
+                # BOUNDS[d,:] = np.min(coordinates[:,d]) - BOUNDS_EPSILON, np.max(coordinates[:,d]) + BOUNDS_EPSILON
+
+        projected_values = np.tensordot(coordinates, BASIS_VECTORS_INV, axes=[(1,), (1,)])
+        assert np.all( BOUNDS[None, :,0] < projected_values) \
+            and np.all( BOUNDS[None, :,1] > projected_values ),\
+            "BOUNDS and coordinates do not fit together, did you set the correct grid_type argument?"
 
 
 def viability_kernel_step(coordinates, states, good_states, bad_state, succesful_state, work_state,
@@ -898,6 +919,7 @@ def topology_classification(coordinates, states, default_evols, management_evols
                             pre_calculation_hook = pre_calculation_hook_kdtree,  # None means nothing to be done
                             state_evaluation = state_evaluation_kdtree_line,
                             grid_type = "orthogonal",
+                            out_of_bounds=True, # either bool or bool array with shape (dim, ) or shape (dim, 2) with values for each boundary
                             ):
     """calculates different regions of the state space using viability theory algorithms"""
 
@@ -917,7 +939,11 @@ def topology_classification(coordinates, states, default_evols, management_evols
 
     if not pre_calculation_hook is None:
         # run the pre-calculation hook (defaults to creation of the KD-Tree)
-        pre_calculation_hook(coordinates, states, is_sunny, periodic_boundaries, grid_type)
+        pre_calculation_hook(coordinates, states,
+                             is_sunny=is_sunny,
+                             periodicity=periodic_boundaries,
+                             grid_type=grid_type,
+                             out_of_bounds=out_of_bounds)
 
     # make sure, evols can be treated as lists
     default_evols = list(default_evols)

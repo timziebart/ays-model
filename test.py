@@ -41,6 +41,7 @@ def generate_example(default_rhss,
                      plot_areas=False,
                      default_rhssPS=None,
                      management_rhssPS=None,
+                     out_of_bounds=True
                      ):
 
     plotPS = lambda rhs, boundaries, style: mPS.plotPhaseSpace(rhs, [boundaries[0][0], boundaries[1][0], boundaries[0][1], boundaries[1][1]], colorbar=False, style=style)
@@ -75,7 +76,11 @@ def generate_example(default_rhss,
             fig = plt.figure(figsize=figure_size, tight_layout=True)
 
         start_time = time.time()
-        viab.topology_classification(grid, states, default_runs, management_runs, sunny, periodic_boundaries = periodicity, grid_type=grid_type, compute_eddies=compute_eddies)
+        viab.topology_classification(grid, states, default_runs, management_runs, sunny,
+                                     periodic_boundaries = periodicity,
+                                     grid_type=grid_type,
+                                     compute_eddies=compute_eddies,
+                                     out_of_bounds=out_of_bounds)
         time_diff = time.time() - start_time
 
         print("run time: {!s} s".format(dt.timedelta(seconds=time_diff)))
@@ -239,6 +244,7 @@ EXAMPLES = {
                                  [[0, 1],[0, 1]],
                                  default_parameters=[{"ax":0.2, "ay":0.2, "prod":2}],
                                  management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
+                                 out_of_bounds=False,
                                  ),
             "plants-hex":
                 generate_example([pm.plants_rhs],
@@ -248,6 +254,7 @@ EXAMPLES = {
                                  default_parameters=[{"ax":0.2, "ay":0.2, "prod":2}],
                                  management_parameters=[{"ax":0.1, "ay":0.1, "prod":2}, {"ax":2, "ay":0, "prod":2}],
                                  grid_type="simplex-based",
+                                 out_of_bounds=False,
                                  ),
             "tech-change":
                 generate_example([tcm.techChange_rhs],
@@ -282,6 +289,7 @@ EXAMPLES = {
                                      dict(phi = 4, r = 0.04, gamma = 4 * 10 ** (-6), delta = -0.1, kappa = 12000)],
                                  management_parameters=[
                                      dict(phi = 4, r = 0.04, gamma = 2.8 * 10 ** (-6), delta = -0.1, kappa = 12000)],
+                                 out_of_bounds=[[False, True], [False, True]],
                                  ),
             "easter-a-hex":
                 generate_example([prm.easter_rhs],
