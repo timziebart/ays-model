@@ -669,20 +669,21 @@ def viability_capture_basin(coordinates, states, target_states, reached_state, b
 # below are just helper functions
 
 
-def print_evaluation(states):
-	total = states.size
-	total_length = str(len(str(total)))
-	num_sum = 0
-	current_globals = globals()
-	print("Evaluation:")
-	for region in REGIONS:
-		num = np.count_nonzero(states == current_globals[region])
-		num_sum += num
-		print(("{:<15}: {:>6.2f}% ( {:>"+total_length+"} )").format(region,  num / total * 100, num))
-	print()
-	if num_sum != total:
-		print(("{:<15}: {:>6.2f}% ( {:>"+total_length+"} )").format("UNKNOWN",  (total - num_sum) / total * 100, total - num_sum))
-		print()
+def print_evaluation(states, print_empty_regions=True, print_unknown=True):
+    total = states.size
+    total_length = str(len(str(total)))
+    num_sum = 0
+    current_globals = globals()
+    print("Evaluation (relative normalized Volume):")
+    for region in REGIONS:
+        num = np.count_nonzero(states == current_globals[region])
+        if print_empty_regions or num > 0:
+            num_sum += num
+            print(("{:<15}: {:>6.2f}% ( {:>"+total_length+"} )").format(region,  num / total * 100, num))
+    print()
+    if print_unknown and num_sum != total:
+        print(("{:<15}: {:>6.2f}% ( {:>"+total_length+"} )").format("UNKNOWN",  (total - num_sum) / total * 100, total - num_sum))
+        print()
 
 
 def plot_points(coords, states):
