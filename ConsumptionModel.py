@@ -21,6 +21,6 @@ def consum_rhsPS(xy, t, u):
 
 def consum_sunny(p):
     """sunny constraint"""
-    return (p[:, 0] < 2).__and__(p[:, 1] < 3)
+    return np.ones(p.shape[:-1], dtype=bool)
 
 

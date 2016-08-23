@@ -417,6 +417,17 @@ EXAMPLES = {
                                                        dict(u = 0.5)],
                                  management_rhssPS = [cm.consum_rhsPS]*2,
                                  ),
+            "consum-no-backscaling":
+                generate_example([],
+                                 [cm.consum_rhs]*2,
+                                 cm.consum_sunny,
+                                 [[0, 2], [0, 3]],
+                                 default_parameters = [],
+                                 management_parameters = [dict(u = -0.5),
+                                                       dict(u = 0.5)],
+                                 management_rhssPS = [cm.consum_rhsPS]*2,
+                                 backscaling=False,
+                                 ),
             "consum-hex":
                 generate_example([],
                                  [cm.consum_rhs] * 2,
