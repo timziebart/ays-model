@@ -962,99 +962,106 @@ def topology_classification(coordinates, states, default_evols, management_evols
     shelter_empty = False
     backwater_empty = False
 
-    if default_evols:
-        # calculate shelter
-        print('###### calculating shelter')
-        states[(states == UNSET) & is_sunny(coordinates)] = SHELTER # initial state for shelter calculation
-        # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, **viability_kwargs)
-        viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols, **viability_kwargs)
+    if all_evols:
+        if default_evols:
+            # calculate shelter
+            print('###### calculating shelter')
+            states[(states == UNSET) & is_sunny(coordinates)] = SHELTER # initial state for shelter calculation
+            # viability_kernel(coordinates, states, good_states, bad_state, succesful_state, work_state, evolutions, **viability_kwargs)
+            viability_kernel(coordinates, states, [SHELTER, -SHELTER], UNSET, SHELTER, SHELTER, default_evols, **viability_kwargs)
 
-        if not np.any(states == SHELTER):
-            print('shelter empty')
-            shelter_empty = True
+            if not np.any(states == SHELTER):
+                print('shelter empty')
+                shelter_empty = True
 
-        if not shelter_empty:
-            # calculate glade
-            print('###### calculating glade')
+            if not shelter_empty:
+                if management_evols:
+                    # calculate glade
+                    print('###### calculating glade')
 
-            states[(states == UNSET) & is_sunny(coordinates)] = SUNNY_UP
+                    states[(states == UNSET) & is_sunny(coordinates)] = SUNNY_UP
 
-            #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, **viability_kwargs):
-            viability_capture_basin(coordinates, states, [SHELTER, -SHELTER], GLADE, UNSET, SUNNY_UP, all_evols, **viability_kwargs)
+                    #viability_capture_basin(coordinates, states, target_states, reached_state, bad_state, work_state, evolutions, **viability_kwargs):
+                    viability_capture_basin(coordinates, states, [SHELTER, -SHELTER], GLADE, UNSET, SUNNY_UP, all_evols, **viability_kwargs)
+                else:
+                    print('###### no management dynamics given, skipping glade')
 
-            # calculate remaining upstream dark and sunny
-            print('###### calculating rest of upstream (lake, dark and sunny)')
-            states[(states == UNSET)] = DARK_UP
-            viability_capture_basin(coordinates, states, [SHELTER, GLADE, -SUNNY_UP, -DARK_UP, -LAKE], SUNNY_UP, UNSET, DARK_UP, all_evols, **viability_kwargs)
+                # calculate remaining upstream dark and sunny
+                print('###### calculating rest of upstream (lake, dark and sunny)')
+                states[(states == UNSET)] = DARK_UP
+                viability_capture_basin(coordinates, states, [SHELTER, GLADE, -SUNNY_UP, -DARK_UP, -LAKE], SUNNY_UP, UNSET, DARK_UP, all_evols, **viability_kwargs)
 
-            states[~is_sunny(coordinates) & (states == SUNNY_UP)] = DARK_UP
+                states[~is_sunny(coordinates) & (states == SUNNY_UP)] = DARK_UP
 
-            # calculate Lake
-            print('###### calculating lake')
-            states[is_sunny(coordinates) & (states == SUNNY_UP)] = LAKE
-            viability_kernel(coordinates, states, [SHELTER, GLADE, LAKE, -LAKE], SUNNY_UP, LAKE, LAKE, all_evols, **viability_kwargs)
-    else:
-        print('###### no default dynamics given, skipping upstream')
+                if management_evols:
+                    # calculate Lake
+                    print('###### calculating lake')
+                    states[is_sunny(coordinates) & (states == SUNNY_UP)] = LAKE
+                    viability_kernel(coordinates, states, [SHELTER, GLADE, LAKE, -LAKE], SUNNY_UP, LAKE, LAKE, all_evols, **viability_kwargs)
+                else:
+                    print('###### no management dynamics given, skipping lake')
+        else:
+            print('###### no default dynamics given, skipping upstream')
 
-    if management_evols:
-        # calculate Bachwater
-        print('###### calculating backwater')
-        states[is_sunny(coordinates) & (states == UNSET)] = BACKWATERS
-        viability_kernel(coordinates, states, [BACKWATERS, -BACKWATERS], UNSET, BACKWATERS, BACKWATERS, all_evols, **viability_kwargs)
+        if management_evols:
+            # calculate Bachwater
+            print('###### calculating backwater')
+            states[is_sunny(coordinates) & (states == UNSET)] = BACKWATERS
+            viability_kernel(coordinates, states, [BACKWATERS, -BACKWATERS], UNSET, BACKWATERS, BACKWATERS, all_evols, **viability_kwargs)
 
-        if not np.any(states == BACKWATERS):
-            print('backwater empty')
-            backwater_empty = True
+            if not np.any(states == BACKWATERS):
+                print('backwater empty')
+                backwater_empty = True
 
-        if not backwater_empty:
-            # calculate remaining downstream dark and sunny
-            print('###### calculating remaining downstream (dark and sunny)')
-            states[(states == UNSET)] = DARK_DOWN
-            viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, **viability_kwargs)
-            states[~is_sunny(coordinates) & (states == SUNNY_DOWN)] = DARK_DOWN
-    else:
-        print('###### no management dynamics given, skipping downstream')
-
-
+            if not backwater_empty:
+                # calculate remaining downstream dark and sunny
+                print('###### calculating remaining downstream (dark and sunny)')
+                states[(states == UNSET)] = DARK_DOWN
+                viability_capture_basin(coordinates, states, [BACKWATERS, -SUNNY_DOWN, -DARK_DOWN], SUNNY_DOWN, UNSET, DARK_DOWN, all_evols, **viability_kwargs)
+                states[~is_sunny(coordinates) & (states == SUNNY_DOWN)] = DARK_DOWN
+        else:
+            print('###### no management dynamics given, skipping downstream')
 
 
-    # calculate trench and set the rest as preliminary estimation for the eddies
-    print('###### calculating dark Eddies/Abyss')
-    states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_EDDIES
 
-    # look only at the coordinates with state == UNSET
-    viability_capture_basin(coordinates, states,
-                            [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS],
-                            DARK_EDDIES, TRENCH, UNSET, all_evols, **viability_kwargs)
-    if compute_eddies:
 
-        # the preliminary estimations for sunny and dark eddie are set
-        states[(states == SUNNY_EDDIES)] = UNSET
+        # calculate trench and set the rest as preliminary estimation for the eddies
+        print('###### calculating dark Eddies/Abyss')
+        states[is_sunny(coordinates) & (states == UNSET)] = SUNNY_EDDIES
+
+        # look only at the coordinates with state == UNSET
         viability_capture_basin(coordinates, states,
-                                [DARK_EDDIES, -DARK_EDDIES],
-                                SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, **viability_kwargs)
+                                [SHELTER, GLADE, SUNNY_UP, DARK_UP, LAKE, BACKWATERS, SUNNY_DOWN, SUNNY_EDDIES, SUNNY_ABYSS, -SHELTER, -GLADE, -SUNNY_UP, -DARK_UP , -LAKE, -BACKWATERS, -SUNNY_DOWN, -SUNNY_EDDIES, -SUNNY_ABYSS],
+                                DARK_EDDIES, TRENCH, UNSET, all_evols, **viability_kwargs)
+        if compute_eddies:
 
-
-        for num in range(MAX_ITERATION_EDDIES):
-            states[(states == DARK_EDDIES)] = UNSET
-            changed = viability_capture_basin(coordinates, states,
-                                    [SUNNY_EDDIES, -SUNNY_EDDIES],
-                                            DARK_EDDIES, DARK_ABYSS, UNSET, all_evols, **viability_kwargs)
-            if not changed:
-                break
+            # the preliminary estimations for sunny and dark eddie are set
             states[(states == SUNNY_EDDIES)] = UNSET
-            changed = viability_capture_basin(coordinates, states,
+            viability_capture_basin(coordinates, states,
                                     [DARK_EDDIES, -DARK_EDDIES],
                                     SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, **viability_kwargs)
-            if not changed:
-                break
+
+
+            for num in range(MAX_ITERATION_EDDIES):
+                states[(states == DARK_EDDIES)] = UNSET
+                changed = viability_capture_basin(coordinates, states,
+                                        [SUNNY_EDDIES, -SUNNY_EDDIES],
+                                                DARK_EDDIES, DARK_ABYSS, UNSET, all_evols, **viability_kwargs)
+                if not changed:
+                    break
+                states[(states == SUNNY_EDDIES)] = UNSET
+                changed = viability_capture_basin(coordinates, states,
+                                        [DARK_EDDIES, -DARK_EDDIES],
+                                        SUNNY_EDDIES, SUNNY_ABYSS, UNSET, all_evols, **viability_kwargs)
+                if not changed:
+                    break
+            else:
+                warn.warn("reached MAX_ITERATION_EDDIES = %i during the Eddies calculation"%MAX_ITERATION_EDDIES)
         else:
-            warn.warn("reached MAX_ITERATION_EDDIES = %i during the Eddies calculation"%MAX_ITERATION_EDDIES)
-    else:
-        # assume all eddies are abysses
-            states[(states == SUNNY_EDDIES)] = SUNNY_ABYSS
-            states[(states == UNSET)] = DARK_ABYSS
-            states[(states == DARK_EDDIES)] = DARK_ABYSS
+            # assume all eddies are abysses
+                states[(states == SUNNY_EDDIES)] = SUNNY_ABYSS
+                states[(states == UNSET)] = DARK_ABYSS
+                states[(states == DARK_EDDIES)] = DARK_ABYSS
 
 
     # All initially given states are set to positive counterparts

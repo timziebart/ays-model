@@ -214,6 +214,16 @@ EXAMPLES = {
                                  compute_eddies=True,
                                  backscaling=False,
                                  ),
+            "pendulum-default-only":
+                generate_example([gpm.pendulum_rhs],
+                                 [],
+                                 gpm.pendulum_sunny,
+                                 [[0, 2*np.pi],[-2.2,1.2]],
+                                 default_parameters=[{"a":0.0}],
+                                 management_parameters=[],
+                                 periodicity=[1, -1],
+                                 compute_eddies=True,
+                                 ),
             "pendulum-hex":
                 generate_example([gpm.pendulum_rhs],
                                  [gpm.pendulum_rhs],
