@@ -61,7 +61,7 @@ if __name__ == "__main__":
     print("date: {}".format(dt.datetime.fromtimestamp(header["start-time"]).ctime()))
     print("duration: {!s}".format(dt.timedelta(seconds=header["run-time"])))
     print()
-    print("management options: {}".format(", ".join(header["managements"])))
+    print("management options: {}".format(", ".join(header["managements"]) if header["managements"] else "(None)"))
     print()
 
     if "boundaries" in header:
