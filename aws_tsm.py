@@ -119,6 +119,7 @@ if __name__ == "__main__":
                      [False, False]]  # S compactified as s
 
     start_time = time.time()
+    print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))
     if not args.dry_run:
         viab.topology_classification(grid, states, [default_run], management_runs,
                                      sunny, grid_type=grid_type,
