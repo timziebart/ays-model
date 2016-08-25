@@ -71,10 +71,12 @@ if __name__ == "__main__":
 
 
     # generate the grid, normalized to 1 in each dimension
-    grid, scaling_vector, offset, _ = viab.generate_grid(boundaries,
+    grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,
                                                          n0,
                                                          grid_type,
                                                          verbosity=args.verbosity)
+    # viab.generate_grid sets stepsize, reset it here
+    viab.STEPSIZE = 2.5 * x_step
 
     # generate the fitting states array
     states = np.zeros(grid.shape[:-1], dtype=np.int16)
@@ -148,6 +150,8 @@ if __name__ == "__main__":
                 "viab-scaling-vector": scaling_vector,
                 "viab-scaling-offset": offset,
                 "input-args": args,
+                "stepsize": viab.STEPSIZE,
+                "xstep" : x_step,
                 "out-of-bounds": out_of_bounds,
                 }
         data = {"grid": grid,

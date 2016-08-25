@@ -63,10 +63,10 @@ if __name__ == "__main__":
     print()
     print("management options: {}".format(", ".join(header["managements"]) if header["managements"] else "(None)"))
     print()
-
-    if "boundaries" in header:
-        print("boundaries: {}".format(", ".join(header["boundaries"])))
-        print()
+    print("boundaries: {}".format(", ".join(header["boundaries"])))
+    print()
+    print("stepsize / gridstepsize: {:<5.3f}".format(header["stepsize"] / header["xstep"]))
+    print()
 
     viab.print_evaluation(states)
 

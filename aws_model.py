@@ -43,6 +43,7 @@ AWS_parameters["sigma_ET"] = AWS_parameters["sigma_default"] * .5**(1/AWS_parame
 AWS_parameters["tau_A"] = 50.  # yr
 AWS_parameters["tau_S"] = 50.  # yr
 AWS_parameters["theta"] = AWS_parameters["beta"] / (950 - AWS_parameters["A_offset"])  # 1/(yr GJ)
+AWS_parameters["theta_SRM"] = 0.5 * AWS_parameters["theta"]  # 1/(yr GJ)
 
 boundary_parameters = {}
 boundary_parameters["A_PB"] = 840 - AWS_parameters["A_offset"]
