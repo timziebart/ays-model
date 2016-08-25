@@ -13,6 +13,7 @@ import datetime as dt
 import sys
 import types
 import argparse
+import signal
 import warnings as warn
 
 import pickle
@@ -23,6 +24,11 @@ MANAGEMENTS = {
     "energy-transformation": "et",
     "carbon-capture-storage": "ccs",
 }
+
+
+ALL_SIGNALS = [x for x in dir(signal) if x.startswith("SIG")]
+def signal_handler(signal, frame):  sys.exit(signal)
+
 
 if __name__ == "__main__":
 
@@ -63,6 +69,14 @@ if __name__ == "__main__":
 
     # do the actual parsing of the arguments
     args = parser.parse_args()
+
+    # register all possible signals
+    for sig in ALL_SIGNALS:
+        try:
+            signal.signal(getattr(signal, sig), signal_handler)
+        except Exception as e:
+            print("ignoring signal registration: {} ({}: {!s})".format(sig, e.__class__.__name__, e))
+    print()
 
     # a small hack to make all the parameters available as global variables
     aws.globalize_dictionary(aws.boundary_parameters, module=aws)
@@ -121,11 +135,18 @@ if __name__ == "__main__":
     start_time = time.time()
     print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))
     if not args.dry_run:
-        viab.topology_classification(grid, states, [default_run], management_runs,
-                                     sunny, grid_type=grid_type,
-                                     compute_eddies=args.eddies,
-                                     out_of_bounds=out_of_bounds,
-                                     )
+        try:
+            viab.topology_classification(grid, states, [default_run], management_runs,
+                                            sunny, grid_type=grid_type,
+                                            compute_eddies=args.eddies,
+                                            out_of_bounds=out_of_bounds,
+                                            )
+        except SystemExit as e:
+            print()
+            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            print("interrupted by SystemExit or Signal {}".format(e.args[0]))
+            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            print()
     time_passed = time.time() - start_time
 
     print()
