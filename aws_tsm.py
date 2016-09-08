@@ -6,6 +6,7 @@ import PyViability as viab
 import helper
 
 import numpy as np
+import scipy.optimize as opt
 
 import time
 import datetime as dt
@@ -60,6 +61,8 @@ if __name__ == "__main__":
                         help="number of points per dimension for the grid")
     parser.add_argument("-r", "--remember", action="store_true",
                         help="remember already calculated points in a dict")
+    parser.add_argument("-z", "--zeros", action="store_true",
+                        help="estimate the fixed point(s)")
 
     # management arguments
     management_group = parser.add_argument_group("management options")
@@ -112,6 +115,14 @@ if __name__ == "__main__":
                                          helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters),
                                          *run_args, **run_kwargs)
 
+    if args.zeros:
+        raise NotImplementedError("on the way")
+        print("fised point(s) of default:")
+        x0 = [0., 0.5, 0.5] # A, w, s
+        print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
+                         args=helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters)))
+
+
     management_runs = []
     for m in args.managements:
         management_dict = dict(aws.AWS_parameters) # make a copy
@@ -129,8 +140,6 @@ if __name__ == "__main__":
                                              helper.get_ordered_parameters(aws._AWS_rhs, management_dict),
                                              *run_args, **run_kwargs)
         management_runs.append(management_run)
-
-
 
     sunny = viab.scaled_to_one_sunny(aws.AWS_sunny, offset, scaling_vector)
 
