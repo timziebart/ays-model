@@ -24,6 +24,7 @@ if not hasattr(Axis, "_get_coord_info_old"):
 
 
 
+# def create_figure(A_mid, W_mid, S_mid):
 def create_figure(A_max, W_mid, S_mid):
     fig = plt.figure(figsize=(16,9))
     ax3d = plt3d.Axes3D(fig)
@@ -33,11 +34,15 @@ def create_figure(A_max, W_mid, S_mid):
 
     # make proper tickmarks:
     Aticks = np.linspace(0,A_max,11)
-    Wticks = np.concatenate((np.linspace(0,1e14,11)[:-1],np.linspace(0,.5e15,6)[1:]))
-    Sticks = np.concatenate((np.linspace(0,1e10,11)[:-1],np.linspace(0,1e11,11)[1:]))
+    # Aticks = np.concatenate((np.linspace(0, A_mid, 11)[:-1],np.linspace(0, A_mid*10, 6)[1:]))
+    Wticks = np.concatenate((np.linspace(0, W_mid, 11)[:-1],np.linspace(0, W_mid*10, 6)[1:]))
+    Sticks = np.concatenate((np.linspace(0, S_mid, 11)[:-1],np.linspace(0, S_mid*10, 6)[1:]))
     ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(Aticks))
     ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(Aticks.astype("int")))
     ax3d.set_xlim(Aticks[0],Aticks[-1])
+    # ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Aticks/(A_mid+Aticks),[1]))))
+    # ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Aticks).astype("int"),["inf"]))))
+    # ax3d.set_xlim(0,1)
     ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Wticks/(W_mid+Wticks),[1]))))
     ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Wticks/1e12).astype("int"),["inf"]))))
     ax3d.set_ylim(0,1)

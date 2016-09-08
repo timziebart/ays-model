@@ -67,6 +67,8 @@ if __name__ == "__main__":
     print()
     print("stepsize / gridstepsize: {:<5.3f}".format(header["stepsize"] / header["xstep"]))
     print()
+    print("points per dimension: {:4d}".format(header["grid-parameters"]["n0"]))
+    print()
 
     viab.print_evaluation(states)
 
@@ -78,6 +80,7 @@ if __name__ == "__main__":
         # aws.globalize_dictionary(header["grid-parameters"], module=aws)
 
         fig, ax3d = aws_show.create_figure(header["grid-parameters"]["A_max"],
+        # fig, ax3d = aws_show.create_figure(header["grid-parameters"]["A_mid"],
                                            header["grid-parameters"]["W_mid"],
                                            header["grid-parameters"]["S_mid"])
         aws_show.add_boundary(ax3d, header["boundary-parameters"]["A_PB"])

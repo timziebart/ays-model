@@ -26,7 +26,8 @@ MANAGEMENTS = {
 }
 
 
-ALL_SIGNALS = [x for x in dir(signal) if x.startswith("SIG")]
+ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal) if x.startswith("SIG") }
+NUMER_TO_SIGNAL = { val: key for key, val in ALL_SIGNALS.items() }
 def signal_handler(signal, frame):  sys.exit(signal)
 
 
@@ -48,11 +49,15 @@ if __name__ == "__main__":
                         " actually run the TSM computation nor save a file")
     parser.add_argument("-e", "--eddies", action="store_true",
                         help="include eddies in the computation")
+    parser.add_argument("-f", "--force", action="store_true",
+                        help="if output-file exists already, overwrite it")
     parser.add_argument("-i", "--integrate", action="store_const",
                         dest="run_type", const="integration", default="linear",
                         help="integrate instead of using linear approx.")
     parser.add_argument("-n", "--no-save", action="store_true",
                         help="don't save the result")
+    parser.add_argument("--num", type=int, default=aws.grid_parameters["n0"],
+                        help="number of points per dimension for the grid")
     parser.add_argument("-r", "--remember", action="store_true",
                         help="remember already calculated points in a dict")
 
@@ -75,8 +80,10 @@ if __name__ == "__main__":
         try:
             signal.signal(getattr(signal, sig), signal_handler)
         except Exception as e:
-            print("ignoring signal registration: {} ({}: {!s})".format(sig, e.__class__.__name__, e))
+            print("ignoring signal registration: {} [{}] ({}: {!s})".format(sig, ALL_SIGNALS[sig], e.__class__.__name__, e))
     print()
+
+    aws.grid_parameters["n0"] = args.num
 
     # a small hack to make all the parameters available as global variables
     aws.globalize_dictionary(aws.boundary_parameters, module=aws)
@@ -90,14 +97,13 @@ if __name__ == "__main__":
                                                          grid_type,
                                                          verbosity=args.verbosity)
     # viab.generate_grid sets stepsize, reset it here
-    viab.STEPSIZE = 2.5 * x_step
+    viab.STEPSIZE = 2 * x_step
 
     # generate the fitting states array
     states = np.zeros(grid.shape[:-1], dtype=np.int16)
 
     # mark the fixed point in infinity as shelter already
     states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 0.5 ] = -viab.SHELTER
-
 
     run_args = [offset, scaling_vector]
     run_kwargs = dict(returning=args.run_type, remember=args.remember)
@@ -144,7 +150,7 @@ if __name__ == "__main__":
         except SystemExit as e:
             print()
             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-            print("interrupted by SystemExit or Signal {}".format(e.args[0]))
+            print("interrupted by SystemExit or Signal {} [{}]".format(NUMER_TO_SIGNAL[e.args[0]], e.args[0]))
             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
             print()
     time_passed = time.time() - start_time
