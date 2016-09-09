@@ -27,9 +27,41 @@ MANAGEMENTS = {
 }
 
 
-ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal) if x.startswith("SIG") }
+ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal)
+               if x.startswith("SIG")
+               and not x.startswith("SIG_")  # because they are just duplicates
+               and not getattr(signal, x) == 0  # can register only for signals >0
+               and not x in ["SIGSTOP", "SIGKILL"]  # can't register these because you can't actually catch them (:
+               }
 NUMER_TO_SIGNAL = { val: key for key, val in ALL_SIGNALS.items() }
-def signal_handler(signal, frame):  sys.exit(signal)
+
+def signal_handler(sig, frame):
+    sys.exit(sig)
+
+def register_signals(sigs = set(ALL_SIGNALS), handler=signal_handler, verbose=True):
+    """
+    register a signal handler for all given signals
+    sigs:       (multiply iterable) providing all the signals to be registered
+                default: all possible signals 'ALL_SIGNALS'
+    handler:    (function) the signal handler to be used
+                default: signal_handler, which just raises a 'sys.exit(sig)' for the signal 'sig'
+    verbose:    (bool) print a notification if the signal registering failed
+    """
+    # register all possible signals
+    for sig in ALL_SIGNALS:
+        sigclass = getattr(signal, sig)
+        signum = sigclass.value
+        # the line below checks whether the signal has been given for
+        # registering in the form of either the name, the signal class or the
+        # signal number
+        if set([sig, sigclass, signum]).intersection(sigs):
+            try:
+                signal.signal(getattr(signal, sig), signal_handler)
+            except Exception as e:
+                if verbose:
+                    print("ignoring signal registration: [{:>2d}] {} (because {}: {!s})".format(ALL_SIGNALS[sig], sig, e.__class__.__name__, e), file=sys.stderr)
+
+
 
 
 if __name__ == "__main__":
@@ -77,14 +109,6 @@ if __name__ == "__main__":
 
     # do the actual parsing of the arguments
     args = parser.parse_args()
-
-    # register all possible signals
-    for sig in ALL_SIGNALS:
-        try:
-            signal.signal(getattr(signal, sig), signal_handler)
-        except Exception as e:
-            print("ignoring signal registration: {} [{}] ({}: {!s})".format(sig, ALL_SIGNALS[sig], e.__class__.__name__, e))
-    print()
 
     aws.grid_parameters["n0"] = args.num
 
@@ -146,6 +170,9 @@ if __name__ == "__main__":
     out_of_bounds = [[False, True],   # A still has A_max as upper boundary
                      [False, False],  # W compactified as w
                      [False, False]]  # S compactified as s
+
+    register_signals()
+    print()
 
     start_time = time.time()
     print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))

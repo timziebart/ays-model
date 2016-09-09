@@ -50,6 +50,8 @@ def create_figure(A_max, W_mid, S_mid):
     ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Sticks/1e9).astype("int"),["inf"]))))
     ax3d.set_zlim(0,1)
 
+    ax3d.view_init(30, -140)
+
     return fig, ax3d
 
 

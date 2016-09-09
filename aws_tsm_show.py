@@ -89,7 +89,9 @@ if __name__ == "__main__":
             region_num = getattr(viab, region)
             mask = (states == region_num)
             ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                            color=viab.COLORS[region_num], alpha=0.1,
+                            color=viab.COLORS[region_num],
+                        alpha=1/header["grid-parameters"]["n0"],
+                        # alpha=0.1,
                         linestyle="", marker=".", markersize=30,
                         )
 
