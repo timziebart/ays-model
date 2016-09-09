@@ -11,20 +11,13 @@ import scipy.optimize as opt
 import time
 import datetime as dt
 
-import sys
+import sys, os
 import types
 import argparse
 import signal
 import warnings as warn
 
 import pickle
-
-MANAGEMENTS = {
-    "degrowth": "dg",
-    "solar-radiation": "srm",
-    "energy-transformation": "et",
-    "carbon-capture-storage": "ccs",
-}
 
 
 ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal)
@@ -61,6 +54,13 @@ def register_signals(sigs = set(ALL_SIGNALS), handler=signal_handler, verbose=Tr
                 if verbose:
                     print("ignoring signal registration: [{:>2d}] {} (because {}: {!s})".format(ALL_SIGNALS[sig], sig, e.__class__.__name__, e), file=sys.stderr)
 
+
+MANAGEMENTS = {
+    "degrowth": "dg",
+    "solar-radiation": "srm",
+    "energy-transformation": "et",
+    "carbon-capture-storage": "ccs",
+}
 
 
 
@@ -109,6 +109,10 @@ if __name__ == "__main__":
 
     # do the actual parsing of the arguments
     args = parser.parse_args()
+
+    if not (args.force or args.dry_run):
+        if os.path.isfile(args.output_file):
+            parser.error("'{}' exists already, use '--force' option to overwrite".format(args.output_file))
 
     aws.grid_parameters["n0"] = args.num
 
