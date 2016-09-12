@@ -13,6 +13,7 @@ import datetime as dt
 
 import sys, os
 import types
+import ast
 import argparse
 import signal
 import warnings as warn
@@ -91,6 +92,10 @@ if __name__ == "__main__":
                         help="don't save the result")
     parser.add_argument("--num", type=int, default=aws.grid_parameters["n0"],
                         help="number of points per dimension for the grid")
+    parser.add_argument("-p", "--set-parameter", nargs=2, metavar=("par", "val"),
+                        action="append", dest="changed_parameters", default=[],
+                        help="set a parameter 'par' to value 'val' "\
+                        "(caution, eval is used for the evaluation of 'val'")
     parser.add_argument("-r", "--remember", action="store_true",
                         help="remember already calculated points in a dict")
     parser.add_argument("-z", "--zeros", action="store_true",
@@ -114,13 +119,36 @@ if __name__ == "__main__":
         if os.path.isfile(args.output_file):
             parser.error("'{}' exists already, use '--force' option to overwrite".format(args.output_file))
 
+    print()
+
     aws.grid_parameters["n0"] = args.num
+
+    print("managements: {}".format(", ".join(args.managements) if args.managements else "(None)"))
+    print()
+
+    if args.changed_parameters:
+        print("parameter changing:")
+        combined_parameters = dict(aws.AWS_parameters)
+        combined_parameters.update(aws.grid_parameters)
+        combined_parameters.update(aws.boundary_parameters)
+        for par, val in args.changed_parameters:
+            for d in [aws.AWS_parameters, aws.grid_parameters, aws.boundary_parameters]:
+                if par in d:
+                    try:
+                        val2 = eval(val, combined_parameters)
+                    except BaseException as e:
+                        print("couldn't evaluate {!r} for parameter '{}' because of {}: {}".format(val, par, e.__class__.__name__, str(e)))
+                        sys.exit(1)
+                    print("{} = {!r} <-- {}".format(par, val2, val))
+                    d[ par ] = val2
+                    break
+            else:
+                parser.error("'{}' is an unknown parameter".format(par))
 
     # a small hack to make all the parameters available as global variables
     aws.globalize_dictionary(aws.boundary_parameters, module=aws)
     aws.globalize_dictionary(aws.grid_parameters, module=aws)
     aws.globalize_dictionary(aws.grid_parameters)
-
 
     # generate the grid, normalized to 1 in each dimension
     grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,
@@ -215,7 +243,6 @@ if __name__ == "__main__":
 
     viab.print_evaluation(states)
 
-    print(aws.grid_parameters)
     if not args.no_save:
         header = {
                 "model": "AWS",

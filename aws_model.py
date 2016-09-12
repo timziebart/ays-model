@@ -118,7 +118,7 @@ def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigm
 # def AWS_sunny(Aws):
     # return Aws[:, 0] < A_PB  # planetary boundary
 def AWS_sunny(aws):
-    return aws[:, 0] < 0.5 # A_PB  # planetary boundary
+    return aws[:, 0] < A_PB / (A_PB + A_mid) # transformed A_PB  # planetary boundary
 
 
 
