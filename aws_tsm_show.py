@@ -35,6 +35,9 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
+    parser.add_argument("-s", "--save-pic", metavar="file", default="",
+                        help="save the picture to 'file'")
+
     regions_parser = parser.add_argument_group("regions", "choose which regions you want to be plotted")
     regions_parser.add_argument("--a", "--all", action="store_true", dest="all_regions",
                                 help="plot all regions")
@@ -94,6 +97,8 @@ if __name__ == "__main__":
                         linestyle="", marker=".", markersize=30,
                         )
 
+        if args.save_pic:
+            fig.savefig(args._save_pic)
         plt.show()
 
 

@@ -156,7 +156,7 @@ def add_boundary(ax3d, boundary= "PB", add_outer=False, **parameters):
         if "A_max" in parameters:
             pass # no transformation necessary
         elif "A_mid" in parameters:
-            A_PB = A_PB / (A_PB * parameters["A_mid"])
+            A_PB = A_PB / (A_PB + parameters["A_mid"])
         boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,0,0],[A_PB,1,0],[A_PB,1,1],[A_PB,0,1]]])
         boundary_surface_PB.set_color("gray"); boundary_surface_PB.set_edgecolor("gray"); boundary_surface_PB.set_alpha(0.25)
         ax3d.add_collection3d(boundary_surface_PB)
