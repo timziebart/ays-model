@@ -30,6 +30,15 @@ else:
     jit = dummy_decorator_with_args
 
 
+# long name (command option line style) : short name (lower case)
+MANAGEMENTS = {
+    "degrowth": "dg",
+    "solar-radiation": "srm",
+    "energy-transformation": "et",
+    "carbon-capture-storage": "ccs",
+}
+
+#
 AWS_parameters = {}
 AWS_parameters["A_offset"] = 600  # pre-industrial level corresponds to A=0
 

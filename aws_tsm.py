@@ -56,13 +56,7 @@ def register_signals(sigs = set(ALL_SIGNALS), handler=signal_handler, verbose=Tr
                     print("ignoring signal registration: [{:>2d}] {} (because {}: {!s})".format(ALL_SIGNALS[sig], sig, e.__class__.__name__, e), file=sys.stderr)
 
 
-MANAGEMENTS = {
-    "degrowth": "dg",
-    "solar-radiation": "srm",
-    "energy-transformation": "et",
-    "carbon-capture-storage": "ccs",
-}
-
+MANAGEMENTS = aws.MANAGEMENTS
 
 
 if __name__ == "__main__":
@@ -144,6 +138,7 @@ if __name__ == "__main__":
                     break
             else:
                 parser.error("'{}' is an unknown parameter".format(par))
+    print()
 
     # a small hack to make all the parameters available as global variables
     aws.globalize_dictionary(aws.boundary_parameters, module=aws)
@@ -156,7 +151,11 @@ if __name__ == "__main__":
                                                          grid_type,
                                                          verbosity=args.verbosity)
     # viab.generate_grid sets stepsize, reset it here
-    viab.STEPSIZE = 2 * x_step
+    # viab.STEPSIZE = 2 * x_step
+    # let the stepsize go a bit slower to zero than the grid fineness
+    viab.STEPSIZE = 2 * x_step * np.sqrt( n0 / 80 )  # prop to 1 / sqrt(n0)
+    print("stepsize / gridstepsize: {:<5.3f}".format(viab.STEPSIZE / x_step))
+    print()
 
     # generate the fitting states array
     states = np.zeros(grid.shape[:-1], dtype=np.int16)
@@ -215,7 +214,6 @@ if __name__ == "__main__":
     out_of_bounds = False # in a, w, s representation, doesn't go out of bounds of [0, 1]^3 by definition
 
     register_signals()
-    print()
 
     start_time = time.time()
     print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))

@@ -6,6 +6,7 @@ import PyViability as viab
 import aws_model as aws
 import aws_show
 
+import numpy as np
 import pickle, argparse
 
 import datetime as dt
@@ -27,6 +28,17 @@ def RegionName2Option(vname, style="long"):
 _all_regions_short = list(map(lambda x: RegionName2Option(x, style="short"), viab.REGIONS))
 assert len(_all_regions_short) == len(set(_all_regions_short))
 del _all_regions_short
+
+def get_changed_parameters(pars, default_pars):
+    changed_pars = {}
+    for par, val in pars.items():
+        # print(val)
+        if not par in default_pars:
+            changed_pars[par] = (val, None)
+        elif default_pars[par] != val:
+            changed_pars[par] = (val, default_pars[par])
+
+    return changed_pars
 
 
 if __name__ == "__main__":
@@ -65,6 +77,15 @@ if __name__ == "__main__":
     print("duration: {!s}".format(dt.timedelta(seconds=header["run-time"])))
     print()
     print("management options: {}".format(", ".join(header["managements"]) if header["managements"] else "(None)"))
+    pars = header["model-parameters"]  # just to make it shorter here
+    for m in header["managements"]:
+        ending = "_" + aws.MANAGEMENTS[m].upper()
+        changed = False
+        for key in pars:
+            # choose the variables that are changed by the ending
+            if key.endswith(ending):
+                default_key = key[:-len(ending)]
+                print("{} = {} <--> {} = {}".format(key, pars[key], default_key, pars[default_key]))
     print()
     print("boundaries: {}".format(", ".join(header["boundaries"])))
     print()
@@ -72,6 +93,26 @@ if __name__ == "__main__":
     print()
     print("points per dimension: {:4d}".format(header["grid-parameters"]["n0"]))
     print()
+
+    model_changed_pars = get_changed_parameters(header["model-parameters"], aws.AWS_parameters)
+    grid_changed_pars = get_changed_parameters(header["grid-parameters"], aws.grid_parameters)
+    boundary_changed_pars = get_changed_parameters(header["boundary-parameters"], aws.boundary_parameters)
+    if model_changed_pars:
+        print("changed model parameters:")
+        for par in sorted(model_changed_pars):
+            print("{} = {!r} (default: {!r})".format(par, *model_changed_pars[par]))
+        print()
+    if grid_changed_pars:
+        print("changed grid parameters:")
+        for par in sorted(grid_changed_pars):
+            print("{} = {!r} (default: {!r})".format(par, *grid_changed_pars[par]))
+        print()
+    if boundary_changed_pars:
+        print("changed boundary parameters:")
+        for par in sorted(boundary_changed_pars):
+            print("{} = {!r} (default: {!r})".format(par, *boundary_changed_pars[par]))
+        print()
+
 
     viab.print_evaluation(states)
 
