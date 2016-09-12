@@ -215,6 +215,7 @@ if __name__ == "__main__":
 
     viab.print_evaluation(states)
 
+    print(aws.grid_parameters)
     if not args.no_save:
         header = {
                 "model": "AWS",

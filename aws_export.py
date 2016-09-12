@@ -34,14 +34,14 @@ if __name__=="__main__":
     )
     parser.add_argument("input_file", metavar="input-file",
                         help="file with the tsm data")
-    parser.add_argument("txt_file", metavar="txt-file",
+    parser.add_argument("txt_file", metavar="txt-file", nargs="?", default="",
                         help="output text file")
     parser.add_argument("-f", "--force", action="store_true",
                         help="overwrite text file if already existing")
 
     args = parser.parse_args()
 
-    if not args.force:
+    if args.txt_file and (not args.force) :
         if os.path.isfile(args.txt_file):
             parser.error("'{}' exists already, use '--force' option to overwrite".format(args.txt_file))
 
@@ -63,6 +63,7 @@ if __name__=="__main__":
 
     print(header_txt)
 
-    print("saving to {!r} ... ".format(args.txt_file), end="", flush=True)
-    np.savetxt(args.txt_file, states, fmt="%3i", header=header_txt, comments="")
-    print("done")
+    if args.txt_file:
+        print("saving to {!r} ... ".format(args.txt_file), end="", flush=True)
+        np.savetxt(args.txt_file, states, fmt="%3i", header=header_txt, comments="")
+        print("done")

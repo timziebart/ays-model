@@ -79,11 +79,11 @@ if __name__ == "__main__":
         # aws.globalize_dictionary(header["model-parameters"], module=aws)
         # aws.globalize_dictionary(header["grid-parameters"], module=aws)
 
-        fig, ax3d = aws_show.create_figure(header["grid-parameters"]["A_max"],
-        # fig, ax3d = aws_show.create_figure(header["grid-parameters"]["A_mid"],
-                                           header["grid-parameters"]["W_mid"],
-                                           header["grid-parameters"]["S_mid"])
-        aws_show.add_boundary(ax3d, header["boundary-parameters"]["A_PB"])
+        fig, ax3d = aws_show.create_figure(**header["grid-parameters"])
+
+        ax_parameters = dict(header["boundary-parameters"])  # make a copy
+        ax_parameters.update(header["grid-parameters"])
+        aws_show.add_boundary(ax3d, **ax_parameters)
 
         for region in args.regions:
             region_num = getattr(viab, region)
@@ -91,7 +91,6 @@ if __name__ == "__main__":
             ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
                             color=viab.COLORS[region_num],
                         alpha=1/header["grid-parameters"]["n0"],
-                        # alpha=0.1,
                         linestyle="", marker=".", markersize=30,
                         )
 

@@ -9,6 +9,12 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d as plt3d
 import matplotlib.ticker as ticker
 
+import warnings as warn
+
+import functools as ft
+
+INFTY_SIGN = u"\u221E"
+
 # patch to remove padding at ends of axes:
 ###patch start###
 from mpl_toolkits.mplot3d.axis3d import Axis
@@ -22,32 +28,120 @@ if not hasattr(Axis, "_get_coord_info_old"):
     Axis._get_coord_info = _get_coord_info_new
 ###patch end###
 
+def compactification(x, x_mid):
+    # y = np.empty_like(x)
+    # y[:] = np.nan
+    # y[ x == 0 ] = 0.
+    # y[ x == np.infty ] = 1.
+    # rest_bool = (y == np.nan)
+    # y[ rest_bool ] = x[ rest_bool ] / (x[ rest_bool ] + x_mid)
+    if x == 0:
+        return 0.
+    if x == np.infty:
+        return 1.
+    return x / (x + x_mid)
+    # return y
+
+def inv_compactification(y, x_mid):
+    # x = np.empty_like(y)
+    # x[:] = np.nan
+    # x[ y == 0 ] = 0.
+    # x[ np.isclose(y, 1) ] = np.infty
+    # rest_bool = (x == np.nan)
+    # x[ rest_bool ] = x_mid * y[ rest_bool ] / (1 - y[ rest_bool ])
+    if y == 0:
+        return 0.
+    if np.allclose(y, 1):
+        return np.infty
+    return x_mid * y / (1 - y)
+    # return x
+
+def transformed_space(transform, inv_transform,
+                      start=0, stop=np.infty, num=11,
+                      scale=1,
+                      endpoint=True,
+                      axis_use=False):
+    add_infty = False
+    if stop == np.infty and endpoint:
+        add_infty = True
+        endpoint = False
+
+    locators_start = transform(start)
+    locators_stop = transform(stop)
+
+    locators = np.linspace(locators_start,
+                           locators_stop,
+                           num,
+                           endpoint=endpoint)
+
+    vec_inv_transform = np.vectorize(inv_transform)
+    formatters = vec_inv_transform(locators)
+    formatters = formatters / scale
+
+    if add_infty:
+        # assume locators_stop has the transformed value for infinity already
+        locators = np.concatenate((locators, [locators_stop]))
+    if axis_use:
+        formatters = np.round(formatters, decimals=2)
+        formatters = formatters.astype(int)
+        formatters = np.concatenate((formatters, [ INFTY_SIGN ]))
+        return formatters, locators
+    else:
+        formatters = np.concatenate(( formatters, [ np.infty ]))
+        return formatters
 
 
-# def create_figure(A_mid, W_mid, S_mid):
-def create_figure(A_max, W_mid, S_mid):
+def create_figure(*, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, **kwargs):
+
+
+    kwargs = dict(kwargs)
+
     fig = plt.figure(figsize=(16,9))
     ax3d = plt3d.Axes3D(fig)
-    ax3d.set_xlabel("\nexcess atmospheric carbon stock A [GtC]")
-    ax3d.set_ylabel("\nwelfare W [1e12 USD/yr]")
-    ax3d.set_zlabel("\n\nrenewable knowledge\nstock S [1e9 GJ]")
+    ax3d.set_xlabel("\n\nexcess atmospheric carbon\nstock A [GtC]")
+    ax3d.set_ylabel("\nwelfare W [%1.0e USD/yr]"%W_scale)
+    ax3d.set_zlabel("\n\nrenewable knowledge\nstock S [%1.0e GJ]"%S_scale)
 
     # make proper tickmarks:
-    Aticks = np.linspace(0,A_max,11)
-    # Aticks = np.concatenate((np.linspace(0, A_mid, 11)[:-1],np.linspace(0, A_mid*10, 6)[1:]))
-    Wticks = np.concatenate((np.linspace(0, W_mid, 11)[:-1],np.linspace(0, W_mid*10, 6)[1:]))
-    Sticks = np.concatenate((np.linspace(0, S_mid, 11)[:-1],np.linspace(0, S_mid*10, 6)[1:]))
-    ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(Aticks))
-    ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(Aticks.astype("int")))
-    ax3d.set_xlim(Aticks[0],Aticks[-1])
-    # ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Aticks/(A_mid+Aticks),[1]))))
-    # ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Aticks).astype("int"),["inf"]))))
-    # ax3d.set_xlim(0,1)
-    ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Wticks/(W_mid+Wticks),[1]))))
-    ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Wticks/1e12).astype("int"),["inf"]))))
+    if "A_max" in kwargs:
+        A_max = kwargs.pop("A_max")
+        Aticks = np.linspace(0,A_max,11)
+        ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(Aticks))
+        ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(Aticks.astype("int")))
+        ax3d.set_xlim(Aticks[0],Aticks[-1])
+    elif "A_mid" in kwargs:
+        A_mid = kwargs.pop("A_mid")
+        transf = ft.partial(compactification, x_mid=A_mid)
+        inv_transf = ft.partial(inv_compactification, x_mid=A_mid)
+        formatters, locators = transformed_space(transf, inv_transf, axis_use=True)
+        # Aticks = np.concatenate((np.linspace(0, A_mid, 11)[:-1],np.linspace(0, A_mid*10, 6)[1:]))
+        # ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Aticks/(A_mid+Aticks),[1]))))
+        # ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Aticks).astype("int"),["inf"]))))
+        ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(locators))
+        ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+        ax3d.set_xlim(0,1)
+    else:
+        raise KeyError("can't find proper key for 'A' in kwargs that determines which representation of 'A' has been used")
+
+    if kwargs:
+        warn.warn("omitted arguments: {}".format(", ".join(sorted(kwargs))))
+
+    transf = ft.partial(compactification, x_mid=W_mid)
+    inv_transf = ft.partial(inv_compactification, x_mid=W_mid)
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale)
+    ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(locators))
+    ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(formatters))
     ax3d.set_ylim(0,1)
-    ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Sticks/(S_mid+Sticks),[1]))))
-    ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Sticks/1e9).astype("int"),["inf"]))))
+
+
+    transf = ft.partial(compactification, x_mid=S_mid)
+    inv_transf = ft.partial(inv_compactification, x_mid=S_mid)
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale)
+    ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(locators))
+    ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+    # Sticks = np.concatenate((np.linspace(0, S_mid, 11)[:-1],np.linspace(0, S_mid*10, 6)[1:]))
+    # ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Sticks/(S_mid+Sticks),[1]))))
+    # ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Sticks/1e9).astype("int"),["inf"]))))
     ax3d.set_zlim(0,1)
 
     ax3d.view_init(30, -140)
@@ -55,13 +149,19 @@ def create_figure(A_max, W_mid, S_mid):
     return fig, ax3d
 
 
-def add_boundary(ax3d, A_PB, boundary= "PB", add_outer=False):
+def add_boundary(ax3d, boundary= "PB", add_outer=False, **parameters):
     # show boundaries of undesirable region:
     if boundary == "PB":
+        A_PB = parameters["A_PB"]
+        if "A_max" in parameters:
+            pass # no transformation necessary
+        elif "A_mid" in parameters:
+            A_PB = A_PB / (A_PB * parameters["A_mid"])
         boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,0,0],[A_PB,1,0],[A_PB,1,1],[A_PB,0,1]]])
         boundary_surface_PB.set_color("gray"); boundary_surface_PB.set_edgecolor("gray"); boundary_surface_PB.set_alpha(0.25)
         ax3d.add_collection3d(boundary_surface_PB)
     elif boundary == "both":
+        raise NotImplementedError("will be done soon")
         boundary_surface_both = plt3d.art3d.Poly3DCollection([[[0,.5,0],[0,.5,1],[A_PB,.5,1],[A_PB,.5,0]],
                                                         [[A_PB,.5,0],[A_PB,1,0],[A_PB,1,1],[A_PB,.5,1]]])
         boundary_surface_both.set_color("gray"); boundary_surface_both.set_edgecolor("gray"); boundary_surface_both.set_alpha(0.25)
