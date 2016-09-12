@@ -52,8 +52,8 @@ boundary_parameters["W_SF"] = 4e13  # year 2000 GWP
 grid_parameters = {}
 
 # rescaling parameters
-# grid_parameters["A_mid"] = boundary_parameters["A_PB"]
-grid_parameters["A_max"] = 500
+grid_parameters["A_mid"] = boundary_parameters["A_PB"]
+# grid_parameters["A_max"] = 500
 grid_parameters["W_mid"] = boundary_parameters["W_SF"]
 grid_parameters["S_mid"] = 5e10
 
@@ -62,8 +62,8 @@ grid_parameters["grid_type"] = "orthogonal"
 border_epsilon = 1e-8
 # w, s -> 1 is equiv to W, S -> infty; so keep a small distance to 1 (:
 # check everything
-grid_parameters["boundaries"] = [[0, grid_parameters["A_max"]],  # A
-# grid_parameters["boundaries"] = [[0, 1 - border_epsilon],  # a: rescaled A
+# grid_parameters["boundaries"] = [[0, grid_parameters["A_max"]],  # A
+grid_parameters["boundaries"] = [[0, 1 - border_epsilon],  # a: rescaled A
                 [0, 1 - border_epsilon],  # w: resclaed W
                 [0, 1 - border_epsilon]  # s: rescaled S
                 ]
@@ -96,27 +96,27 @@ AWS_rhs = nb.jit(_AWS_rhs, nopython=NB_USING_NOPYTHON)
 
 
 @jit(nopython=NB_USING_NOPYTHON)
-def AWS_rescaled_rhs(Aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
-    # a, w, s = aws
-    A, w, s = Aws
+def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
+    a, w, s = aws
+    # A, w, s = Aws
     W = W_mid * w / (1 - w)
     S = S_mid * s / (1 - s)
-    # A = A_mid * a / (1 - a)
+    A = A_mid * a / (1 - a)
 
     Adot, Wdot, Sdot = AWS_rhs((A, W, S), t=t, beta=beta, epsilon=epsilon, phi=phi, rho=rho, sigma=sigma, tau_A=tau_A, tau_S=tau_S, theta=theta)
 
     wdot = Wdot * W_mid / (W_mid + W)**2
     sdot = Sdot * S_mid / (S_mid + S)**2
-    # adot = Adot * A_mid / (A_mid + A)**2
-    # return adot, wdot, sdot
-    return Adot, wdot, sdot
+    adot = Adot * A_mid / (A_mid + A)**2
+    return adot, wdot, sdot
+    # return Adot, wdot, sdot
 
 
 @jit(nopython=NB_USING_NOPYTHON)
-def AWS_sunny(Aws):
-    return Aws[:, 0] < A_PB  # planetary boundary
-# def AWS_sunny(aws):
-    # return aws[:, 0] < 0.5 # A_PB  # planetary boundary
+# def AWS_sunny(Aws):
+    # return Aws[:, 0] < A_PB  # planetary boundary
+def AWS_sunny(aws):
+    return aws[:, 0] < 0.5 # A_PB  # planetary boundary
 
 
 

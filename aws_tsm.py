@@ -144,11 +144,14 @@ if __name__ == "__main__":
                                          *run_args, **run_kwargs)
 
     if args.zeros:
-        raise NotImplementedError("on the way")
-        print("fised point(s) of default:")
-        x0 = [0., 0.5, 0.5] # A, w, s
+        x0 = [0.5, 0.5, 0] # a, w, s
+        # x0 = [aws.boundary_parameters["A_PB"], 0.5, 0] # A, w, s
+        print(x0)
+        print("fixed point(s) of default:")
+        # below the '0' is for the time t
         print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
-                         args=helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters)))
+                         args=(0., ) + helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters)))
+        print()
 
 
     management_runs = []
@@ -168,12 +171,20 @@ if __name__ == "__main__":
                                              helper.get_ordered_parameters(aws._AWS_rhs, management_dict),
                                              *run_args, **run_kwargs)
         management_runs.append(management_run)
+        if args.zeros:
+            print("fixed point(s) of {}:".format(m))
+            # below the '0' is for the time t
+            print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
+                            args=(0., ) + helper.get_ordered_parameters(aws._AWS_rhs, management_dict)))
+            print()
 
     sunny = viab.scaled_to_one_sunny(aws.AWS_sunny, offset, scaling_vector)
 
-    out_of_bounds = [[False, True],   # A still has A_max as upper boundary
-                     [False, False],  # W compactified as w
-                     [False, False]]  # S compactified as s
+    # out_of_bounds = [[False, True],   # A still has A_max as upper boundary
+                     # [False, False],  # W compactified as w
+                     # [False, False]]  # S compactified as s
+
+    out_of_bounds = False # in a, w, s representation, can't got out of bounds of [0, 1]^3
 
     register_signals()
     print()
