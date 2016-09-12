@@ -98,7 +98,7 @@ if __name__ == "__main__":
                         )
 
         if args.save_pic:
-            fig.savefig(args._save_pic)
+            fig.savefig(args.save_pic)
         plt.show()
 
 

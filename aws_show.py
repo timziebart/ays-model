@@ -124,7 +124,7 @@ def create_figure(*, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, 
         raise KeyError("can't find proper key for 'A' in kwargs that determines which representation of 'A' has been used")
 
     if kwargs:
-        warn.warn("omitted arguments: {}".format(", ".join(sorted(kwargs))))
+        warn.warn("omitted arguments: {}".format(", ".join(sorted(kwargs))), stacklevel=2)
 
     transf = ft.partial(compactification, x_mid=W_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=W_mid)

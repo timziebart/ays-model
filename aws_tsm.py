@@ -184,7 +184,7 @@ if __name__ == "__main__":
                      # [False, False],  # W compactified as w
                      # [False, False]]  # S compactified as s
 
-    out_of_bounds = False # in a, w, s representation, can't got out of bounds of [0, 1]^3
+    out_of_bounds = False # in a, w, s representation, doesn't go out of bounds of [0, 1]^3 by definition
 
     register_signals()
     print()

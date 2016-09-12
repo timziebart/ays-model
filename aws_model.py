@@ -35,6 +35,7 @@ AWS_parameters["A_offset"] = 600  # pre-industrial level corresponds to A=0
 
 AWS_parameters["beta"] = 0.03  # 1/yr
 AWS_parameters["beta_DG"] = AWS_parameters["beta"] / 2
+# AWS_parameters["beta_DG_350"] = AWS_parameters["beta"] / 3
 AWS_parameters["epsilon"] = 147.  # USD/GJ
 AWS_parameters["rho"] = 2.  # 1
 AWS_parameters["phi"] = 47.e9  # GJ/GtC
@@ -47,6 +48,7 @@ AWS_parameters["theta_SRM"] = 0.5 * AWS_parameters["theta"]  # 1/(yr GJ)
 
 boundary_parameters = {}
 boundary_parameters["A_PB"] = 840 - AWS_parameters["A_offset"]
+# boundary_parameters["A_PB_350"] = 735 - AWS_parameters["A_offset"]
 boundary_parameters["W_SF"] = 4e13  # year 2000 GWP
 
 grid_parameters = {}
