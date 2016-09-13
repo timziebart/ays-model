@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
-import PyViability as viab
+import pyviability as viab
+from pyviability import libviability as lv
 
 import aws_model as aws
 import aws_show
@@ -25,7 +26,7 @@ def RegionName2Option(vname, style="long"):
 
 
 # check that there are no short option used twice
-_all_regions_short = list(map(lambda x: RegionName2Option(x, style="short"), viab.REGIONS))
+_all_regions_short = list(map(lambda x: RegionName2Option(x, style="short"), lv.REGIONS))
 assert len(_all_regions_short) == len(set(_all_regions_short))
 del _all_regions_short
 
@@ -57,7 +58,7 @@ if __name__ == "__main__":
                         "--"+RegionName2Option(region),
                         dest="regions",
                         action="append_const", const=region)
-                        for region in viab.REGIONS]
+                        for region in lv.REGIONS]
 
     args = parser.parse_args()
 
@@ -130,10 +131,10 @@ if __name__ == "__main__":
         aws_show.add_boundary(ax3d, **ax_parameters)
 
         for region in args.regions:
-            region_num = getattr(viab, region)
+            region_num = getattr(lv, region)
             mask = (states == region_num)
             ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                            color=viab.COLORS[region_num],
+                            color=lv.COLORS[region_num],
                         alpha=1/header["grid-parameters"]["n0"],
                         linestyle="", marker=".", markersize=30,
                         )

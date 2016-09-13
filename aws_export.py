@@ -2,7 +2,7 @@
 
 from __future__ import generators, print_function, division
 
-import PyViability as viab
+import pyviability as viab
 
 import numpy as np
 

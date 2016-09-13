@@ -1,3 +1,12 @@
+# data / output files
+*.out
+*.txt
+*.jpg
+
+# vim stuff (Pymode uses rope)
+.*.swp
+.ropeproject/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

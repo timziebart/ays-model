@@ -2,8 +2,9 @@
 
 import aws_model as aws
 
-import PyViability as viab
-import helper
+import pyviability as viab
+from pyviability import helper
+from pyviability import libviability as lv
 
 import numpy as np
 import scipy.optimize as opt
@@ -153,7 +154,7 @@ if __name__ == "__main__":
     # viab.generate_grid sets stepsize, reset it here
     # viab.STEPSIZE = 2 * x_step
     # let the stepsize go a bit slower to zero than the grid fineness
-    viab.STEPSIZE = 2 * x_step * np.sqrt( n0 / 80 )  # prop to 1 / sqrt(n0)
+    viab.STEPSIZE = 2 * x_step * max([1, np.sqrt( n0 / 80 )])  # prop to 1 / sqrt(n0)
     print("stepsize / gridstepsize: {:<5.3f}".format(viab.STEPSIZE / x_step))
     print()
 
@@ -161,7 +162,7 @@ if __name__ == "__main__":
     states = np.zeros(grid.shape[:-1], dtype=np.int16)
 
     # mark the fixed point in infinity as shelter already
-    states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 0.5 ] = -viab.SHELTER
+    states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 0.5 ] = -lv.SHELTER
 
     run_args = [offset, scaling_vector]
     run_kwargs = dict(returning=args.run_type, remember=args.remember)
