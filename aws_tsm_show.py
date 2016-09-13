@@ -7,9 +7,11 @@ from pyviability import libviability as lv
 import aws_model as aws
 import aws_show
 
+from scipy import spatial as spat
 import numpy as np
 import pickle, argparse
 import ast
+import itertools as it
 
 import datetime as dt
 
@@ -59,17 +61,20 @@ if __name__ == "__main__":
                                 help="plot all regions")
     [regions_parser.add_argument("--"+RegionName2Option(region, style="short"),
                         "--"+RegionName2Option(region),
-                        dest="regions",
+                        dest="regions", default=[],
                         action="append_const", const=region)
                         for region in lv.REGIONS]
 
     args = parser.parse_args()
 
+
     if args.all_regions:
         args.regions = viab.REGIONS
 
+
     with open(args.input_file, "rb") as f:
         header, data = pickle.load(f)
+
 
     assert header["viab-backscaling-done"]
     if not args.show_path is None:
@@ -81,10 +86,8 @@ if __name__ == "__main__":
         assert path_x0.shape == (3,)
 
 
-
     grid = data["grid"]
     states = data["states"]
-    del data
 
     print("date: {}".format(dt.datetime.fromtimestamp(header["start-time"]).ctime()))
     print("duration: {!s}".format(dt.timedelta(seconds=header["run-time"])))
@@ -133,7 +136,7 @@ if __name__ == "__main__":
 
     viab.print_evaluation(states)
 
-    if args.regions is None:
+    if not args.regions and args.show_path is None:
         print("no regions for plotting chosen")
     else:
         # a small hack to make all the parameters available as global variables
@@ -141,6 +144,7 @@ if __name__ == "__main__":
         # aws.globalize_dictionary(header["grid-parameters"], module=aws)
 
         fig, ax3d = aws_show.create_figure(**header["grid-parameters"])
+        print()
 
         ax_parameters = dict(header["boundary-parameters"])  # make a copy
         ax_parameters.update(header["grid-parameters"])
@@ -154,6 +158,30 @@ if __name__ == "__main__":
                         alpha=1/header["grid-parameters"]["n0"],
                         linestyle="", marker=".", markersize=30,
                         )
+        MAX_PLOT_DEPTH = 10000
+        if args.show_path:
+            paths = data["paths"]
+            tree = spat.KDTree(grid)
+            starting_indices = tree.query_ball_point(path_x0, path_dist)
+            if not starting_indices:
+                print("your point and distance do not match any grid points")
+            else:
+                print("starting points and states for paths:")
+                for ind in starting_indices:
+                    print("{!s} --- {:>2}".format(grid[ind], states[ind]))
+                print()
+                plotted_indices = set()
+                for ind in starting_indices:
+                    if ind in plotted_indices:
+                        continue
+                    plotted_indices.add(ind)
+                    x0 = grid[ind]
+                    x1 = paths[0][ind]
+                    traj = list(zip(x0, x1))
+                    ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
+                                color="lightblue" if paths[2][ind] == 0 else "black")
+                    # print(paths[2][ind])
+                    starting_indices.append(paths[1][ind])
 
         if args.save_pic:
             print("saving to {} ... ".format(args.save_pic), end="", flush=True)

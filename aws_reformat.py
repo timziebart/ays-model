@@ -19,6 +19,28 @@ DEFAULT_HEADER = {"model": "AWS",
                 "remember-paths": False,
                 }
 
+def reformat(filename):
+    print("reading '{}' ... ".format(filename), end="", flush=True)
+    with open(filename, "rb") as f:
+        header, data = pickle.load(f)
+    print("done")
+
+    # management has been renamed with the plural
+    if "management" in header:
+        header["managements"] = header.pop("management")
+    if not "boundary-parameters" in header:
+        header["boundary-parameters"] = {
+            "A_PB": header["model-parameters"].pop("A_PB"),
+            "W_SF": header["model-parameters"].pop("W_SF"),
+        }
+
+    new_header = dict(DEFAULT_HEADER)  # copy it, if several files are processed
+    new_header.update(header)
+
+    print("writing '{}' ... ".format(filename), end="", flush=True)
+    with open(filename, "wb") as f:
+        pickle.dump((new_header, data), f)
+    print("done")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="update the format of an AWS TSM result file")
@@ -29,27 +51,8 @@ if __name__ == "__main__":
 
     for current_file in args.files:
 
-        print("reading '{}' ... ".format(current_file), end="", flush=True)
-        with open(current_file, "rb") as f:
-            header, data = pickle.load(f)
-        print("done")
+        reformat(current_file)
 
-        # management has been renamed with the plural
-        if "management" in header:
-            header["managements"] = header.pop("management")
-        if not "boundary-parameters" in header:
-            header["boundary-parameters"] = {
-                "A_PB": header["model-parameters"].pop("A_PB"),
-                "W_SF": header["model-parameters"].pop("W_SF"),
-            }
-
-        new_header = dict(DEFAULT_HEADER)  # copy it, if several files are processed
-        new_header.update(header)
-
-        print("writing '{}' ... ".format(current_file), end="", flush=True)
-        with open(current_file, "wb") as f:
-            pickle.dump((new_header, data), f)
-        print("done")
 
 
 
