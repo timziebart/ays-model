@@ -139,7 +139,9 @@ if __name__ == "__main__":
                         )
 
         if args.save_pic:
+            print("saving to {} ... ".format(args.save_pic), end="", flush=True)
             fig.savefig(args.save_pic)
+            print("done")
         plt.show()
 
 

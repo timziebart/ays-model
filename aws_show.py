@@ -28,36 +28,24 @@ if not hasattr(Axis, "_get_coord_info_old"):
     Axis._get_coord_info = _get_coord_info_new
 ###patch end###
 
+@np.vectorize
 def compactification(x, x_mid):
-    # y = np.empty_like(x)
-    # y[:] = np.nan
-    # y[ x == 0 ] = 0.
-    # y[ x == np.infty ] = 1.
-    # rest_bool = (y == np.nan)
-    # y[ rest_bool ] = x[ rest_bool ] / (x[ rest_bool ] + x_mid)
     if x == 0:
         return 0.
     if x == np.infty:
         return 1.
     return x / (x + x_mid)
-    # return y
 
+@np.vectorize
 def inv_compactification(y, x_mid):
-    # x = np.empty_like(y)
-    # x[:] = np.nan
-    # x[ y == 0 ] = 0.
-    # x[ np.isclose(y, 1) ] = np.infty
-    # rest_bool = (x == np.nan)
-    # x[ rest_bool ] = x_mid * y[ rest_bool ] / (1 - y[ rest_bool ])
     if y == 0:
         return 0.
     if np.allclose(y, 1):
         return np.infty
     return x_mid * y / (1 - y)
-    # return x
 
 def transformed_space(transform, inv_transform,
-                      start=0, stop=np.infty, num=11,
+                      start=0, stop=np.infty, num=12,
                       scale=1,
                       endpoint=True,
                       axis_use=False):
@@ -65,6 +53,7 @@ def transformed_space(transform, inv_transform,
     if stop == np.infty and endpoint:
         add_infty = True
         endpoint = False
+        num -= 1
 
     locators_start = transform(start)
     locators_stop = transform(stop)
@@ -74,8 +63,7 @@ def transformed_space(transform, inv_transform,
                            num,
                            endpoint=endpoint)
 
-    vec_inv_transform = np.vectorize(inv_transform)
-    formatters = vec_inv_transform(locators)
+    formatters = inv_transform(locators)
     formatters = formatters / scale
 
     if add_infty:
@@ -114,11 +102,23 @@ def create_figure(*, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, 
         transf = ft.partial(compactification, x_mid=A_mid)
         inv_transf = ft.partial(inv_compactification, x_mid=A_mid)
         formatters, locators = transformed_space(transf, inv_transf, axis_use=True)
-        # Aticks = np.concatenate((np.linspace(0, A_mid, 11)[:-1],np.linspace(0, A_mid*10, 6)[1:]))
-        # ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Aticks/(A_mid+Aticks),[1]))))
-        # ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Aticks).astype("int"),["inf"]))))
-        ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(locators))
-        ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+
+        num_minor = 5
+        minor_formatters = np.array([])
+        for i in range(len(formatters) - 2):
+            minor_formatters = np.concatenate((minor_formatters, np.linspace(float(formatters[i]), float(formatters[i+1]), num_minor, endpoint=False)))
+        minor_locators = transf(minor_formatters)
+        minor_locators = np.concatenate(( minor_locators, locators[-2:] ))
+        _minor_formatters = np.array([])
+        for f in formatters[:-2]:
+            _minor_formatters = np.concatenate(( _minor_formatters, np.array([f]), np.array([""]*(num_minor-1)) ))
+        _minor_formatters = np.concatenate(( _minor_formatters, formatters[-2:] ))
+
+
+        # ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(locators))
+        # ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+        ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(minor_locators))
+        ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(_minor_formatters))
         ax3d.set_xlim(0,1)
     else:
         raise KeyError("can't find proper key for 'A' in kwargs that determines which representation of 'A' has been used")
@@ -129,16 +129,40 @@ def create_figure(*, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, 
     transf = ft.partial(compactification, x_mid=W_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=W_mid)
     formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale)
-    ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(locators))
-    ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+    # ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(locators))
+    # ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+    num_minor = 5
+    minor_formatters = np.array([])
+    for i in range(len(formatters) - 2):
+        minor_formatters = np.concatenate((minor_formatters, np.linspace(float(formatters[i])*W_scale, float(formatters[i+1])*W_scale, num_minor, endpoint=False)))
+    minor_locators = transf(minor_formatters)
+    minor_locators = np.concatenate(( minor_locators, locators[-2:] ))
+    _minor_formatters = np.array([])
+    for f in formatters[:-2]:
+        _minor_formatters = np.concatenate(( _minor_formatters, np.array([f]), np.array([""]*(num_minor-1)) ))
+    _minor_formatters = np.concatenate(( _minor_formatters, formatters[-2:] ))
+    ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(minor_locators))
+    ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(_minor_formatters))
     ax3d.set_ylim(0,1)
 
 
     transf = ft.partial(compactification, x_mid=S_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=S_mid)
     formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale)
-    ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(locators))
-    ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+    # ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(locators))
+    # ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(formatters))
+    num_minor = 5
+    minor_formatters = np.array([])
+    for i in range(len(formatters) - 2):
+        minor_formatters = np.concatenate((minor_formatters, np.linspace(float(formatters[i])*S_scale, float(formatters[i+1])*S_scale, num_minor, endpoint=False)))
+    minor_locators = transf(minor_formatters)
+    minor_locators = np.concatenate(( minor_locators, locators[-2:] ))
+    _minor_formatters = np.array([])
+    for f in formatters[:-2]:
+        _minor_formatters = np.concatenate(( _minor_formatters, np.array([f]), np.array([""]*(num_minor-1)) ))
+    _minor_formatters = np.concatenate(( _minor_formatters, formatters[-2:] ))
+    ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(minor_locators))
+    ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(_minor_formatters))
     # Sticks = np.concatenate((np.linspace(0, S_mid, 11)[:-1],np.linspace(0, S_mid*10, 6)[1:]))
     # ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(np.concatenate((Sticks/(S_mid+Sticks),[1]))))
     # ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(np.concatenate(((Sticks/1e9).astype("int"),["inf"]))))
