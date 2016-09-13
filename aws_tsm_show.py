@@ -9,6 +9,7 @@ import aws_show
 
 import numpy as np
 import pickle, argparse
+import ast
 
 import datetime as dt
 
@@ -50,6 +51,8 @@ if __name__ == "__main__":
 
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
+    parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
+                        help="show a path for all points, that are closer to 'point' than 'distance'")
 
     regions_parser = parser.add_argument_group("regions", "choose which regions you want to be plotted")
     regions_parser.add_argument("--a", "--all", action="store_true", dest="all_regions",
@@ -69,6 +72,15 @@ if __name__ == "__main__":
         header, data = pickle.load(f)
 
     assert header["viab-backscaling-done"]
+    if not args.show_path is None:
+        if not header["remember-paths"]:
+            parser.error("'{}' does not contain recorded paths".format(args.input_file))
+        # else
+        path_x0 = np.array(eval(args.show_path[0]))
+        path_dist = float(eval(args.show_path[1]))
+        assert path_x0.shape == (3,)
+
+
 
     grid = data["grid"]
     states = data["states"]
@@ -93,6 +105,10 @@ if __name__ == "__main__":
     print("stepsize / gridstepsize: {:<5.3f}".format(header["stepsize"] / header["xstep"]))
     print()
     print("points per dimension: {:4d}".format(header["grid-parameters"]["n0"]))
+    print()
+    print("paths recorded: {}".format(header["remember-paths"]))
+    if args.show_path:
+        print("showing for", path_x0, path_dist)
     print()
 
     model_changed_pars = get_changed_parameters(header["model-parameters"], aws.AWS_parameters)

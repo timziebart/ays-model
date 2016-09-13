@@ -93,6 +93,9 @@ if __name__ == "__main__":
                         "(caution, eval is used for the evaluation of 'val'")
     parser.add_argument("-r", "--remember", action="store_true",
                         help="remember already calculated points in a dict")
+    parser.add_argument("--remember-paths", action="store_true",
+                        help="remember the paths, direction and default / management option used, "\
+                        "so a path can be reconstructed")
     parser.add_argument("-z", "--zeros", action="store_true",
                         help="estimate the fixed point(s)")
 
@@ -224,6 +227,7 @@ if __name__ == "__main__":
                                             sunny, grid_type=grid_type,
                                             compute_eddies=args.eddies,
                                             out_of_bounds=out_of_bounds,
+                                            remember_paths=args.remember_paths,
                                             )
         except SystemExit as e:
             print()
@@ -259,10 +263,13 @@ if __name__ == "__main__":
                 "stepsize": viab.STEPSIZE,
                 "xstep" : x_step,
                 "out-of-bounds": out_of_bounds,
+                "remember-paths": args.remember_paths,
                 }
         data = {"grid": grid,
                 "states": states,
                 }
+        if args.remember_paths:
+            data["paths"] = lv.PATHS
         print("saving to {!r} ... ".format(args.output_file), end="", flush=True)
         if not args.dry_run:
             with open(args.output_file, "wb") as f:

@@ -16,6 +16,7 @@ DEFAULT_HEADER = {"model": "AWS",
                 "stepsize": 0.,
                 "xstep" : 1.,
                 "out-of-bounds": None,
+                "remember-paths": False,
                 }
 
 
