@@ -183,8 +183,16 @@ if __name__ == "__main__":
         MAX_PLOT_DEPTH = 10000
         if args.show_path:
             paths = data["paths"]
+            print("generating KD-Tree ...", end=" " , flush=True)
             tree = spat.KDTree(grid)
+            print("done")
+            print("get starting points ...", end=" " , flush=True)
             starting_indices = tree.query_ball_point(path_x0, path_dist)
+            print("done")
+            print("deleting KD-Tree ...", end=" ", flush=True)
+            del tree
+            print("done")
+            print()
             if not starting_indices:
                 print("your point and distance do not match any grid points")
             else:
@@ -193,6 +201,7 @@ if __name__ == "__main__":
                     print("{!s} --- {:>2}".format(grid[ind], states[ind]))
                 print()
                 plotted_indices = set()
+                print("calculating and plotting paths ... ", end="", flush=True)
                 for ind in starting_indices:
                     if ind in plotted_indices:
                         continue
@@ -204,6 +213,7 @@ if __name__ == "__main__":
                                 color="lightblue" if paths[2][ind] == 0 else "black")
                     # print(paths[2][ind])
                     starting_indices.append(paths[1][ind])
+                print("done\n")
 
         if args.save_pic:
             print("saving to {} ... ".format(args.save_pic), end="", flush=True)
