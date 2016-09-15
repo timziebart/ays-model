@@ -30,6 +30,20 @@ else:
     jit = dummy_decorator_with_args
 
 
+def recursive_dict2string(dic, prefix="", spacing=" "*4):
+    ret = ""
+    for key in sorted(dic):
+        assert isinstance(key, str)
+        ret += prefix + key + " = "
+        if isinstance(dic[key], dict):
+            ret += "{\n"
+            ret += recursive_dict2string(dic[key], prefix=prefix+spacing, spacing=spacing)
+            ret += "}\n"
+        else:
+            ret += repr(dic[key]) + "\n"
+    return ret
+
+
 # long name (command option line style) : short name (lower case)
 MANAGEMENTS = {
     "degrowth": "dg",
@@ -48,12 +62,13 @@ AWS_parameters["beta_DG"] = AWS_parameters["beta"] / 2
 AWS_parameters["epsilon"] = 147.  # USD/GJ
 AWS_parameters["rho"] = 2.  # 1
 AWS_parameters["phi"] = 47.e9  # GJ/GtC
+AWS_parameters["phi_CCS"] = AWS_parameters["phi"] * 2
 AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 1.e12  # GJ
-AWS_parameters["sigma_ET"] = AWS_parameters["sigma_default"] * .5**(1/AWS_parameters["rho"])  # GJ
+AWS_parameters["sigma_ET"] = AWS_parameters["sigma_default"] * .5**(1/AWS_parameters["rho"])
 AWS_parameters["tau_A"] = 50.  # yr
 AWS_parameters["tau_S"] = 50.  # yr
 AWS_parameters["theta"] = AWS_parameters["beta"] / (950 - AWS_parameters["A_offset"])  # 1/(yr GJ)
-AWS_parameters["theta_SRM"] = 0.5 * AWS_parameters["theta"]  # 1/(yr GJ)
+AWS_parameters["theta_SRM"] = 0.5 * AWS_parameters["theta"]
 
 boundary_parameters = {}
 boundary_parameters["A_PB"] = 840 - AWS_parameters["A_offset"]
@@ -102,6 +117,7 @@ def _AWS_rhs(AWS, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, 
     Sdot = R - S / tau_S
     return Adot, Wdot, Sdot
 
+
 AWS_rhs = nb.jit(_AWS_rhs, nopython=NB_USING_NOPYTHON)
 # AWS_rhs = _AWS_rhs  # used for debugging
 
@@ -131,7 +147,7 @@ def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigm
 
 
 @jit(nopython=NB_USING_NOPYTHON)
-# def AWS_sunny(Aws):
+# def AWS_sunny(Aws): # A not rescaled
     # return Aws[:, 0] < A_PB  # planetary boundary
 def AWS_sunny(aws):
     return aws[:, 0] < A_PB / (A_PB + A_mid) # transformed A_PB  # planetary boundary

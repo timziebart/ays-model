@@ -11,6 +11,8 @@ import matplotlib.ticker as ticker
 
 import warnings as warn
 
+import argparse
+
 import functools as ft
 
 INFTY_SIGN = u"\u221E"
@@ -28,6 +30,7 @@ if not hasattr(Axis, "_get_coord_info_old"):
     Axis._get_coord_info = _get_coord_info_new
 ###patch end###
 
+
 @np.vectorize
 def compactification(x, x_mid):
     if x == 0:
@@ -36,6 +39,7 @@ def compactification(x, x_mid):
         return 1.
     return x / (x + x_mid)
 
+
 @np.vectorize
 def inv_compactification(y, x_mid):
     if y == 0:
@@ -43,6 +47,7 @@ def inv_compactification(y, x_mid):
     if np.allclose(y, 1):
         return np.infty
     return x_mid * y / (1 - y)
+
 
 def transformed_space(transform, inv_transform,
                       start=0, stop=np.infty, num=12,
@@ -205,19 +210,35 @@ def add_boundary(ax3d, boundary= "PB", add_outer=False, **parameters):
 if __name__ == "__main__":
 
     # a small hack to make all the parameters available as global variables
-    aws.globalize_dictionary(aws.AWS_parameters, module=aws)
+    # aws.globalize_dictionary(aws.AWS_parameters, module=aws)
     aws.globalize_dictionary(aws.grid_parameters, module=aws)
+    aws.globalize_dictionary(aws.boundary_parameters, module=aws)
 
-    num = 1000
-    sample = np.random.rand(num,3)
-    AWS_0 = np.zeros((num,3))
+    parser = argparse.ArgumentParser(description="sample trajectories of the AWS model")
+
+    parser.add_argument("-m", "--mode", choices=["all", "lake"], default="all",
+                        help="which parts should be sampled")
+    parser.add_argument("-n", "--num", type=int, default=1000,
+                        help="number of initial conditions")
+
+    args = parser.parse_args()
+
+    print(args)
+
+    num = args.num
+    aws_0 = np.random.rand(num,3)  # args.mode == "all"
+    if args.mode == "lake":
+        aws_0[0] = aws_0[0] * aws.A_PB / (aws.A_PB + aws.A_mid)
+
+    # sample = np.random.rand(num,3)
+    # AWS_0 = np.zeros((num, 3))
     # sample whole space:
     #AWS_0[:,0] = sample[:,0] * aws.A_max
     #AWS_0[:,1:] = sample[:,1:]/(1-sample[:,1:]) * WS_mid
     # sample DG + ET + PB lake candidates:
-    AWS_0[:,0] = sample[:,0] * aws.A_PB
-    AWS_0[:,1] = sample[:,1]/(1-sample[:,1]) * aws.W_mid
-    AWS_0[:,2] = sample[:,2]/(1-sample[:,2]) * aws.S_mid
+    # AWS_0[:,0] = sample[:,0] * aws.A_PB
+    # AWS_0[:,1] = sample[:,1]/(1-sample[:,1]) * aws.W_mid
+    # AWS_0[:,2] = sample[:,2]/(1-sample[:,2]) * aws.S_mid
 
     fig, ax3d = create_figure(aws.A_max, aws.W_mid, aws.S_mid)
 

@@ -10,7 +10,7 @@ import aws_show
 from scipy import spatial as spat
 import numpy as np
 import pickle, argparse
-import ast
+import ast, sys
 import itertools as it
 
 import datetime as dt
@@ -18,7 +18,6 @@ import datetime as dt
 import matplotlib.pyplot as plt
 
 # import argcomplete  # didn't get it to work
-
 
 def RegionName2Option(vname, style="long"):
     if style=="long":
@@ -51,10 +50,15 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
+    parser.add_argument("-d", "--defaults", default=[], nargs="+",
+                        choices=["grid", "model", "boundary"],
+                        help="show all the default values")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
     parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
                         help="show a path for all points, that are closer to 'point' than 'distance'")
+    parser.add_argument("--header", action="store_true",
+                        help="print the header including all parameters from input-file")
 
     regions_parser = parser.add_argument_group("regions", "choose which regions you want to be plotted")
     regions_parser.add_argument("--a", "--all", action="store_true", dest="all_regions",
@@ -67,6 +71,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.defaults:
+        for d in args.defaults:
+            print("defaults for {}:".format(d))
+            if d == "grid":
+                dic = aws.grid_parameters
+            elif d == "model":
+                dic = aws.AWS_parameters
+            elif d == "boundary":
+                dic = aws.boundary_parameters
+            else:
+                raise ValueError("Tim, did you forget to change something here?")
+            print(aws.recursive_dict2string(dic))
+            print()
+        sys.exit(0)
+
+
 
     if args.all_regions:
         args.regions = viab.REGIONS
@@ -75,6 +95,8 @@ if __name__ == "__main__":
     with open(args.input_file, "rb") as f:
         header, data = pickle.load(f)
 
+    if args.header:
+        print(aws.recursive_dict2string(header))
 
     assert header["viab-backscaling-done"]
     if not args.show_path is None:

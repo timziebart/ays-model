@@ -2,31 +2,17 @@
 
 from __future__ import generators, print_function, division
 
+import aws_model as aws
 import pyviability as viab
+from pyviability import libviability as lv
 
 import numpy as np
 
 
-import sys, os
+# import sys
+import os
 import argparse
 import pickle
-
-SPACING = " "*4
-
-def recursive_dict2string(dic, prefix=""):
-    ret = ""
-    for key in sorted(dic):
-        assert isinstance(key, str)
-        ret += prefix + key + " = "
-        if isinstance(dic[key], dict):
-            ret += "{\n"
-            ret += recursive_dict2string(dic[key], prefix=prefix+SPACING)
-            ret += "}\n"
-        else:
-            ret += repr(dic[key]) + "\n"
-    return ret
-
-
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(
@@ -52,11 +38,11 @@ if __name__=="__main__":
         header, data = pickle.load(f)
 
     header_txt = "#"*80 + "\n"
-    header_txt += recursive_dict2string(header)
+    header_txt += aws.recursive_dict2string(header)
     header_txt += "#"*80 + "\n"
 
-    for region in viab.REGIONS:
-        header_txt += "{} = {:>2d}\n".format(region, getattr(viab, region))
+    for region in lv.REGIONS:
+        header_txt += "{} = {:>2d}\n".format(region, getattr(lv, region))
     header_txt += "#"*80
 
     states = data["states"]

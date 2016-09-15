@@ -26,6 +26,7 @@ ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal)
                if x.startswith("SIG")
                and not x.startswith("SIG_")  # because they are just duplicates
                and not getattr(signal, x) == 0  # can register only for signals >0
+               and not getattr(signal, x) == 28 # SIGWINCH [28] is sent when resizing the terminal ...
                and not x in ["SIGSTOP", "SIGKILL"]  # can't register these because you can't actually catch them (:
                }
 NUMER_TO_SIGNAL = { val: key for key, val in ALL_SIGNALS.items() }
@@ -91,8 +92,8 @@ if __name__ == "__main__":
                         action="append", dest="changed_parameters", default=[],
                         help="set a parameter 'par' to value 'val' "\
                         "(caution, eval is used for the evaluation of 'val'")
-    parser.add_argument("-r", "--remember", action="store_true",
-                        help="remember already calculated points in a dict")
+    parser.add_argument("--remember-computed", action="store_true",
+                        help="remember already computed points in a dict")
     parser.add_argument("--remember-paths", action="store_true",
                         help="remember the paths, direction and default / management option used, "\
                         "so a path can be reconstructed")
@@ -168,11 +169,14 @@ if __name__ == "__main__":
     states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 0.5 ] = -lv.SHELTER
 
     run_args = [offset, scaling_vector]
-    run_kwargs = dict(returning=args.run_type, remember=args.remember)
+    run_kwargs = dict(returning=args.run_type, remember=args.remember_computed)
 
     default_run = viab.make_run_function(aws.AWS_rescaled_rhs,
                                          helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters),
                                          *run_args, **run_kwargs)
+
+    print("recording-paths: {}".format(args.remember_paths))
+    print()
 
     if args.zeros:
         x0 = [0.5, 0.5, 0] # a, w, s
@@ -221,6 +225,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))
+    print()
     if not args.dry_run:
         try:
             viab.topology_classification(grid, states, [default_run], management_runs,
