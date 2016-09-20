@@ -8,6 +8,7 @@ import aws_model as aws
 import aws_show
 
 from scipy import spatial as spat
+from scipy.spatial import ckdtree
 import numpy as np
 import pickle, argparse
 import ast, sys
@@ -59,6 +60,8 @@ if __name__ == "__main__":
                         help="show a path for all points, that are closer to 'point' than 'distance'")
     parser.add_argument("--header", action="store_true",
                         help="print the header including all parameters from input-file")
+    parser.add_argument("-v", "--verbose", action="count",
+                        help="increase verbosity can be used as -v, -vv ...")
 
     regions_parser = parser.add_argument_group("regions", "choose which regions you want to be plotted")
     regions_parser.add_argument("--a", "--all", action="store_true", dest="all_regions",
@@ -183,23 +186,25 @@ if __name__ == "__main__":
         MAX_PLOT_DEPTH = 10000
         if args.show_path:
             paths = data["paths"]
-            print("generating KD-Tree ...", end=" " , flush=True)
-            tree = spat.KDTree(grid)
-            print("done")
-            print("get starting points ...", end=" " , flush=True)
-            starting_indices = tree.query_ball_point(path_x0, path_dist)
-            print("done")
-            print("deleting KD-Tree ...", end=" ", flush=True)
-            del tree
+            print("compute starting indices ... ", end="", flush=True)
+            diff = grid - path_x0
+            mask = (np.linalg.norm(diff, axis=-1) <= path_dist)
+            starting_indices = np.where(mask)[0].tolist()
             print("done")
             print()
             if not starting_indices:
                 print("your point and distance do not match any grid points")
             else:
-                print("starting points and states for paths:")
-                for ind in starting_indices:
-                    print("{!s} --- {:>2}".format(grid[ind], states[ind]))
+                print("matched:")
+                matched_states = states[mask]
+                for s in sorted(np.unique(matched_states)):
+                    print("{:>2} : {:>2}".format(s, np.count_nonzero(matched_states == s)))
                 print()
+                if args.verbose:
+                    print("starting points and states for paths:")
+                    for ind in starting_indices:
+                        print("{!s} --- {:>2}".format(grid[ind], states[ind]))
+                    print()
                 plotted_indices = set()
                 print("calculating and plotting paths ... ", end="", flush=True)
                 for ind in starting_indices:
@@ -211,7 +216,6 @@ if __name__ == "__main__":
                     traj = list(zip(x0, x1))
                     ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
                                 color="lightblue" if paths[2][ind] == 0 else "black")
-                    # print(paths[2][ind])
                     starting_indices.append(paths[1][ind])
                 print("done\n")
 
