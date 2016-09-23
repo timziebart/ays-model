@@ -244,7 +244,7 @@ if __name__ == "__main__":
 # def create_figure(*, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, **kwargs):
 
     for i in range(num):
-        x0 = AWS_0[i]
+        x0 = aws_0[i]
         time = np.linspace(0, 1000, 1000)
         # management trajectory with degrowth:
         beta = aws.beta_DG
