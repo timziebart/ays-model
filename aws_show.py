@@ -240,7 +240,8 @@ if __name__ == "__main__":
     # AWS_0[:,1] = sample[:,1]/(1-sample[:,1]) * aws.W_mid
     # AWS_0[:,2] = sample[:,2]/(1-sample[:,2]) * aws.S_mid
 
-    fig, ax3d = create_figure(aws.A_max, aws.W_mid, aws.S_mid)
+    fig, ax3d = create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
+# def create_figure(*, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, **kwargs):
 
     for i in range(num):
         x0 = AWS_0[i]

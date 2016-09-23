@@ -126,24 +126,43 @@ AWS_rhs = nb.jit(_AWS_rhs, nopython=NB_USING_NOPYTHON)
 def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
     a, w, s = aws
     # A, w, s = Aws
-    W = W_mid * w / (1 - w)
-    S = S_mid * s / (1 - s)
-    A = A_mid * a / (1 - a)
 
-    # Adot, Wdot, Sdot = AWS_rhs((A, W, S), t=t, beta=beta, epsilon=epsilon, phi=phi, rho=rho, sigma=sigma, tau_A=tau_A, tau_S=tau_S, theta=theta)
-    U = W / epsilon
-    F = U / (1 + (S/sigma)**rho)
-    R = U - F
-    E = F / phi
-    Adot = E - A / tau_A
-    Wdot = (beta - theta * A) * W
-    Sdot = R - S / tau_S
+    s_inv = 1 - s
+    s_inv_rho = s_inv ** rho
+    K = s_inv_rho / (s_inv_rho + (S_mid * s / sigma) ** rho )
 
-    wdot = Wdot * W_mid / (W_mid + W)**2
-    sdot = Sdot * S_mid / (S_mid + S)**2
-    adot = Adot * A_mid / (A_mid + A)**2
+    a_inv = 1 - a
+    w_inv = 1 - w
+    W = W_mid * w / w_inv
+    A = A_mid * a / a_inv
+    adot = K / (phi * epsilon * A_mid) * a_inv * a_inv * W - a * a_inv / tau_A
+    wdot = w_inv * ( beta - theta * A )
+    sdot = (1 - K) * s_inv * s_inv * W / (epsilon * S_mid) - s * s_inv / tau_S
+
     return adot, wdot, sdot
-    # return Adot, wdot, sdot
+
+# @jit(nopython=NB_USING_NOPYTHON)
+# def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
+    # a, w, s = aws
+    # # A, w, s = Aws
+    # W = W_mid * w / (1 - w)
+    # S = S_mid * s / (1 - s)
+    # A = A_mid * a / (1 - a)
+#
+    # # Adot, Wdot, Sdot = AWS_rhs((A, W, S), t=t, beta=beta, epsilon=epsilon, phi=phi, rho=rho, sigma=sigma, tau_A=tau_A, tau_S=tau_S, theta=theta)
+    # U = W / epsilon
+    # F = U / (1 + (S/sigma)**rho)
+    # R = U - F
+    # E = F / phi
+    # Adot = E - A / tau_A
+    # Wdot = (beta - theta * A) * W
+    # Sdot = R - S / tau_S
+#
+    # wdot = Wdot * W_mid / (W_mid + W)**2
+    # sdot = Sdot * S_mid / (S_mid + S)**2
+    # adot = Adot * A_mid / (A_mid + A)**2
+    # return adot, wdot, sdot
+    # # return Adot, wdot, sdot
 
 
 @jit(nopython=NB_USING_NOPYTHON)
