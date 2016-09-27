@@ -136,7 +136,7 @@ def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigm
     W = W_mid * w / w_inv
     A = A_mid * a / a_inv
     adot = K / (phi * epsilon * A_mid) * a_inv * a_inv * W - a * a_inv / tau_A
-    wdot = w_inv * ( beta - theta * A )
+    wdot = w * w_inv * ( beta - theta * A )
     sdot = (1 - K) * s_inv * s_inv * W / (epsilon * S_mid) - s * s_inv / tau_S
 
     return adot, wdot, sdot
