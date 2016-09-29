@@ -256,7 +256,7 @@ if __name__ == "__main__":
                 "viab-scaling-vector": scaling_vector,
                 "viab-scaling-offset": offset,
                 "input-args": args,
-                "stepsize": viab.STEPSIZE,
+                "stepsize": lv.STEPSIZE,
                 "xstep" : x_step,
                 "out-of-bounds": out_of_bounds,
                 "remember-paths": args.remember_paths,
