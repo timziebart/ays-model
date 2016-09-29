@@ -52,6 +52,20 @@ MANAGEMENTS = {
     "carbon-capture-storage": "ccs",
 }
 
+def get_management_parameter_dict(management, all_parameters):
+    management_dict = dict(all_parameters) # make a copy
+    ending = "_" + MANAGEMENTS[management].upper()
+    changed = False
+    for key in management_dict:
+        # choose the variables that are changed by the ending
+        if key+ending in management_dict:
+            changed = True
+            management_dict[key] = management_dict[key+ending]
+    if not changed:
+        raise NameError("didn't find any parameter for management option "\
+                        "'{}' (ending '{}')".format(m, ending))
+    return management_dict
+
 #
 AWS_parameters = {}
 AWS_parameters["A_offset"] = 600  # pre-industrial level corresponds to A=0

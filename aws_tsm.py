@@ -158,8 +158,9 @@ if __name__ == "__main__":
     # viab.generate_grid sets stepsize, reset it here
     # viab.STEPSIZE = 2 * x_step
     # let the stepsize go a bit slower to zero than the grid fineness
-    viab.STEPSIZE = 2 * x_step * max([1, np.sqrt( n0 / 80 )])  # prop to 1 / sqrt(n0)
-    print("stepsize / gridstepsize: {:<5.3f}".format(viab.STEPSIZE / x_step))
+    # assert False, "that should be lv. below, not viab."
+    lv.STEPSIZE = 2 * x_step * max([1, np.sqrt( n0 / 80 )])  # prop to 1 / sqrt(n0)
+    print("stepsize / gridstepsize: {:<5.3f}".format(lv.STEPSIZE / x_step))
     print()
 
     # generate the fitting states array
@@ -191,17 +192,7 @@ if __name__ == "__main__":
 
     management_runs = []
     for m in args.managements:
-        management_dict = dict(aws.AWS_parameters) # make a copy
-        ending = "_" + MANAGEMENTS[m].upper()
-        changed = False
-        for key in management_dict:
-            # choose the variables that are changed by the ending
-            if key+ending in management_dict:
-                changed = True
-                management_dict[key] = management_dict[key+ending]
-        if not changed:
-            raise NameError("didn't find any parameter for management option "\
-                            "'{}' (ending '{}')".format(m, ending))
+        management_dict = aws.get_management_parameter_dict(m, aws.AWS_parameters)
         management_run = viab.make_run_function(aws.AWS_rescaled_rhs,
                                              helper.get_ordered_parameters(aws._AWS_rhs, management_dict),
                                              *run_args, **run_kwargs)
