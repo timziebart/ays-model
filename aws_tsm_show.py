@@ -36,9 +36,11 @@ del _all_regions_short
 def get_changed_parameters(pars, default_pars):
     changed_pars = {}
     for par, val in pars.items():
-        # print(val)
         if not par in default_pars:
             changed_pars[par] = (val, None)
+        elif isinstance(default_pars[par], np.ndarray):
+            if not np.allclose(default_pars[par], val):
+                changed_pars[par] = (val, default_pars[par])
         elif default_pars[par] != val:
             changed_pars[par] = (val, default_pars[par])
 
@@ -51,6 +53,8 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
+    # parser.add_argument("-b", "--boundaries",
+                        # help="set the boundaries as a list with shape (3,2)")
     parser.add_argument("-d", "--defaults", default=[], nargs="+",
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
@@ -168,6 +172,8 @@ if __name__ == "__main__":
         # aws.globalize_dictionary(header["model-parameters"], module=aws)
         # aws.globalize_dictionary(header["grid-parameters"], module=aws)
 
+        # if args.boundaries:
+            # header["grid-parameters"]["boundaries"] = args.boundaries
         fig, ax3d = aws_show.create_figure(**header["grid-parameters"])
         print()
 

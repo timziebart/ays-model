@@ -45,6 +45,7 @@ def recursive_dict2string(dic, prefix="", spacing=" "*4):
 
 
 # long name (command option line style) : short name (lower case)
+DEFAULT_NAME = "default"
 MANAGEMENTS = {
     "degrowth": "dg",
     "solar-radiation": "srm",
@@ -54,6 +55,8 @@ MANAGEMENTS = {
 
 def get_management_parameter_dict(management, all_parameters):
     management_dict = dict(all_parameters) # make a copy
+    if management == DEFAULT_NAME:
+        return management_dict
     ending = "_" + MANAGEMENTS[management].upper()
     changed = False
     for key in management_dict:
@@ -63,10 +66,10 @@ def get_management_parameter_dict(management, all_parameters):
             management_dict[key] = management_dict[key+ending]
     if not changed:
         raise NameError("didn't find any parameter for management option "\
-                        "'{}' (ending '{}')".format(m, ending))
+                        "'{}' (ending '{}')".format(management, ending))
     return management_dict
 
-#
+
 AWS_parameters = {}
 AWS_parameters["A_offset"] = 600  # pre-industrial level corresponds to A=0
 
@@ -99,14 +102,20 @@ grid_parameters["S_mid"] = 5e10
 
 grid_parameters["n0"] = 40
 grid_parameters["grid_type"] = "orthogonal"
-border_epsilon = 1e-8
+border_epsilon = 1e-3
 # w, s -> 1 is equiv to W, S -> infty; so keep a small distance to 1 (:
 # check everything
 # grid_parameters["boundaries"] = [[0, grid_parameters["A_max"]],  # A
-grid_parameters["boundaries"] = [[0, 1 - border_epsilon],  # a: rescaled A
-                [0, 1 - border_epsilon],  # w: resclaed W
-                [0, 1 - border_epsilon]  # s: rescaled S
-                ]
+# grid_parameters["boundaries"] = [[0, 1 - border_epsilon],  # a: rescaled A
+                # [0, 1 - border_epsilon],  # w: resclaed W
+                # [0, 1 - border_epsilon]  # s: rescaled S
+                # ]
+grid_parameters["boundaries"] = np.array([[0, 1],  # a: rescaled A
+                [0, 1],  # w: resclaed W
+                [0, 1]  # s: rescaled S
+                ], dtype=float)
+grid_parameters["boundaries"][:2, 0] = grid_parameters["boundaries"][:, 0] + border_epsilon
+grid_parameters["boundaries"][:2, 1] = grid_parameters["boundaries"][:, 1] - border_epsilon
 
 
 def globalize_dictionary(dictionary, module="__main__"):
