@@ -94,7 +94,7 @@ if __name__ == "__main__":
                         "(caution, eval is used for the evaluation of 'val'")
     parser.add_argument("--remember-computed", action="store_true",
                         help="remember already computed points in a dict")
-    parser.add_argument("--remember-paths", action="store_true",
+    parser.add_argument("--record-paths", action="store_true",
                         help="remember the paths, direction and default / management option used, "\
                         "so a path can be reconstructed")
     parser.add_argument("-z", "--zeros", action="store_true",
