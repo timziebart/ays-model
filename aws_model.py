@@ -114,8 +114,9 @@ grid_parameters["boundaries"] = np.array([[0, 1],  # a: rescaled A
                 [0, 1],  # w: resclaed W
                 [0, 1]  # s: rescaled S
                 ], dtype=float)
-grid_parameters["boundaries"][:2, 0] = grid_parameters["boundaries"][:, 0] + border_epsilon
-grid_parameters["boundaries"][:2, 1] = grid_parameters["boundaries"][:, 1] - border_epsilon
+# use the full stuff in the S direction
+grid_parameters["boundaries"][:2, 0] = grid_parameters["boundaries"][:2, 0] + border_epsilon
+grid_parameters["boundaries"][:2, 1] = grid_parameters["boundaries"][:2, 1] - border_epsilon
 
 
 def globalize_dictionary(dictionary, module="__main__"):
