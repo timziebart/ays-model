@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 
 import aws_model as aws
 
@@ -15,7 +16,7 @@ import datetime as dt
 import sys, os
 import types
 import ast
-import argparse
+import argparse, argcomplete
 import signal
 import warnings as warn
 
@@ -112,6 +113,9 @@ if __name__ == "__main__":
                         # help="increase the output")
 
     verbosity = 2
+
+    # use argcomplete auto-completion
+    argcomplete.autocomplete(parser)
 
     # do the actual parsing of the arguments
     args = parser.parse_args()

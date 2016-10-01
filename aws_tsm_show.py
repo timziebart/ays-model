@@ -10,7 +10,7 @@ import aws_show
 from scipy import spatial as spat
 from scipy.spatial import ckdtree
 import numpy as np
-import pickle, argparse
+import pickle, argparse, argcomplete
 import ast, sys
 import itertools as it
 
@@ -75,6 +75,9 @@ if __name__ == "__main__":
                         dest="regions", default=[],
                         action="append_const", const=region)
                         for region in lv.REGIONS]
+
+    # use argcomplete auto-completion
+    argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
 

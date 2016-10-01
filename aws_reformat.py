@@ -1,4 +1,7 @@
-import argparse, pickle
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
+
+import argparse, pickle, argcomplete
 
 
 DEFAULT_HEADER = {"model": "AWS",
@@ -46,6 +49,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="update the format of an AWS TSM result file")
     parser.add_argument("files", metavar="file", type=str, nargs="+",
                         help="file with the (presumably) old format")
+
+    # use argcomplete auto-completion
+    argcomplete.autocomplete(parser)
 
     args =parser.parse_args()
 

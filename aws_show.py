@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 
 import aws_model as aws
 from pyviability import helper
@@ -15,7 +17,7 @@ import warnings as warn
 import heapq as hq
 import operator as op
 
-import argparse
+import argparse, argcomplete
 
 import pickle
 
@@ -230,6 +232,9 @@ if __name__ == "__main__":
                         help="remove the boundary inside the plot")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
+
+    # use argcomplete auto-completion
+    argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
 

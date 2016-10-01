@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 
 from __future__ import generators, print_function, division
 
@@ -10,7 +12,7 @@ import numpy as np
 
 # import sys
 import os
-import argparse
+import argparse, argcomplete
 import pickle
 
 if __name__=="__main__":
@@ -23,6 +25,9 @@ if __name__=="__main__":
                         help="output text file")
     parser.add_argument("-f", "--force", action="store_true",
                         help="overwrite text file if already existing")
+
+    # use argcomplete auto-completion
+    argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
 
