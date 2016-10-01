@@ -90,7 +90,7 @@ AWS_parameters["theta_SRM"] = 0.5 * AWS_parameters["theta"]
 boundary_parameters = {}
 boundary_parameters["A_PB"] = 840 - AWS_parameters["A_offset"]
 # boundary_parameters["A_PB_350"] = 735 - AWS_parameters["A_offset"]
-boundary_parameters["W_SF"] = 4e13  # year 2000 GWP
+boundary_parameters["W_SF"] = 4e13  # USD, year 2000 GWP
 
 grid_parameters = {}
 

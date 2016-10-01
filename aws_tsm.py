@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument("--remember-computed", action="store_true",
                         help="remember already computed points in a dict")
     parser.add_argument("--record-paths", action="store_true",
-                        help="remember the paths, direction and default / management option used, "\
+                        help="record the paths, direction and default / management option used, "\
                         "so a path can be reconstructed")
     parser.add_argument("-z", "--zeros", action="store_true",
                         help="estimate the fixed point(s)")
@@ -107,9 +107,11 @@ if __name__ == "__main__":
                                   default=[])
                             for m in MANAGEMENTS]
 
-    # add verbosity check
-    parser.add_argument("-v", "--verbosity", action="count", default=0,
-                        help="increase the output")
+    # # add verbosity check
+    # parser.add_argument("-v", "--verbosity", action="count", default=0,
+                        # help="increase the output")
+
+    verbosity = 2
 
     # do the actual parsing of the arguments
     args = parser.parse_args()
@@ -154,7 +156,7 @@ if __name__ == "__main__":
     grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,
                                                          n0,
                                                          grid_type,
-                                                         verbosity=args.verbosity)
+                                                         verbosity=verbosity)
     # viab.generate_grid sets stepsize, reset it here
     # viab.STEPSIZE = 2 * x_step
     # let the stepsize go a bit slower to zero than the grid fineness
@@ -176,7 +178,7 @@ if __name__ == "__main__":
                                          helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters),
                                          *run_args, **run_kwargs)
 
-    print("recording-paths: {}".format(args.remember_paths))
+    print("recording-paths: {}".format(args.record_paths))
     print()
 
     if args.zeros:
@@ -223,7 +225,8 @@ if __name__ == "__main__":
                                             sunny, grid_type=grid_type,
                                             compute_eddies=args.eddies,
                                             out_of_bounds=out_of_bounds,
-                                            remember_paths=args.remember_paths,
+                                            remember_paths=args.record_paths,
+                                            verbosity=verbosity,
                                             )
         except SystemExit as e:
             print()
@@ -259,12 +262,12 @@ if __name__ == "__main__":
                 "stepsize": lv.STEPSIZE,
                 "xstep" : x_step,
                 "out-of-bounds": out_of_bounds,
-                "remember-paths": args.remember_paths,
+                "remember-paths": args.record_paths,
                 }
         data = {"grid": grid,
                 "states": states,
                 }
-        if args.remember_paths:
+        if args.record_paths:
             data["paths"] = lv.PATHS
         print("saving to {!r} ... ".format(args.output_file), end="", flush=True)
         if not args.dry_run:
