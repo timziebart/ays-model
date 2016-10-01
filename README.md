@@ -5,6 +5,4 @@ aws-model uses argcomplete, so if you want to have argument completion please ru
 
     activate-global-python-argcomplete --dest=- >> ~/.bash_completion
 
-afterwards you should be able to run
-
-    ./test.py [Tab]
+afterwards you should be able to use [Tab] for autocompletion
