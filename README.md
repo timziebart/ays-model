@@ -1,5 +1,5 @@
 
-## argument completion for test.py
+## argument completion
 
 aws-model uses argcomplete, so if you want to have argument completion please run once
 
