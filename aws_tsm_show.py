@@ -53,8 +53,8 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
-    # parser.add_argument("-b", "--boundaries",
-                        # help="set the boundaries as a list with shape (3,2)")
+    parser.add_argument("-b", "--plot-boundaries",
+                        help="set the boundaries as a list with shape (3,2)")
     parser.add_argument("-d", "--defaults", default=[], nargs="+",
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
@@ -95,6 +95,9 @@ if __name__ == "__main__":
             print(aws.recursive_dict2string(dic))
             print()
         sys.exit(0)
+
+    if args.plot_boundaries:
+        args.plot_boundaries = np.array(eval(args.plot_boundaries))
 
 
 
@@ -171,22 +174,25 @@ if __name__ == "__main__":
     if not args.regions and args.show_path is None:
         print("no regions for plotting chosen")
     else:
-        # a small hack to make all the parameters available as global variables
-        # aws.globalize_dictionary(header["model-parameters"], module=aws)
-        # aws.globalize_dictionary(header["grid-parameters"], module=aws)
 
         # if args.boundaries:
-            # header["grid-parameters"]["boundaries"] = args.boundaries
-        fig, ax3d = aws_show.create_figure(**header["grid-parameters"])
+        # header["grid-parameters"]["boundaries"] = args.boundaries
+        figure_parameters = dict(header["grid-parameters"])
+        figure_parameters["boundaries"] = args.plot_boundaries
+        fig, ax3d = aws_show.create_figure(**figure_parameters)
         print()
 
         ax_parameters = dict(header["boundary-parameters"])  # make a copy
         ax_parameters.update(header["grid-parameters"])
-        aws_show.add_boundary(ax3d, **ax_parameters)
+        aws_show.add_boundary(ax3d, plot_boundaries=args.plot_boundaries, **ax_parameters)
 
+        def is_inside(x, bounds):
+            return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]), axis=-1)
+
+        mask2 = is_inside(grid, args.plot_boundaries)
         for region in args.regions:
             region_num = getattr(lv, region)
-            mask = (states == region_num)
+            mask = (states == region_num) &  mask2
             ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
                             color=lv.COLORS[region_num],
                         alpha=1/header["grid-parameters"]["n0"],
@@ -222,10 +228,11 @@ if __name__ == "__main__":
                     plotted_indices.add(ind)
                     x0 = grid[ind]
                     x1 = paths[0][ind]
-                    traj = list(zip(x0, x1))
-                    ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
-                                color="lightblue" if paths[2][ind] == 0 else "black")
-                    starting_indices.append(paths[1][ind])
+                    if np.all(is_inside([x0, x1], args.plot_boundaries)):
+                        traj = list(zip(x0, x1))
+                        ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
+                                    color="lightblue" if paths[2][ind] == 0 else "black")
+                        starting_indices.append(paths[1][ind])
                 print("done\n")
 
         if args.save_pic:

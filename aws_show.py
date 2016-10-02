@@ -62,7 +62,8 @@ def transformed_space(transform, inv_transform,
                       scale=1,
                       num_minors = 50,
                       endpoint=True,
-                      axis_use=False):
+                      axis_use=False,
+                      boundaries=None):
     add_infty = False
     if stop == np.infty and endpoint:
         add_infty = True
@@ -93,6 +94,9 @@ def transformed_space(transform, inv_transform,
 
     # print(combined)
 
+    if not boundaries is None:
+        combined = [(l, f) for l, f in combined if boundaries[0] <= l <= boundaries[1] ]
+
     locators, formatters = map(np.array, zip(*combined))
     formatters = formatters / scale
 
@@ -119,6 +123,9 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
 
     kwargs = dict(kwargs)
 
+    if boundaries is None:
+        boundaries = [None]*3
+
     fig = plt.figure(figsize=(16,9))
     ax3d = plt3d.Axes3D(fig)
     ax3d.set_xlabel("\n\nexcess atmospheric carbon\nstock A [GtC]")
@@ -131,17 +138,23 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
         Aticks = np.linspace(0,A_max,11)
         ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(Aticks))
         ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(Aticks.astype("int")))
-        ax3d.set_xlim(Aticks[0],Aticks[-1])
+        if boundaries is None:
+            ax3d.set_xlim(Aticks[0],Aticks[-1])
+        else:
+            ax3d.set_xlim(*boundaries[0])
     elif "A_mid" in kwargs:
         A_mid = kwargs.pop("A_mid")
         transf = ft.partial(compactification, x_mid=A_mid)
         inv_transf = ft.partial(inv_compactification, x_mid=A_mid)
 
-        formatters, locators = transformed_space(transf, inv_transf, axis_use=True)
+        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, boundaries=boundaries[0])
         ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(locators))
         ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(formatters))
 
-        ax3d.set_xlim(0,1)
+        if boundaries[0] is None:
+            ax3d.set_xlim(0,1)
+        else:
+            ax3d.set_xlim(*boundaries[0])
 
     else:
         raise KeyError("can't find proper key for 'A' in kwargs that determines which representation of 'A' has been used")
@@ -152,35 +165,34 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     transf = ft.partial(compactification, x_mid=W_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=W_mid)
 
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale)
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, boundaries=boundaries[1])
     ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(locators))
     ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(formatters))
 
-    ax3d.set_ylim(0,1)
+    if boundaries[1] is None:
+        ax3d.set_ylim(0,1)
+    else:
+        ax3d.set_ylim(*boundaries[1])
 
 
     transf = ft.partial(compactification, x_mid=S_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=S_mid)
 
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale)
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, boundaries=boundaries[2])
     ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(locators))
     ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(formatters))
 
-    ax3d.set_zlim(0,1)
-
-    # if not boundaries is None:
-        # print(boundaries)
-        # ax3d.set_xlim(0.1, 0.6)
-        # ax3d.set_xlim(*boundaries[0])
-        # ax3d.set_ylim(*boundaries[1])
-        # ax3d.set_zlim(*boundaries[2])
+    if boundaries[2] is None:
+        ax3d.set_zlim(0,1)
+    else:
+        ax3d.set_zlim(*boundaries[2])
 
     ax3d.view_init(30, -140)
 
     return fig, ax3d
 
 
-def add_boundary(ax3d, boundary= "PB", add_outer=False, **parameters):
+def add_boundary(ax3d, boundary= "PB", add_outer=False, plot_boundaries=None, **parameters):
     # show boundaries of undesirable region:
     if boundary == "PB":
         A_PB = parameters["A_PB"]
@@ -190,7 +202,15 @@ def add_boundary(ax3d, boundary= "PB", add_outer=False, **parameters):
             A_PB = A_PB / (A_PB + parameters["A_mid"])
         else:
             assert False, "couldn't identify how the A axis is scaled"
-        boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,0,0],[A_PB,1,0],[A_PB,1,1],[A_PB,0,1]]])
+
+        if plot_boundaries is None:
+            w_min, w_max = 0, 1
+            s_min, s_max = 0, 1
+        else:
+            w_min, w_max = plot_boundaries[1]
+            s_min, s_max = plot_boundaries[2]
+
+        boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,w_min,s_min],[A_PB,w_max,s_min],[A_PB,w_max,s_max],[A_PB,w_min,s_max]]])
         boundary_surface_PB.set_color("gray"); boundary_surface_PB.set_edgecolor("gray"); boundary_surface_PB.set_alpha(0.25)
         ax3d.add_collection3d(boundary_surface_PB)
     elif boundary == "both":
