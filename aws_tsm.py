@@ -98,6 +98,8 @@ if __name__ == "__main__":
     parser.add_argument("--record-paths", action="store_true",
                         help="record the paths, direction and default / management option used, "\
                         "so a path can be reconstructed")
+    parser.add_argument("--stop-when-finished", default="all", metavar="region",
+                        help="stop when the computation of 'region' is finished") 
     parser.add_argument("-z", "--zeros", action="store_true",
                         help="estimate the fixed point(s)")
 
@@ -161,6 +163,9 @@ if __name__ == "__main__":
                                                          n0,
                                                          grid_type,
                                                          verbosity=verbosity)
+    # print(scaling_vector)
+    # assert False
+
     # viab.generate_grid sets stepsize, reset it here
     # viab.STEPSIZE = 2 * x_step
     # let the stepsize go a bit slower to zero than the grid fineness
@@ -231,6 +236,7 @@ if __name__ == "__main__":
                                             out_of_bounds=out_of_bounds,
                                             remember_paths=args.record_paths,
                                             verbosity=verbosity,
+                                            stop_when_finished=args.stop_when_finished,
                                             )
         except SystemExit as e:
             print()

@@ -187,6 +187,8 @@ if __name__ == "__main__":
         aws_show.add_boundary(ax3d, plot_boundaries=args.plot_boundaries, **ax_parameters)
 
         def is_inside(x, bounds):
+            if bounds is None:
+                return np.ones(np.shape(x)[:-1], dtype=bool)
             return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]), axis=-1)
 
         mask2 = is_inside(grid, args.plot_boundaries)
@@ -198,7 +200,6 @@ if __name__ == "__main__":
                         alpha=1/header["grid-parameters"]["n0"],
                         linestyle="", marker=".", markersize=30,
                         )
-        MAX_PLOT_DEPTH = 10000
         if args.show_path:
             paths = data["paths"]
             print("compute starting indices ... ", end="", flush=True)
