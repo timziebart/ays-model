@@ -204,15 +204,21 @@ def add_boundary(ax3d, boundary= "PB", add_outer=False, plot_boundaries=None, **
             assert False, "couldn't identify how the A axis is scaled"
 
         if plot_boundaries is None:
+            if "A_max" in parameters:
+                a_min, a_max = 0, parameters["A_max"]
+            elif "A_mid" in parameters:
+                a_min, a_max = 0, 1
             w_min, w_max = 0, 1
             s_min, s_max = 0, 1
         else:
+            a_min, a_max = plot_boundaries[0]
             w_min, w_max = plot_boundaries[1]
             s_min, s_max = plot_boundaries[2]
 
-        boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,w_min,s_min],[A_PB,w_max,s_min],[A_PB,w_max,s_max],[A_PB,w_min,s_max]]])
-        boundary_surface_PB.set_color("gray"); boundary_surface_PB.set_edgecolor("gray"); boundary_surface_PB.set_alpha(0.25)
-        ax3d.add_collection3d(boundary_surface_PB)
+        if a_min < A_PB < a_max:
+            boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,w_min,s_min],[A_PB,w_max,s_min],[A_PB,w_max,s_max],[A_PB,w_min,s_max]]])
+            boundary_surface_PB.set_color("gray"); boundary_surface_PB.set_edgecolor("gray"); boundary_surface_PB.set_alpha(0.25)
+            ax3d.add_collection3d(boundary_surface_PB)
     elif boundary == "both":
         raise NotImplementedError("will be done soon")
         boundary_surface_both = plt3d.art3d.Poly3DCollection([[[0,.5,0],[0,.5,1],[A_PB,.5,1],[A_PB,.5,0]],
