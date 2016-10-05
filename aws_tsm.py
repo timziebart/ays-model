@@ -163,13 +163,6 @@ if __name__ == "__main__":
                                                          n0,
                                                          grid_type,
                                                          verbosity=verbosity)
-    # print(scaling_vector)
-    # assert False
-
-    # viab.generate_grid sets stepsize, reset it here
-    # viab.STEPSIZE = 2 * x_step
-    # let the stepsize go a bit slower to zero than the grid fineness
-    # assert False, "that should be lv. below, not viab."
     lv.STEPSIZE = 2 * x_step * max([1, np.sqrt( n0 / 80 )])  # prop to 1 / sqrt(n0)
     print("stepsize / gridstepsize: {:<5.3f}".format(lv.STEPSIZE / x_step))
     print()
@@ -178,7 +171,7 @@ if __name__ == "__main__":
     states = np.zeros(grid.shape[:-1], dtype=np.int16)
 
     # mark the fixed point in infinity as shelter already
-    states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 0.5 ] = -lv.SHELTER
+    states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 5 * x_step] = -lv.SHELTER
 
     run_args = [offset, scaling_vector]
     run_kwargs = dict(returning=args.run_type, remember=args.remember_computed)
