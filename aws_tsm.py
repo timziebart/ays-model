@@ -122,6 +122,10 @@ if __name__ == "__main__":
     # do the actual parsing of the arguments
     args = parser.parse_args()
 
+    OUTPUT_FILE_SUFFIX = ".out"
+    if not args.dry_run and not args.output_file.endswith(OUTPUT_FILE_SUFFIX):
+        parser.error("please use the suffix '{}' for 'output-file' (reason is actually the '.gitignore' file)".format(OUTPUT_FILE_SUFFIX))
+
     if not (args.force or args.dry_run):
         if os.path.isfile(args.output_file):
             parser.error("'{}' exists already, use '--force' option to overwrite".format(args.output_file))
