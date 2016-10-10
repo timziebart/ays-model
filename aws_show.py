@@ -11,6 +11,7 @@ import scipy.integrate as integ
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d as plt3d
 import matplotlib.ticker as ticker
+from matplotlib import animation
 
 import warnings as warn
 
@@ -24,6 +25,10 @@ import pickle
 import functools as ft
 
 INFTY_SIGN = u"\u221E"
+
+ELEVATION = 30
+AZIMUTH = -140
+
 
 # patch to remove padding at ends of axes:
 ###patch start###
@@ -117,6 +122,18 @@ def transformed_space(transform, inv_transform,
         string_formatters[~mask_nan] = np.round(formatters[~mask_nan], decimals=2).astype(int).astype("|U10")
         return string_formatters, locators
 
+def animate(fig, ax3d, fname):
+    assert fname.endswith(".mp4"), "for now '.mp4' files for video only"
+    def turning_animation(i):
+        ax3d.view_init(ELEVATION, AZIMUTH + i)
+    # Animate
+    anim = animation.FuncAnimation(fig, turning_animation, 
+                                   init_func=init,
+                                   frames=360, interval=20, blit=True)
+    # Save
+    anim.save(fname, fps=30, extra_args=['-vcodec', 'libx264'])
+    # ax3d.view_init(ELEVATION, AZIMUTH)
+
 
 def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, **kwargs):
 
@@ -187,7 +204,7 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     else:
         ax3d.set_zlim(*boundaries[2])
 
-    ax3d.view_init(30, -140)
+    ax3d.view_init(ELEVATION, AZIMUTH)
 
     return fig, ax3d
 

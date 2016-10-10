@@ -53,17 +53,21 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
-    parser.add_argument("-b", "--plot-boundaries",
+    parser.add_argument("-a", "--animate", action="store_true",
+                        help="animate the 3d plot")
+    parser.add_argument("-b", "--plot-boundaries", metavar="boundaries",
                         help="set the boundaries as a list with shape (3,2)")
     parser.add_argument("-d", "--defaults", default=[], nargs="+",
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
-    parser.add_argument("-s", "--save-pic", metavar="file", default="",
-                        help="save the picture to 'file'")
-    parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
-                        help="show a path for all points, that are closer to 'point' than 'distance'")
     parser.add_argument("--header", action="store_true",
                         help="print the header including all parameters from input-file")
+    parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
+                        help="show a path for all points, that are closer to 'point' than 'distance'")
+    parser.add_argument("-s", "--save-pic", metavar="file", default="",
+                        help="save the picture to 'file'")
+    parser.add_argument("--save-video", metavar="file", 
+                        help="save a video of the 3d result")
     parser.add_argument("-v", "--verbose", action="count",
                         help="increase verbosity can be used as -v, -vv ...")
 
@@ -81,6 +85,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.save_video and not args.animate:
+        parser.error("no use to produce a video without animating the plot")
+
+
+
     if args.defaults:
         for d in args.defaults:
             print("defaults for {}:".format(d))
@@ -91,7 +100,7 @@ if __name__ == "__main__":
             elif d == "boundary":
                 dic = aws.boundary_parameters
             else:
-                raise ValueError("Tim, did you forget to change something here?")
+                raise ValueError("Did you forget to change something here?")
             print(aws.recursive_dict2string(dic))
             print()
         sys.exit(0)
@@ -206,15 +215,17 @@ if __name__ == "__main__":
             diff = grid - path_x0
             mask = (np.linalg.norm(diff, axis=-1) <= path_dist)
             starting_indices = np.where(mask)[0].tolist()
+            _starting_indices = list(starting_indices)
             print("done")
             print()
             if not starting_indices:
                 print("your point and distance do not match any grid points")
             else:
                 print("matched:")
-                matched_states = states[mask]
-                for s in sorted(np.unique(matched_states)):
-                    print("{:>2} : {:>2}".format(s, np.count_nonzero(matched_states == s)))
+                _matched_states = states[mask]
+                matched_states = sorted(np.unique(_matched_states))
+                for s in matched_states:
+                    print("{:>2} : {:>2}".format(s, np.count_nonzero(_matched_states == s)))
                 print()
                 if args.verbose:
                     print("starting points and states for paths:")
@@ -228,18 +239,43 @@ if __name__ == "__main__":
                         continue
                     plotted_indices.add(ind)
                     x0 = grid[ind]
-                    x1 = paths[0][ind]
+                    x1 = paths["reached point"][ind]
                     if np.all(is_inside([x0, x1], args.plot_boundaries)):
                         traj = list(zip(x0, x1))
                         ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
-                                    color="lightblue" if paths[2][ind] == 0 else "black")
-                        starting_indices.append(paths[1][ind])
+                                    color="lightblue" if paths["choice"][ind] == 0 else "black")
+                    if paths["next point index"][ind] != lv.PATHS_INDEX_DEFAULT:
+                        starting_indices.append(paths["next point index"][ind])
+
+                # plot the lake stuff
+                if lv.LAKE in matched_states:
+                    paths = data["paths-lake"]
+                    starting_indices = [index for index in _starting_indices if states[index] == lv.LAKE]
+                    plotted_indices = set()
+                    for ind in starting_indices:
+                        if ind in plotted_indices:
+                            continue
+                        plotted_indices.add(ind)
+                        x0 = grid[ind]
+                        x1 = paths["reached point"][ind]
+                        if np.all(is_inside([x0, x1], args.plot_boundaries)):
+                            traj = list(zip(x0, x1))
+                            ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
+                                        color="green" if paths["choice"][ind] == 0 else "brown")
+                        if paths["next point index"][ind] != lv.PATHS_INDEX_DEFAULT:
+                            starting_indices.append(paths["next point index"][ind])
                 print("done\n")
 
         if args.save_pic:
             print("saving to {} ... ".format(args.save_pic), end="", flush=True)
             fig.savefig(args.save_pic)
             print("done")
+
+        # if not args.save_video is None:
+            # print("creating video and saving to {} ... ".format(args.save_video), end="", flush=True)
+            # aws_show.save_video(fig, ax3d, args.save_video)
+            # print("done")
+
         plt.show()
 
 

@@ -37,7 +37,14 @@ def reformat(filename):
             "W_SF": header["model-parameters"].pop("W_SF"),
         }
 
-    new_header = dict(DEFAULT_HEADER)  # copy it, if several files are processed
+    if "paths" in data and isinstance(data["paths"], tuple):
+        new_paths = {}
+        new_paths["reached point"] = data["paths"][0]
+        new_paths["next point index"] = data["paths"][1]
+        new_paths["choice"] = data["paths"][2]
+        data["paths"] = new_paths
+
+    new_header = dict(DEFAULT_HEADER)  # copy it in case several files are processed
     new_header.update(header)
 
     print("writing '{}' ... ".format(filename), end="", flush=True)

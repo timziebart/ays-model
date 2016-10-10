@@ -2,6 +2,8 @@
 *.out
 *.txt
 *.jpg
+*.png
+*.mp4
 
 # vim stuff (Pymode uses rope)
 .*.swp

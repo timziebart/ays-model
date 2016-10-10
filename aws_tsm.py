@@ -272,6 +272,7 @@ if __name__ == "__main__":
                 }
         if args.record_paths:
             data["paths"] = lv.PATHS
+            data["paths-lake"] = lv.PATHS_LAKE
         print("saving to {!r} ... ".format(args.output_file), end="", flush=True)
         if not args.dry_run:
             with open(args.output_file, "wb") as f:

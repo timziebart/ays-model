@@ -1,12 +1,17 @@
 
 from __future__ import division, print_function
 
+import pyviability as pv
+
 import numpy as np
 import warnings as warn
 import sys
 
 if sys.version_info[0] < 3:
-    warn.warn("this code has been tested in Python3 only")
+    raise DeprecationWarning("this code has been tested in Python3 only")
+
+assert pv.version_info >= (0, 15), "please get the latest version of pyviability (and don't forget to (re)run the installation"
+
 
 
 NB_USING_NOPYTHON = True
