@@ -4,8 +4,9 @@
 import pyviability as viab
 from pyviability import libviability as lv
 
+from aws_general import __version__, __version_info__
 import aws_model as aws
-import aws_show
+import aws_show, aws_general
 
 from scipy import spatial as spat
 from scipy.spatial import ckdtree
@@ -15,6 +16,7 @@ import ast, sys
 import itertools as it
 
 import datetime as dt
+import functools as ft
 
 import matplotlib.pyplot as plt
 
@@ -46,6 +48,13 @@ def get_changed_parameters(pars, default_pars):
 
     return changed_pars
 
+# prepare all the stuff needed for the regions argument parsing
+regions_dict_short = { RegionName2Option(region, style="short") : region for region in lv.REGIONS }
+regions_dict_long = { RegionName2Option(region, style="long") : region for region in lv.REGIONS }
+regions_dict = dict(regions_dict_long)
+regions_dict.update(regions_dict_short)
+regions_arguments = [("all", "a")] + list(zip(map(RegionName2Option, lv.REGIONS), map(ft.partial(RegionName2Option, style="short"), lv.REGIONS)))
+regions_arguments_flattened = sorted([item for sublist in regions_arguments for item in sublist])
 
 if __name__ == "__main__":
 
@@ -64,21 +73,22 @@ if __name__ == "__main__":
                         help="print the header including all parameters from input-file")
     parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
                         help="show a path for all points, that are closer to 'point' than 'distance'")
+    parser.add_argument("--paths-outside", action="store_true",
+                        help="paths go go out of the plotting boundaries")
+    parser.add_argument("-r", "--show-region", metavar="region", dest="regions", 
+                        default=[], nargs="+", choices=regions_arguments_flattened,
+                        help="choose the regions to be shown in the plot: " + 
+                             ", ".join(["{} ({})".format(region_long, region_short) for region_long, region_short in regions_arguments]))
+    parser.add_argument("--reformat", action="store_true",
+                        help="automatically reformat 'input-file' if necessary")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
     parser.add_argument("--save-video", metavar="file", 
                         help="save a video of the 3d result")
-    parser.add_argument("-v", "--verbose", action="count",
+    parser.add_argument("-t", "--transformed-formatters", action="store_true",
+                        help="show from 0 to 1 at each axis instead of 0 to infty")
+    parser.add_argument("-v", "--verbose", action="count", default=0,
                         help="increase verbosity can be used as -v, -vv ...")
-
-    regions_parser = parser.add_argument_group("regions", "choose which regions you want to be plotted")
-    regions_parser.add_argument("--a", "--all", action="store_true", dest="all_regions",
-                                help="plot all regions")
-    [regions_parser.add_argument("--"+RegionName2Option(region, style="short"),
-                        "--"+RegionName2Option(region),
-                        dest="regions", default=[],
-                        action="append_const", const=region)
-                        for region in lv.REGIONS]
 
     # use argcomplete auto-completion
     argcomplete.autocomplete(parser)
@@ -87,8 +97,6 @@ if __name__ == "__main__":
 
     if args.save_video and not args.animate:
         parser.error("no use to produce a video without animating the plot")
-
-
 
     if args.defaults:
         for d in args.defaults:
@@ -105,14 +113,16 @@ if __name__ == "__main__":
             print()
         sys.exit(0)
 
+    # evaluate the boundaries string to an array
     if args.plot_boundaries:
         args.plot_boundaries = np.array(eval(args.plot_boundaries))
 
-
-
-    if args.all_regions:
-        args.regions = viab.REGIONS
-
+    # resolve the chosen regions and translate them to the names in pyviability
+    if args.regions:
+        if "a" in args.regions or "all" in args.regions:
+            args.regions = lv.REGIONS
+        else:
+            args.regions = list(set(map(regions_dict.__getitem__, args.regions)))
 
     with open(args.input_file, "rb") as f:
         header, data = pickle.load(f)
@@ -120,7 +130,18 @@ if __name__ == "__main__":
     if args.header:
         print(aws.recursive_dict2string(header))
 
-    assert header["viab-backscaling-done"]
+    if not "aws-version-info" in header or header["aws-version-info"] < __version_info__:
+        if args.reformat:
+            del header, data
+            aws_general.reformat(args.input_file)
+            with open(args.input_file, "rb") as f:
+                header, data = pickle.load(f)
+        else:
+            parser.error("seems to be an older aws file version, please use the '--reformat' option")
+
+    if not header["viab-backscaling-done"]:
+        raise NotImplementedError("there is no plotting for unrescaled systems yet (and probably won't ever be)")
+
     if not args.show_path is None:
         if not header["remember-paths"]:
             parser.error("'{}' does not contain recorded paths".format(args.input_file))
@@ -188,19 +209,19 @@ if __name__ == "__main__":
         # header["grid-parameters"]["boundaries"] = args.boundaries
         figure_parameters = dict(header["grid-parameters"])
         figure_parameters["boundaries"] = args.plot_boundaries
-        fig, ax3d = aws_show.create_figure(**figure_parameters)
+        fig, ax3d = aws_show.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
         print()
 
         ax_parameters = dict(header["boundary-parameters"])  # make a copy
         ax_parameters.update(header["grid-parameters"])
         aws_show.add_boundary(ax3d, plot_boundaries=args.plot_boundaries, **ax_parameters)
 
-        def is_inside(x, bounds):
+        def isinside(x, bounds):
             if bounds is None:
                 return np.ones(np.shape(x)[:-1], dtype=bool)
             return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]), axis=-1)
 
-        mask2 = is_inside(grid, args.plot_boundaries)
+        mask2 = isinside(grid, args.plot_boundaries)
         for region in args.regions:
             region_num = getattr(lv, region)
             mask = (states == region_num) &  mask2
@@ -210,7 +231,7 @@ if __name__ == "__main__":
                         linestyle="", marker=".", markersize=30,
                         )
         if args.show_path:
-            paths = data["paths"]
+            # paths = data["paths"]
             print("compute starting indices ... ", end="", flush=True)
             diff = grid - path_x0
             mask = (np.linalg.norm(diff, axis=-1) <= path_dist)
@@ -227,55 +248,47 @@ if __name__ == "__main__":
                 for s in matched_states:
                     print("{:>2} : {:>2}".format(s, np.count_nonzero(_matched_states == s)))
                 print()
-                if args.verbose:
-                    print("starting points and states for paths:")
-                    for ind in starting_indices:
-                        print("{!s} --- {:>2}".format(grid[ind], states[ind]))
-                    print()
-                plotted_indices = set()
-                print("calculating and plotting paths ... ", end="", flush=True)
-                for ind in starting_indices:
-                    if ind in plotted_indices:
-                        continue
-                    plotted_indices.add(ind)
-                    x0 = grid[ind]
-                    x1 = paths["reached point"][ind]
-                    if np.all(is_inside([x0, x1], args.plot_boundaries)):
-                        traj = list(zip(x0, x1))
-                        ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
-                                    color="lightblue" if paths["choice"][ind] == 0 else "black")
-                    if paths["next point index"][ind] != lv.PATHS_INDEX_DEFAULT:
-                        starting_indices.append(paths["next point index"][ind])
+                plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
+                                                            color="lightblue" if choice == 0 else "black")
+                bounds = args.plot_boundaries
+                paths_outside = args.paths_outside
+                if paths_outside or bounds is None:
+                    path_isinside = aws_general.dummy_isinside
+                else:
+                    def path_isinside(x):
+                        return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]))
+                aws_general.follow_indices(starting_indices, 
+                                           grid=grid, 
+                                           states=states, 
+                                           paths=data["paths"], 
+                                           plot=plotting, 
+                                           verbose=args.verbose, 
+                                           isinside=path_isinside)
 
-                # plot the lake stuff
                 if lv.LAKE in matched_states:
-                    paths = data["paths-lake"]
+                    if args.verbose < 2:
+                        print("following lake inside of manageable region ...", end="", flush=True)
+                    else:
+                        print("following LAKE points inside of manageable region")
                     starting_indices = [index for index in _starting_indices if states[index] == lv.LAKE]
-                    plotted_indices = set()
-                    for ind in starting_indices:
-                        if ind in plotted_indices:
-                            continue
-                        plotted_indices.add(ind)
-                        x0 = grid[ind]
-                        x1 = paths["reached point"][ind]
-                        if np.all(is_inside([x0, x1], args.plot_boundaries)):
-                            traj = list(zip(x0, x1))
-                            ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
-                                        color="green" if paths["choice"][ind] == 0 else "brown")
-                        if paths["next point index"][ind] != lv.PATHS_INDEX_DEFAULT:
-                            starting_indices.append(paths["next point index"][ind])
-                print("done\n")
+                    plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
+                                                                color="green" if choice == 0 else "brown")
+                    aws_general.follow_indices(starting_indices, 
+                                               grid=grid, 
+                                               states=states, 
+                                               paths=data["paths-lake"], 
+                                               fallback_paths=data["paths"],
+                                               plot=plotting, 
+                                               verbose=args.verbose, 
+                                               isinside=path_isinside)
 
         if args.save_pic:
             print("saving to {} ... ".format(args.save_pic), end="", flush=True)
             fig.savefig(args.save_pic)
             print("done")
 
-        # if not args.save_video is None:
-            # print("creating video and saving to {} ... ".format(args.save_video), end="", flush=True)
-            # aws_show.save_video(fig, ax3d, args.save_video)
-            # print("done")
-
+        sys.stdout.flush()
+        sys.stderr.flush()
         plt.show()
 
 

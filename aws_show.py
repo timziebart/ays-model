@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
+from aws_general import __version__, __version_info__
 import aws_model as aws
 from pyviability import helper
 
@@ -135,7 +136,7 @@ def animate(fig, ax3d, fname):
     # ax3d.view_init(ELEVATION, AZIMUTH)
 
 
-def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, **kwargs):
+def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, transformed_formatters=False, **kwargs):
 
 
     kwargs = dict(kwargs)
@@ -165,6 +166,14 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
         inv_transf = ft.partial(inv_compactification, x_mid=A_mid)
 
         formatters, locators = transformed_space(transf, inv_transf, axis_use=True, boundaries=boundaries[0])
+        if transformed_formatters:
+            new_formatters = []
+            for el, loc in zip(formatters, locators):
+                if el:
+                    new_formatters.append("{:4.2f}".format(loc))
+                else:
+                    new_formatters.append(el)
+            formatters = new_formatters
         ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(locators))
         ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(formatters))
 
@@ -183,6 +192,14 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     inv_transf = ft.partial(inv_compactification, x_mid=W_mid)
 
     formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, boundaries=boundaries[1])
+    if transformed_formatters:
+        new_formatters = []
+        for el, loc in zip(formatters, locators):
+            if el:
+                new_formatters.append("{:4.2f}".format(loc))
+            else:
+                new_formatters.append(el)
+        formatters = new_formatters
     ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(locators))
     ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(formatters))
 
@@ -196,6 +213,14 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     inv_transf = ft.partial(inv_compactification, x_mid=S_mid)
 
     formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, boundaries=boundaries[2])
+    if transformed_formatters:
+        new_formatters = []
+        for el, loc in zip(formatters, locators):
+            if el:
+                new_formatters.append("{:4.2f}".format(loc))
+            else:
+                new_formatters.append(el)
+        formatters = new_formatters
     ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(locators))
     ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(formatters))
 

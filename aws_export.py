@@ -3,6 +3,7 @@
 
 from __future__ import generators, print_function, division
 
+from aws_general import __version__, __version_info__
 import aws_model as aws
 import pyviability as viab
 from pyviability import libviability as lv

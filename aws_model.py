@@ -1,6 +1,7 @@
 
 from __future__ import division, print_function
 
+from aws_general import __version__, __version_info__
 import pyviability as pv
 
 import numpy as np

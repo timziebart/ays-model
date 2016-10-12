@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # PYTHON_ARGCOMPLETE_OK
 
+from aws_general import __version__, __version_info__
+import aws_general
 import aws_model as aws
 
 import pyviability as viab
@@ -17,46 +19,9 @@ import sys, os
 import types
 import ast
 import argparse, argcomplete
-import signal
 import warnings as warn
 
 import pickle
-
-
-ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal)
-               if x.startswith("SIG")
-               and not x.startswith("SIG_")  # because they are just duplicates
-               and not getattr(signal, x) == 0  # can register only for signals >0
-               and not getattr(signal, x) == 28 # SIGWINCH [28] is sent when resizing the terminal ...
-               and not x in ["SIGSTOP", "SIGKILL"]  # can't register these because you can't actually catch them (:
-               }
-NUMER_TO_SIGNAL = { val: key for key, val in ALL_SIGNALS.items() }
-
-def signal_handler(sig, frame):
-    sys.exit(sig)
-
-def register_signals(sigs = set(ALL_SIGNALS), handler=signal_handler, verbose=True):
-    """
-    register a signal handler for all given signals
-    sigs:       (multiply iterable) providing all the signals to be registered
-                default: all possible signals 'ALL_SIGNALS'
-    handler:    (function) the signal handler to be used
-                default: signal_handler, which just raises a 'sys.exit(sig)' for the signal 'sig'
-    verbose:    (bool) print a notification if the signal registering failed
-    """
-    # register all possible signals
-    for sig in ALL_SIGNALS:
-        sigclass = getattr(signal, sig)
-        signum = sigclass.value
-        # the line below checks whether the signal has been given for
-        # registering in the form of either the name, the signal class or the
-        # signal number
-        if set([sig, sigclass, signum]).intersection(sigs):
-            try:
-                signal.signal(getattr(signal, sig), signal_handler)
-            except Exception as e:
-                if verbose:
-                    print("ignoring signal registration: [{:>2d}] {} (because {}: {!s})".format(ALL_SIGNALS[sig], sig, e.__class__.__name__, e), file=sys.stderr)
 
 
 MANAGEMENTS = aws.MANAGEMENTS
@@ -220,7 +185,7 @@ if __name__ == "__main__":
 
     out_of_bounds = False # in a, w, s representation, doesn't go out of bounds of [0, 1]^3 by definition
 
-    register_signals()
+    aws_general.register_signals()
 
     start_time = time.time()
     print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))
@@ -238,7 +203,7 @@ if __name__ == "__main__":
         except SystemExit as e:
             print()
             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-            print("interrupted by SystemExit or Signal {} [{}]".format(NUMER_TO_SIGNAL[e.args[0]], e.args[0]))
+            print("interrupted by SystemExit or Signal {} [{}]".format(aws_general.NUMBER_TO_SIGNAL[e.args[0]], e.args[0]))
             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
             print()
     time_passed = time.time() - start_time
@@ -254,6 +219,7 @@ if __name__ == "__main__":
 
     if not args.no_save:
         header = {
+                "aws-version-info": __version_info__,
                 "model": "AWS",
                 "managements": args.managements,
                 "boundaries": ["planetary-boundary"],
