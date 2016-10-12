@@ -63,8 +63,9 @@ if __name__ == "__main__":
     parser.add_argument("--record-paths", action="store_true",
                         help="record the paths, direction and default / management option used, "\
                         "so a path can be reconstructed")
-    parser.add_argument("--stop-when-finished", default="all", metavar="region",
-                        help="stop when the computation of 'region' is finished") 
+    parser.add_argument("--stop-when-finished", default=lv.TOPOLOGY_STEP_LIST[-1], metavar="computation-step",
+                        choices=lv.TOPOLOGY_STEP_LIST,
+                        help="stop when the computation of 'computation-step' is finished") 
     parser.add_argument("-z", "--zeros", action="store_true",
                         help="estimate the fixed point(s)")
 

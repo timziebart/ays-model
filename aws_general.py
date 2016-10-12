@@ -1,6 +1,7 @@
 
 import pickle
 import signal
+import sys
 
 from pyviability import libviability as lv
 

@@ -71,10 +71,16 @@ if __name__ == "__main__":
                         help="show all the default values")
     parser.add_argument("--header", action="store_true",
                         help="print the header including all parameters from input-file")
-    parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
-                        help="show a path for all points, that are closer to 'point' than 'distance'")
-    parser.add_argument("--paths-outside", action="store_true",
-                        help="paths go go out of the plotting boundaries")
+
+    paths_parser = parser.add_argument_group(title="paths tool",
+                                             description="tools to show paths in the plot")
+    paths_parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
+                              help="show a path for all points, that are closer to 'point' than 'distance'")
+    paths_parser.add_argument("--paths-outside", action="store_true",
+                              help="paths go go out of the plotting boundaries")
+    paths_parser.add_argument("--paths-lake-fallback", action="store_true",
+                              help="fallback to PATHS if NO INFO in PATHS_LAKE")
+
     parser.add_argument("-r", "--show-region", metavar="region", dest="regions", 
                         default=[], nargs="+", choices=regions_arguments_flattened,
                         help="choose the regions to be shown in the plot: " + 
@@ -269,6 +275,7 @@ if __name__ == "__main__":
                     if args.verbose < 2:
                         print("following lake inside of manageable region ...", end="", flush=True)
                     else:
+                        print()
                         print("following LAKE points inside of manageable region")
                     starting_indices = [index for index in _starting_indices if states[index] == lv.LAKE]
                     plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
@@ -277,7 +284,7 @@ if __name__ == "__main__":
                                                grid=grid, 
                                                states=states, 
                                                paths=data["paths-lake"], 
-                                               fallback_paths=data["paths"],
+                                               fallback_paths=data["paths"] if args.paths_lake_fallback else None,
                                                plot=plotting, 
                                                verbose=args.verbose, 
                                                isinside=path_isinside)
