@@ -4,6 +4,7 @@
 from __future__ import generators, print_function, division
 
 from aws_general import __version__, __version_info__
+import aws_general
 import aws_model as aws
 import pyviability as viab
 from pyviability import libviability as lv
@@ -39,8 +40,7 @@ if __name__=="__main__":
     if args.txt_file == args.input_file:
         parser.error("'txt-file' and 'output-file' should be different from each other, not both '{}'".format(args.input_file))
 
-    with open(args.input_file, "rb") as f:
-        header, data = pickle.load(f)
+    header, data = aws_general.load_result_file(args.input_file)
 
     header_txt = "#"*80 + "\n"
     header_txt += aws.recursive_dict2string(header)

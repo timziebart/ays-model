@@ -1,15 +1,32 @@
 
+from pyviability import libviability as lv
+
+import numpy as np
 import pickle
 import signal
 import sys
+import warnings as warn
 
-from pyviability import libviability as lv
+
+def versioninfo2version(v_info):
+    return ".".join(map(str, v_info))
+
+DEFAULT_VERSION_INFO = (0, 1)  # that's where it all started
+
+version_info = __version_info__ = (0, 3)
+version = __version__ = versioninfo2version(__version_info__)
 
 
-version_info = __version_info__ = (0, 1)
-version = __version__ = ".".join(map(str, version_info))
+"""
+aws-file version changes:
+0.3: added 'computation-status'
+0.2: the first ones with actual versioning, adding 'paths-lake' if paths has been given
+no version or 0.1: the stuff from the beginning
+"""
 
-def dummy_plot(*args, **kwargs):
+
+
+def dummy_hook(*args, **kwargs):
     pass
 
 def dummy_isinside(x):
@@ -17,7 +34,7 @@ def dummy_isinside(x):
 
 def follow_indices(starting_indices, *,
         grid, states, paths,
-        plot=dummy_plot, isinside=dummy_isinside,
+        trajectory_hook=dummy_hook, isinside=dummy_isinside,
         fallback_paths=None,
         verbose = 0
         ):
@@ -39,7 +56,7 @@ def follow_indices(starting_indices, *,
             print("({}| {:>2d}) {} via {} ".format(ind, states[ind], x0, x1), end="")
         if isinside([x0, x1]):
             traj = list(zip(x0, x1))
-            plot(traj, paths["choice"][ind])
+            trajectory_hook(traj, paths["choice"][ind])
             next_ind = paths["next point index"][ind]
             if next_ind == lv.PATHS_INDEX_DEFAULT and fallback_paths is not None:
                 if verbose >= 2:
@@ -60,8 +77,63 @@ def follow_indices(starting_indices, *,
         print("done")
 
 
+def reformat(filename, *, verbose=0):
+    """load file and then update header and data"""
+    header, data = load_result_file(filename, version_check=False, verbose=verbose)
+
+    # the actually change of the format is done in _reformat
+    header, data = _reformat(header, data, verbose=verbose)
+
+    save_result_file(filename, header, data, verbose=verbose)
+
+
+def save_result_file(fname, header, data, *, verbose=0):
+    """save 'header' and 'data' to 'fname'"""
+    try:
+        _check_format(header, data)
+    except AssertionError:
+        warn.warn("the generated 'header' and 'data' failed at least one consistency check, saving anyway")
+
+    if verbose:
+        print("saving to {!r} ... ".format(fname), end="", flush=True)
+    with open(fname, "wb") as f:
+        pickle.dump((header, data), f)
+    if verbose:
+        print("done")
+
+
+def load_result_file(fname, *, 
+                     version_check=True,
+                     consistency_check=True,
+                     auto_reformat=False,
+                     verbose=0
+                     ):
+    """loads the file 'fname' and performs some checks
+    
+    note that the options are interdependent: 'auto_reformat' needs 'consistency_check' needs 'version_check'
+    """
+    if verbose:
+        print("loading {} ... ".format(fname), end="", flush=True)
+    with open(fname, "rb") as f:
+        header, data = pickle.load(f)
+    if verbose:
+        print("done", flush=True)
+    if not version_check:
+        return header, data
+    if "aws-version-info" in header and header["aws-version-info"] == __version_info__:
+        return header, data
+    if auto_reformat:
+        header, data = _reformat(header, data, verbose=verbose)
+        return header, data
+    raise IOError("please reformat the file (from version {} to {})".format(versioninfo2version(header.pop("aws-version-info", DEFAULT_VERSION_INFO)), __version__))
+
+        
+
+
+
+
 DEFAULT_HEADER = {
-                "aws-version-info": (0, 1),
+                "aws-version-info": DEFAULT_VERSION_INFO,
                 "model": "AWS",
                 "managements": "unknown",
                 "boundaries": ["unknown"],
@@ -78,37 +150,96 @@ DEFAULT_HEADER = {
                 "xstep" : 1.,
                 "out-of-bounds": None,
                 "remember-paths": False,
+                "computation-status": "",
                 }
 
-def reformat(filename):
-    print("reformatting: reading '{}' ... ".format(filename), end="", flush=True)
-    with open(filename, "rb") as f:
-        header, data = pickle.load(f)
-    print("done")
 
-    # management has been renamed with the plural
-    if "management" in header:
-        header["managements"] = header.pop("management")
-    if not "boundary-parameters" in header:
-        header["boundary-parameters"] = {
-            "A_PB": header["model-parameters"].pop("A_PB"),
-            "W_SF": header["model-parameters"].pop("W_SF"),
-        }
 
-    if "paths" in data and isinstance(data["paths"], tuple):
-        new_paths = {}
-        new_paths["reached point"] = data["paths"][0]
-        new_paths["next point index"] = data["paths"][1]
-        new_paths["choice"] = data["paths"][2]
-        data["paths"] = new_paths
+def _check_format(header, data):
+    """consistency checks"""
 
-    new_header = dict(DEFAULT_HEADER)  # copy it in case several files are processed
-    new_header.update(header)
+    assert header["aws-version-info"] == __version_info__
 
-    print("writing '{}' ... ".format(filename), end="", flush=True)
-    with open(filename, "wb") as f:
-        pickle.dump((new_header, data), f)
-    print("done")
+    # check the header contains the right keys
+    if set(header) != set(DEFAULT_HEADER):
+        print("maybe your header was orrupted:")
+        new_header_unknown = set(header).difference(DEFAULT_HEADER)
+        new_header_missing = set(DEFAULT_HEADER).difference(header.keys())
+        if new_header_unknown:
+            print("unknown keys: " + ", ".join(new_header_unknown))
+        if new_header_missing:
+            print("missing keys: " + ", ".join(new_header_missing))
+        raise KeyError("header has not the proper key set")
+
+
+    # keys for data
+    data_mandatory_keys = ["grid", "states"]
+    data_optional_keys  = ["paths", "paths-lake"]
+    # check data contains all necessary keys
+    assert set(data_mandatory_keys).issubset(data.keys())
+    # check data contains not more than possible keys
+    assert set(data_mandatory_keys + data_optional_keys).issuperset(data.keys())
+    # check that paths and paths-lake only arise together
+    assert len(set(["paths", "paths-lake"]).intersection(data.keys())) in [0, 2]
+
+
+def _reformat(header, data, verbose=0):
+    """updating header and data and check consistency"""
+
+    if verbose:
+        print("startin reformatting ... ", end="", flush=True)
+
+    if "aws-version-info" not in header:
+        header["aws-version-info"] = (0, 1)
+
+    # 0.1 or no version given
+    if header["aws-version-info"] == (0, 1):
+        # management has been renamed with the plural
+        if "management" in header:
+            header["managements"] = header.pop("management")
+        if not "boundary-parameters" in header:
+            header["boundary-parameters"] = {
+                "A_PB": header["model-parameters"].pop("A_PB"),
+                "W_SF": header["model-parameters"].pop("W_SF"),
+            }
+
+        if "paths" in data and isinstance(data["paths"], tuple):
+            new_paths = {}
+            new_paths["reached point"] = data["paths"][0]
+            new_paths["next point index"] = data["paths"][1]
+            new_paths["choice"] = data["paths"][2]
+            data["paths"] = new_paths
+
+        new_header = dict(DEFAULT_HEADER)  # copy it in case several files are processed
+        new_header.update(header)
+
+        header = new_header
+
+    # 0.2 add paths-lake if paths is given in data
+    if header["aws-version-info"] < (0, 2):
+        if "paths" in data and not "paths-lake" in data:
+            data["paths-lake"] = np.array([])
+
+    # 0.3 add computation-status
+    if header["aws-version-info"] < (0, 3):
+        header["computation-status"] = ""  # everything ran through
+
+        # always at the last step
+        # set the new version-info
+        header["aws-version-info"] = __version_info__
+
+    if verbose:
+        print("checking consistency of new header and data ... ", end="", flush=True)
+    _check_format(header, data)
+
+    if verbose:
+        print("done")
+
+    return header, data
+
+
+
+
 
 
 ALL_SIGNALS = { x: getattr(signal, x)  for x in dir(signal)

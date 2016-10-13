@@ -20,8 +20,6 @@ import functools as ft
 
 import matplotlib.pyplot as plt
 
-# import argcomplete  # didn't get it to work
-
 def RegionName2Option(vname, style="long"):
     if style=="long":
         return vname.replace("_", "-").lower()
@@ -62,15 +60,13 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
-    parser.add_argument("-a", "--animate", action="store_true",
-                        help="animate the 3d plot")
+    # parser.add_argument("-a", "--animate", action="store_true",
+                        # help="animate the 3d plot")
     parser.add_argument("-b", "--plot-boundaries", metavar="boundaries",
                         help="set the boundaries as a list with shape (3,2)")
     parser.add_argument("-d", "--defaults", default=[], nargs="+",
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
-    parser.add_argument("--header", action="store_true",
-                        help="print the header including all parameters from input-file")
 
     paths_parser = parser.add_argument_group(title="paths tool",
                                              description="tools to show paths in the plot")
@@ -78,19 +74,25 @@ if __name__ == "__main__":
                               help="show a path for all points, that are closer to 'point' than 'distance'")
     paths_parser.add_argument("--paths-outside", action="store_true",
                               help="paths go go out of the plotting boundaries")
-    paths_parser.add_argument("--paths-lake-fallback", action="store_true",
+    paths_parser.add_argument("--no-paths-lake-fallback", action="store_false", dest="paths_lake_fallback",
                               help="fallback to PATHS if NO INFO in PATHS_LAKE")
 
-    parser.add_argument("-r", "--show-region", metavar="region", dest="regions", 
-                        default=[], nargs="+", choices=regions_arguments_flattened,
-                        help="choose the regions to be shown in the plot: " + 
-                             ", ".join(["{} ({})".format(region_long, region_short) for region_long, region_short in regions_arguments]))
+    regions_parser = parser.add_argument_group(title="plot regions",
+                                               description="choose which regions are plotted and how")
+    regions_parser.add_argument("-r", "--show-region", metavar="region", dest="regions", 
+                                default=[], nargs="+", choices=regions_arguments_flattened,
+                                help="choose the regions to be shown in the plot: " + 
+                                     ", ".join(["{} ({})".format(region_long, region_short) for region_long, region_short in regions_arguments]))
+    region_plotting_styles = ["points", "surface"]
+    regions_parser.add_argument("--regions-style", choices=region_plotting_styles, default=region_plotting_styles[0],
+                                help="choose the plotting style from: " + ", ".join(region_plotting_styles))
+
     parser.add_argument("--reformat", action="store_true",
                         help="automatically reformat 'input-file' if necessary")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
-    parser.add_argument("--save-video", metavar="file", 
-                        help="save a video of the 3d result")
+    # parser.add_argument("--save-video", metavar="file", 
+                        # help="save a video of the 3d result")
     parser.add_argument("-t", "--transformed-formatters", action="store_true",
                         help="show from 0 to 1 at each axis instead of 0 to infty")
     parser.add_argument("-v", "--verbose", action="count", default=0,
@@ -101,8 +103,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.save_video and not args.animate:
-        parser.error("no use to produce a video without animating the plot")
+    # if args.save_video and not args.animate:
+        # parser.error("no use to produce a video without animating the plot")
 
     if args.defaults:
         for d in args.defaults:
@@ -130,20 +132,11 @@ if __name__ == "__main__":
         else:
             args.regions = list(set(map(regions_dict.__getitem__, args.regions)))
 
-    with open(args.input_file, "rb") as f:
-        header, data = pickle.load(f)
-
-    if args.header:
-        print(aws.recursive_dict2string(header))
-
-    if not "aws-version-info" in header or header["aws-version-info"] < __version_info__:
-        if args.reformat:
-            del header, data
-            aws_general.reformat(args.input_file)
-            with open(args.input_file, "rb") as f:
-                header, data = pickle.load(f)
-        else:
+    try:
+        header, data = aws_general.load_result_file(args.input_file, auto_reformat=args.reformat, verbose=1)
+    except IOError:
             parser.error("seems to be an older aws file version, please use the '--reformat' option")
+    print()
 
     if not header["viab-backscaling-done"]:
         raise NotImplementedError("there is no plotting for unrescaled systems yet (and probably won't ever be)")
@@ -228,14 +221,18 @@ if __name__ == "__main__":
             return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]), axis=-1)
 
         mask2 = isinside(grid, args.plot_boundaries)
-        for region in args.regions:
-            region_num = getattr(lv, region)
-            mask = (states == region_num) &  mask2
-            ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                            color=lv.COLORS[region_num],
-                        alpha=1/header["grid-parameters"]["n0"],
-                        linestyle="", marker=".", markersize=30,
-                        )
+
+        if args.regions_style == "points":
+            for region in args.regions:
+                region_num = getattr(lv, region)
+                mask = (states == region_num) &  mask2
+                ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
+                                color=lv.COLORS[region_num],
+                            alpha=1/header["grid-parameters"]["n0"],
+                            linestyle="", marker=".", markersize=30,
+                            )
+        else:
+            raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
         if args.show_path:
             # paths = data["paths"]
             print("compute starting indices ... ", end="", flush=True)
@@ -267,7 +264,7 @@ if __name__ == "__main__":
                                            grid=grid, 
                                            states=states, 
                                            paths=data["paths"], 
-                                           plot=plotting, 
+                                           trajectory_hook=plotting, 
                                            verbose=args.verbose, 
                                            isinside=path_isinside)
 
@@ -285,7 +282,7 @@ if __name__ == "__main__":
                                                states=states, 
                                                paths=data["paths-lake"], 
                                                fallback_paths=data["paths"] if args.paths_lake_fallback else None,
-                                               plot=plotting, 
+                                               trajectory_hook=plotting, 
                                                verbose=args.verbose, 
                                                isinside=path_isinside)
 

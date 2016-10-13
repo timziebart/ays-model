@@ -237,6 +237,7 @@ if __name__ == "__main__":
                 "xstep" : x_step,
                 "out-of-bounds": out_of_bounds,
                 "remember-paths": args.record_paths,
+                "computation-status" : viab.get_computation_status(),
                 }
         data = {"grid": grid,
                 "states": states,
@@ -244,11 +245,7 @@ if __name__ == "__main__":
         if args.record_paths:
             data["paths"] = lv.PATHS
             data["paths-lake"] = lv.PATHS_LAKE
-        print("saving to {!r} ... ".format(args.output_file), end="", flush=True)
-        if not args.dry_run:
-            with open(args.output_file, "wb") as f:
-                pickle.dump((header, data), f)
-        print("done")
+        aws_general.save_result_file(args.output_file, header, data, verbose=1)
 
 
 
