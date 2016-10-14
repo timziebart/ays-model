@@ -27,8 +27,8 @@ import functools as ft
 
 INFTY_SIGN = u"\u221E"
 
-ELEVATION = 30
-AZIMUTH = -140
+# AZIMUTH, ELEVATION = -140, 30
+AZIMUTH, ELEVATION = 5, 20
 
 
 # patch to remove padding at ends of axes:
