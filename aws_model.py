@@ -14,7 +14,6 @@ if sys.version_info[0] < 3:
 assert pv.version_info >= (0, 15), "please get the latest version of pyviability (and don't forget to (re)run the installation"
 
 
-
 NB_USING_NOPYTHON = True
 USING_NUMBA = True
 if USING_NUMBA:
