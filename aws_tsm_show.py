@@ -167,7 +167,14 @@ if __name__ == "__main__":
                 default_key = key[:-len(ending)]
                 print("{} = {} <--> {} = {}".format(key, pars[key], default_key, pars[default_key]))
     print()
-    print("boundaries: {}".format(", ".join(header["boundaries"])))
+    assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
+    # print("boundaries: {}".format(", ".join(header["boundaries"])))
+    print("boundaries:")
+    A_PB = header["boundary-parameters"]["A_PB"]
+    A_mid = header["grid-parameters"]["A_mid"]
+    A_offset = header["model-parameters"]["A_offset"]
+    print("planetary / CO2 concentration:", end=" ")
+    print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(A_PB, (A_PB + A_offset) / 840 * 400 , A_PB / (A_mid + A_PB)))
     print()
     print("stepsize / gridstepsize: {:<5.3f}".format(header["stepsize"] / header["xstep"]))
     print()

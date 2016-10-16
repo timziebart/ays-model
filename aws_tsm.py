@@ -128,6 +128,10 @@ if __name__ == "__main__":
     aws.globalize_dictionary(aws.grid_parameters, module=aws)
     aws.globalize_dictionary(aws.grid_parameters)
 
+    print("boundaries:")
+    print("planetary / CO2 concentration:", end=" ")
+    print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(aws.A_PB, (aws.A_PB + aws.AWS_parameters["A_offset"]) / 840 * 400 , aws.A_PB / (aws.A_mid + aws.A_PB)))
+
     # generate the grid, normalized to 1 in each dimension
     grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,
                                                          n0,
@@ -156,7 +160,7 @@ if __name__ == "__main__":
     if args.zeros:
         x0 = [0.5, 0.5, 0] # a, w, s
         # x0 = [aws.boundary_parameters["A_PB"], 0.5, 0] # A, w, s
-        print(x0)
+        # print(x0)
         print("fixed point(s) of default:")
         # below the '0' is for the time t
         print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
@@ -245,7 +249,8 @@ if __name__ == "__main__":
         if args.record_paths:
             data["paths"] = lv.PATHS
             data["paths-lake"] = lv.PATHS_LAKE
-        aws_general.save_result_file(args.output_file, header, data, verbose=1)
+        if not args.dry_run:
+            aws_general.save_result_file(args.output_file, header, data, verbose=1)
 
 
 
