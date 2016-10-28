@@ -8,10 +8,11 @@ LC_NUMERIC="en_US.UTF-8"
 module load anaconda/2.3.0
 source activate TimClusterPython3
 
-for beta_DG in `seq 0.015 0.002 0.045`;
+# for beta_DG in `seq 0.015 0.002 0.045`;
+for beta_DG in 0.015;
         do
                 echo "submitting job with beta_DG = $beta_DG"
-		srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-${beta_DG}-%j.out" --error="TSM-Bifurcation-${beta_DG}-%j.err" --nodes=1 --ntasks-per-node=3 python aws_tsm.py --degrowth --eddies --num 200 --set-parameter beta_DG $beta_DG dg-bifurc-${beta_DG}.out &
+		srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-${beta_DG}-%j.out" --error="TSM-Bifurcation-${beta_DG}-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --degrowth --eddies --num 200 --set-parameter beta_DG $beta_DG dg-bifurc-${beta_DG}.out &
 		echo -e "done\n"
         done    
 
