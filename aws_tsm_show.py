@@ -56,7 +56,7 @@ regions_arguments_flattened = sorted([item for sublist in regions_arguments for 
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser("show the TSM results of the AWS model")
+    parser = argparse.ArgumentParser(description="show the TSM results of the AWS model")
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
