@@ -9,8 +9,7 @@ LC_NUMERIC="en_US.UTF-8"
 module load anaconda/2.3.0
 source activate TimClusterPython3
 
-for sigma in 1;
-# for sigma in `seq 1 1 10`;
+for sigma in `seq 1 1 10`;
 # for beta_DG in `seq 0.015 0.002 0.045`;
         do
                 echo "submitting job with sigma = $sigma"
