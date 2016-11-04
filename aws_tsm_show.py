@@ -12,7 +12,7 @@ from scipy import spatial as spat
 from scipy.spatial import ckdtree
 import numpy as np
 import pickle, argparse, argcomplete
-import ast, sys
+import ast, sys, os
 import itertools as it
 
 import datetime as dt
@@ -68,10 +68,13 @@ if __name__ == "__main__":
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
 
+    parser.add_argument("--analyze", nargs=2, metavar=("point", "distance"),
+                        help="analyze all points, that are closer to 'point' than 'distance'")
+
     paths_parser = parser.add_argument_group(title="paths tool",
                                              description="tools to show paths in the plot")
-    paths_parser.add_argument("-p", "--show-path", nargs=2, metavar=("point", "distance"),
-                              help="show a path for all points, that are closer to 'point' than 'distance'")
+    paths_parser.add_argument("--show-path", action="store_true",
+                              help="show a path for all points determined by '--analyze'")
     paths_parser.add_argument("--paths-outside", action="store_true",
                               help="paths go go out of the plotting boundaries")
     paths_parser.add_argument("--no-paths-lake-fallback", action="store_false", dest="paths_lake_fallback",
@@ -106,6 +109,8 @@ if __name__ == "__main__":
     # if args.save_video and not args.animate:
         # parser.error("no use to produce a video without animating the plot")
 
+    if not os.path.isfile(args.input_file):
+        parser.error("can't find input file {!r}".format(args.input_file))
     if args.defaults:
         for d in args.defaults:
             print("defaults for {}:".format(d))
@@ -135,19 +140,20 @@ if __name__ == "__main__":
     try:
         header, data = aws_general.load_result_file(args.input_file, auto_reformat=args.reformat, verbose=1)
     except IOError:
-            parser.error("seems to be an older aws file version, please use the '--reformat' option")
+            parser.error("{!r} seems to be an older aws file version, please use the '--reformat' option".format(args.input_file))
     print()
 
     if not header["viab-backscaling-done"]:
         raise NotImplementedError("there is no plotting for unrescaled systems yet (and probably won't ever be)")
 
-    if not args.show_path is None:
+    if not args.analyze is None:
+        path_x0 = np.array(eval(args.analyze[0]))
+        path_dist = float(eval(args.analyze[1]))
+        assert path_x0.shape == (3,)
+
+    if args.show_path:
         if not header["remember-paths"]:
             parser.error("'{}' does not contain recorded paths".format(args.input_file))
-        # else
-        path_x0 = np.array(eval(args.show_path[0]))
-        path_dist = float(eval(args.show_path[1]))
-        assert path_x0.shape == (3,)
 
 
     grid = data["grid"]
@@ -181,7 +187,7 @@ if __name__ == "__main__":
     print("points per dimension: {:4d}".format(header["grid-parameters"]["n0"]))
     print()
     print("paths recorded: {}".format(header["remember-paths"]))
-    if args.show_path:
+    if args.analyze:
         print("showing for", path_x0, path_dist)
     print()
 
@@ -191,23 +197,44 @@ if __name__ == "__main__":
     if model_changed_pars:
         print("changed model parameters:")
         for par in sorted(model_changed_pars):
-            print("{} = {!r} (default: {!r})".format(par, *model_changed_pars[par]))
+            fmt = "!r"
+            try:
+                float(model_changed_pars[par][0])
+            except TypeError:
+                pass
+            else:
+                fmt = ":4.2e"
+            print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *model_changed_pars[par]))
         print()
     if grid_changed_pars:
         print("changed grid parameters:")
         for par in sorted(grid_changed_pars):
-            print("{} = {!r} (default: {!r})".format(par, *grid_changed_pars[par]))
+            fmt = "!r"
+            try:
+                float(grid_changed_pars[par][0])
+            except TypeError:
+                pass
+            else:
+                fmt = ":4.2e"
+            print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *grid_changed_pars[par]))
         print()
     if boundary_changed_pars:
         print("changed boundary parameters:")
         for par in sorted(boundary_changed_pars):
-            print("{} = {!r} (default: {!r})".format(par, *boundary_changed_pars[par]))
+            fmt = "!r"
+            try:
+                float(boundary_changed_pars[par][0])
+            except TypeError:
+                pass
+            else:
+                fmt = ":4.2e"
+            print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *boundary_changed_pars[par]))
         print()
 
 
     viab.print_evaluation(states)
 
-    if not args.regions and args.show_path is None:
+    if not args.regions and args.analyze is None:
         print("no regions for plotting chosen")
     else:
 
@@ -240,9 +267,8 @@ if __name__ == "__main__":
                             )
         else:
             raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
-        if args.show_path:
-            # paths = data["paths"]
-            print("compute starting indices ... ", end="", flush=True)
+        if args.analyze:
+            print("compute indices of points that are to be analyzed ... ", end="", flush=True)
             diff = grid - path_x0
             mask = (np.linalg.norm(diff, axis=-1) <= path_dist)
             starting_indices = np.where(mask)[0].tolist()
@@ -258,40 +284,41 @@ if __name__ == "__main__":
                 for s in matched_states:
                     print("{:>2} : {:>2}".format(s, np.count_nonzero(_matched_states == s)))
                 print()
-                plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
-                                                            color="lightblue" if choice == 0 else "black")
-                bounds = args.plot_boundaries
-                paths_outside = args.paths_outside
-                if paths_outside or bounds is None:
-                    path_isinside = aws_general.dummy_isinside
-                else:
-                    def path_isinside(x):
-                        return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]))
-                aws_general.follow_indices(starting_indices, 
-                                           grid=grid, 
-                                           states=states, 
-                                           paths=data["paths"], 
-                                           trajectory_hook=plotting, 
-                                           verbose=args.verbose, 
-                                           isinside=path_isinside)
-
-                if lv.LAKE in matched_states:
-                    if args.verbose < 2:
-                        print("following lake inside of manageable region ...", end="", flush=True)
-                    else:
-                        print()
-                        print("following LAKE points inside of manageable region")
-                    starting_indices = [index for index in _starting_indices if states[index] == lv.LAKE]
+                if args.show_path:
                     plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
-                                                                color="green" if choice == 0 else "brown")
+                                                                color="lightblue" if choice == 0 else "black")
+                    bounds = args.plot_boundaries
+                    paths_outside = args.paths_outside
+                    if paths_outside or bounds is None:
+                        path_isinside = aws_general.dummy_isinside
+                    else:
+                        def path_isinside(x):
+                            return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]))
                     aws_general.follow_indices(starting_indices, 
                                                grid=grid, 
                                                states=states, 
-                                               paths=data["paths-lake"], 
-                                               fallback_paths=data["paths"] if args.paths_lake_fallback else None,
+                                               paths=data["paths"], 
                                                trajectory_hook=plotting, 
                                                verbose=args.verbose, 
                                                isinside=path_isinside)
+
+                    if lv.LAKE in matched_states:
+                        if args.verbose < 2:
+                            print("following lake inside of manageable region ...", end="", flush=True)
+                        else:
+                            print()
+                            print("following LAKE points inside of manageable region")
+                        starting_indices = [index for index in _starting_indices if states[index] == lv.LAKE]
+                        plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
+                                                                    color="green" if choice == 0 else "brown")
+                        aws_general.follow_indices(starting_indices, 
+                                                   grid=grid, 
+                                                   states=states, 
+                                                   paths=data["paths-lake"], 
+                                                   fallback_paths=data["paths"] if args.paths_lake_fallback else None,
+                                                   trajectory_hook=plotting, 
+                                                   verbose=args.verbose, 
+                                                   isinside=path_isinside)
 
         if args.save_pic:
             print("saving to {} ... ".format(args.save_pic), end="", flush=True)

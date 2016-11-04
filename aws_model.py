@@ -93,7 +93,8 @@ AWS_parameters["theta"] = AWS_parameters["beta"] / (950 - AWS_parameters["A_offs
 AWS_parameters["theta_SRM"] = 0.5 * AWS_parameters["theta"]
 
 boundary_parameters = {}
-boundary_parameters["A_PB"] = 840 - AWS_parameters["A_offset"]
+boundary_parameters["A_PB"] = 945 - AWS_parameters["A_offset"]  # 450ppm
+# boundary_parameters["A_PB"] = 840 - AWS_parameters["A_offset"]  # old 400ppm stuff
 # boundary_parameters["A_PB_350"] = 735 - AWS_parameters["A_offset"]
 boundary_parameters["W_SF"] = 4e13  # USD, year 2000 GWP
 
