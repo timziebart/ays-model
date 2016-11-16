@@ -56,5 +56,5 @@ if __name__=="__main__":
 
     if args.txt_file:
         print("saving to {!r} ... ".format(args.txt_file), end="", flush=True)
-        np.savetxt(args.txt_file, states, fmt="%3i", header=header_txt, comments="")
+        np.savetxt(args.txt_file, states, fmt="%i", header=header_txt, comments="")
         print("done")
