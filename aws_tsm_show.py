@@ -62,17 +62,25 @@ if __name__ == "__main__":
 
     # parser.add_argument("-a", "--animate", action="store_true",
                         # help="animate the 3d plot")
-    parser.add_argument("-b", "--plot-boundaries", metavar="boundaries",
-                        help="set the boundaries as a list with shape (3,2)")
+    boundaries_group = parser.add_mutually_exclusive_group()
+    boundaries_group.add_argument("-b", "--plot-boundaries-transformed", metavar="boundaries",
+                                  help="set the boundaries (in (a,w,s)-coordinates) as a list with shape (3,2)")
+    boundaries_group.add_argument("--plot-boundaries-original", metavar="boundaries",
+                                  help="set the boundariess (in (A,W,S)-coordinates) as a list with shape (3,2)")
     parser.add_argument("-d", "--defaults", default=[], nargs="+",
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
 
-    parser.add_argument("--analyze", nargs=2, metavar=("point", "distance"),
-                        help="analyze all points, that are closer to 'point' than 'distance'")
+    paths_parser = parser.add_argument_group(title="analyze tool",
+                                             description="tools for analyzing")
+    analyze_group = paths_parser.add_mutually_exclusive_group()
+    analyze_group.add_argument("--analyze-transformed", nargs=2, metavar=("point", "distance"),
+                        help="analyze all points, that are closer to 'point' (in (a, w, s)-coordinates) than 'distance'")
+    analyze_group.add_argument("--analyze-original", nargs=2, metavar=("point", "distance"),
+                        help="analyze all points, that are closer to 'point' (in (A, W, S)-coordinates) than 'distance'")
 
-    paths_parser = parser.add_argument_group(title="paths tool",
-                                             description="tools to show paths in the plot")
+    paths_parser.add_argument("--mark",  metavar="color",
+                              help="mark the points chosen by analyze as 'color' points")
     paths_parser.add_argument("--show-path", action="store_true",
                               help="show a path for all points determined by '--analyze'")
     paths_parser.add_argument("--paths-outside", action="store_true",
@@ -126,10 +134,6 @@ if __name__ == "__main__":
             print()
         sys.exit(0)
 
-    # evaluate the boundaries string to an array
-    if args.plot_boundaries:
-        args.plot_boundaries = np.array(eval(args.plot_boundaries))
-
     # resolve the chosen regions and translate them to the names in pyviability
     if args.regions:
         if "a" in args.regions or "all" in args.regions:
@@ -145,11 +149,45 @@ if __name__ == "__main__":
 
     if not header["viab-backscaling-done"]:
         raise NotImplementedError("there is no plotting for unrescaled systems yet (and probably won't ever be)")
+    
+    # to be used for eval(...) statements
+    combined_parameters = dict(header["model-parameters"])
+    combined_parameters.update(header["grid-parameters"])
+    combined_parameters.update(header["boundary-parameters"])
+    # for some computations
+    A_mid = header["grid-parameters"]["A_mid"]
+    W_mid = header["grid-parameters"]["W_mid"]
+    S_mid = header["grid-parameters"]["S_mid"]
+    X_mid = np.array([ A_mid, W_mid, S_mid ])
 
+    # evaluate the boundaries string to an array
+    if args.plot_boundaries_original is not None:
+        args.plot_boundaries = args.plot_boundaries_original
+    elif args.plot_boundaries_transformed is not None:
+        args.plot_boundaries = args.plot_boundaries_transformed
+    else:
+        args.plot_boundaries = None
+    if args.plot_boundaries is not None:
+        args.plot_boundaries = np.array(eval(args.plot_boundaries, combined_parameters))
+        if args.plot_boundaries_original is not None:
+            args.plot_boundaries = args.plot_boundaries / (X_mid[:, np.newaxis] + args.plot_boundaries)
+        assert args.plot_boundaries.shape == (3, 2)
+        assert np.all(args.plot_boundaries >= 0) and np.all(args.plot_boundaries <= 1)
+
+
+    if args.analyze_original is not None:
+        args.analyze = args.analyze_original
+    elif args.analyze_transformed is not None:
+        args.analyze = args.analyze_transformed
+    else:
+        args.analyze = None
     if not args.analyze is None:
-        path_x0 = np.array(eval(args.analyze[0]))
+        path_x0 = np.array(eval(args.analyze[0], combined_parameters))
+        if args.analyze_original is not None:
+            path_x0 = path_x0 / ( X_mid + path_x0 )
         path_dist = float(eval(args.analyze[1]))
         assert path_x0.shape == (3,)
+        assert np.all(path_x0 > 0) and np.all(path_x0 < 1)
 
     if args.show_path:
         if not header["remember-paths"]:
@@ -231,42 +269,47 @@ if __name__ == "__main__":
             print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *boundary_changed_pars[par]))
         print()
 
+    if args.verbose:
+        print("#" * 70)
+        print("# HEADER")
+        print(aws.recursive_dict2string(header))
+        print("# END HEADER")
+        print("#" * 70)
+        print()
+
 
     viab.print_evaluation(states)
 
-    if not args.regions and args.analyze is None:
-        print("no regions for plotting chosen")
-    else:
-
-        # if args.boundaries:
-        # header["grid-parameters"]["boundaries"] = args.boundaries
-        figure_parameters = dict(header["grid-parameters"])
-        figure_parameters["boundaries"] = args.plot_boundaries
-        fig, ax3d = aws_show.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
+    if args.regions or args.analyze is not None:
         print()
 
-        ax_parameters = dict(header["boundary-parameters"])  # make a copy
-        ax_parameters.update(header["grid-parameters"])
-        aws_show.add_boundary(ax3d, plot_boundaries=args.plot_boundaries, **ax_parameters)
+        if args.regions or args.show_path or args.mark is not None:
+            figure_parameters = dict(header["grid-parameters"])
+            figure_parameters["boundaries"] = args.plot_boundaries
+            fig, ax3d = aws_show.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
 
-        def isinside(x, bounds):
-            if bounds is None:
-                return np.ones(np.shape(x)[:-1], dtype=bool)
-            return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]), axis=-1)
+            ax_parameters = dict(header["boundary-parameters"])  # make a copy
+            ax_parameters.update(header["grid-parameters"])
+            aws_show.add_boundary(ax3d, plot_boundaries=args.plot_boundaries, **ax_parameters)
 
-        mask2 = isinside(grid, args.plot_boundaries)
+            def isinside(x, bounds):
+                if bounds is None:
+                    return np.ones(np.shape(x)[:-1], dtype=bool)
+                return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]), axis=-1)
 
-        if args.regions_style == "points":
-            for region in args.regions:
-                region_num = getattr(lv, region)
-                mask = (states == region_num) &  mask2
-                ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                                color=lv.COLORS[region_num],
-                            alpha=1/header["grid-parameters"]["n0"],
-                            linestyle="", marker=".", markersize=30,
-                            )
-        else:
-            raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
+            mask2 = isinside(grid, args.plot_boundaries)
+
+            if args.regions_style == "points":
+                for region in args.regions:
+                    region_num = getattr(lv, region)
+                    mask = (states == region_num) &  mask2
+                    ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
+                                    color=lv.COLORS[region_num],
+                                alpha=1/header["grid-parameters"]["n0"],
+                                linestyle="", marker=".", markersize=30,
+                                )
+            else:
+                raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
         if args.analyze:
             print("compute indices of points that are to be analyzed ... ", end="", flush=True)
             diff = grid - path_x0
@@ -283,6 +326,14 @@ if __name__ == "__main__":
                 matched_states = sorted(np.unique(_matched_states))
                 for s in matched_states:
                     print("{:>2} : {:>2}".format(s, np.count_nonzero(_matched_states == s)))
+                    if args.verbose >= 2 and not args.show_path:
+                        for y in grid[mask][_matched_states == s]:
+                            x = X_mid * y / (1 - y)
+                            print(y, "<==>" ,x)
+                        print()
+                if args.mark is not None:
+                    ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
+                            color=args.mark, linestyle="", marker=".", markersize=30)
                 print()
                 if args.show_path:
                     plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
