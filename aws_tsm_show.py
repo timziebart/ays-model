@@ -60,8 +60,6 @@ if __name__ == "__main__":
     parser.add_argument("input_file", metavar="input-file",
                         help="input file with the contents from the TSM analysis")
 
-    # parser.add_argument("-a", "--animate", action="store_true",
-                        # help="animate the 3d plot")
     boundaries_group = parser.add_mutually_exclusive_group()
     boundaries_group.add_argument("-b", "--plot-boundaries-transformed", metavar="boundaries",
                                   help="set the boundaries (in (a,w,s)-coordinates) as a list with shape (3,2)")
@@ -97,15 +95,16 @@ if __name__ == "__main__":
     region_plotting_styles = ["points", "surface"]
     regions_parser.add_argument("--regions-style", choices=region_plotting_styles, default=region_plotting_styles[0],
                                 help="choose the plotting style from: " + ", ".join(region_plotting_styles))
+    regions_parser.add_argument("--alpha", type=float,
+                                help="set the alpha value (opacity) of the plotted points")
 
     parser.add_argument("--reformat", action="store_true",
                         help="automatically reformat 'input-file' if necessary")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
-    # parser.add_argument("--save-video", metavar="file", 
-                        # help="save a video of the 3d result")
     parser.add_argument("-t", "--transformed-formatters", action="store_true",
                         help="show from 0 to 1 at each axis instead of 0 to infty")
+
     parser.add_argument("-v", "--verbose", action="count", default=0,
                         help="increase verbosity can be used as -v, -vv ...")
 
@@ -159,6 +158,9 @@ if __name__ == "__main__":
     W_mid = header["grid-parameters"]["W_mid"]
     S_mid = header["grid-parameters"]["S_mid"]
     X_mid = np.array([ A_mid, W_mid, S_mid ])
+
+    if args.alpha is None:
+        args.alpha = 1/header["grid-parameters"]["n0"]
 
     # evaluate the boundaries string to an array
     if args.plot_boundaries_original is not None:
@@ -305,7 +307,8 @@ if __name__ == "__main__":
                     mask = (states == region_num) &  mask2
                     ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
                                     color=lv.COLORS[region_num],
-                                alpha=1/header["grid-parameters"]["n0"],
+                                alpha=args.alpha,
+                                # alpha=1/header["grid-parameters"]["n0"],
                                 linestyle="", marker=".", markersize=30,
                                 )
             else:
