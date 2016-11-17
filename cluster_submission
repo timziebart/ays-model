@@ -1,5 +1,7 @@
 #!/usr/bin/python2
 
+from __future__ import print_function, division, generators
+
 import argparse, argcomplete
 import math
 import subprocess as sp
