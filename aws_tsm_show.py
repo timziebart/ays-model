@@ -46,6 +46,16 @@ def get_changed_parameters(pars, default_pars):
 
     return changed_pars
 
+def formatted(val):
+    fmt = "!r"
+    try:
+        float(val)
+    except TypeError:
+        pass
+    else:
+        fmt = ":4.2e"
+    return ("{"+fmt+"}").format(val)
+
 # prepare all the stuff needed for the regions argument parsing
 regions_dict_short = { RegionName2Option(region, style="short") : region for region in lv.REGIONS }
 regions_dict_long = { RegionName2Option(region, style="long") : region for region in lv.REGIONS }
@@ -211,7 +221,7 @@ if __name__ == "__main__":
             # choose the variables that are changed by the ending
             if key.endswith(ending):
                 default_key = key[:-len(ending)]
-                print("{} = {} <--> {} = {}".format(key, pars[key], default_key, pars[default_key]))
+                print("{} = {} <--> {} = {}".format(key, formatted(pars[key]), default_key, formatted(pars[default_key])))
     print()
     assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
     # print("boundaries: {}".format(", ".join(header["boundaries"])))
@@ -237,38 +247,17 @@ if __name__ == "__main__":
     if model_changed_pars:
         print("changed model parameters:")
         for par in sorted(model_changed_pars):
-            fmt = "!r"
-            try:
-                float(model_changed_pars[par][0])
-            except TypeError:
-                pass
-            else:
-                fmt = ":4.2e"
-            print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *model_changed_pars[par]))
+            print(("{} = {} (default: {})").format(par, *map(formatted, model_changed_pars[par])))
         print()
     if grid_changed_pars:
         print("changed grid parameters:")
         for par in sorted(grid_changed_pars):
-            fmt = "!r"
-            try:
-                float(grid_changed_pars[par][0])
-            except TypeError:
-                pass
-            else:
-                fmt = ":4.2e"
-            print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *grid_changed_pars[par]))
+            print(("{} = {} (default: {})").format(par, *map(formatted, grid_changed_pars[par])))
         print()
     if boundary_changed_pars:
         print("changed boundary parameters:")
         for par in sorted(boundary_changed_pars):
-            fmt = "!r"
-            try:
-                float(boundary_changed_pars[par][0])
-            except TypeError:
-                pass
-            else:
-                fmt = ":4.2e"
-            print(("{} = {"+fmt+"} (default: {"+fmt+"})").format(par, *boundary_changed_pars[par]))
+            print(("{} = {} (default: {})").format(par, *map(formatted, boundary_changed_pars[par])))
         print()
 
     if args.verbose:

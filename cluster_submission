@@ -1,23 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
 
-# AWS_parameters["beta"] = 0.03  # 1/yr
-# AWS_parameters["beta_DG"] = AWS_parameters["beta"] / 2
-# AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 1.e12  # GJ
+import argparse, argcomplete
+import math
+import subprocess as sp
 
-LC_NUMERIC="en_US.UTF-8"
-module load anaconda/2.3.0
-source activate TimClusterPython3
 
-for sigma in `seq 1 1 10`;
-# for beta_DG in `seq 0.015 0.002 0.045`;
-        do
-                echo "submitting job with sigma = $sigma"
-		srun --qos=short --job-name=TSM-Sigma --output="TSM-Sigma-${sigma}-%j.out" --error="TSM-Sigma-${sigma}-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --degrowth --et --record-paths --eddies --num 200 --set-parameter sigma ${sigma}.e12 --set-parameter S_mid ${sigma}.e12 dg-et-sigma-${sigma}.out &
-		# srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-${beta_DG}-%j.out" --error="TSM-Bifurcation-${beta_DG}-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --degrowth --eddies --num 200 --set-parameter beta_DG $beta_DG dg-bifurc-${beta_DG}.out &
-		echo -e "done\n"
-        done    
+submission_types = ["dg-sigma", "dg-et-sigma", "bifurcation-beta"]
 
+
+parser = argparse.ArgumentParser(description="submit things to the cluster")
+parser.add_argument("submission_type", metavar="submission-type", choices = submission_types)
+parser.add_argument("-l", "--local", action="store_true")
+
+argcomplete.autocomplete(parser)
+
+args = parser.parse_args()
+
+
+# general stuff
+if not args.local:
+    sp.call(["module", "load", "anaconda/2.3.0"])
+    sp.call(["source", "activate", "TimClusterPython3"])
+submission_prefix = ["srun",
+                     "--qos=short",
+                     "--job-name=TSM-Sigma",
+                     "--nodes=1",
+                     "--cpus-per-task=3"]
+submission_postfix = ["&"]
+if args.submission_type == "dg-et-sigma":
+    output_template = "--output=\"TSM-Sigma-DG-ET-{}-%j.out\""
+    error_template  =  "--error=\"TSM-Sigma-DG-ET-{}-%j.err\""
+    python_prefix = ["python",
+                     "aws_tsm.py",
+                     "--degrowth",
+                     "--et",
+                     "--record-paths",
+                     "--eddies",
+                     "--num", "200",
+                     ]
+
+    mult = 1e12
+    for sigma_repr in range(1, 10):
+        sigma = sigma_repr*mult
+        submission_rest = [
+                           "--set-parameter", "sigma", str(sigma),
+                           "--set-parameter", "sigma_ET", str(sigma/math.sqrt(2)),
+                           "--set-parameter", "S_mid",  str(sigma),
+                           "dg-et-sigma-{}.out".format(sigma_repr),
+                           ]
+        if args.local:
+            submission_list = python_prefix + submission_rest
+        else:
+            submission_list = submission_prefix + [output_template.format(sigma_repr), error_template.format(sigma_repr)] + python_prefix + submission_rest + submission_postfix
+
+        print("submitting {!r}".format(" ".join(submission_list)))
+        sp.call(submission_list)
+
+if args.submission_type == "dg-sigma":
+    output_template = "--output=\"TSM-Sigma-DG-{}-%j.out\""
+    error_template  =  "--error=\"TSM-Sigma-DG-{}-%j.err\""
+    python_prefix = ["python",
+                     "aws_tsm.py",
+                     "--degrowth",
+                     "--record-paths",
+                     "--eddies",
+                     "--num", "200",
+                     ]
+
+    mult = 1e12
+    for sigma_repr in range(1, 10):
+        sigma = sigma_repr*mult
+        submission_rest = [
+                           "--set-parameter", "sigma", str(sigma),
+                           "--set-parameter", "S_mid",  str(sigma),
+                           "dg-sigma-{}.out".format(sigma_repr),
+                           ]
+        if args.local:
+            submission_list = python_prefix + submission_rest
+        else:
+            submission_list = submission_prefix + [output_template.format(sigma_repr), error_template.format(sigma_repr)] + python_prefix + submission_rest + submission_postfix
+
+        print("submitting {!r}".format(" ".join(submission_list)))
+        sp.call(submission_list)
+else:
+    raise KeyError("got unknown submission-type {!r} ... that shouldn't happen".format(args.submission_type))
 
 
 
