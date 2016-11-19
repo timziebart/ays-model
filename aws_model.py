@@ -85,8 +85,10 @@ AWS_parameters["epsilon"] = 147.  # USD/GJ
 AWS_parameters["rho"] = 2.  # 1
 AWS_parameters["phi"] = 47.e9  # GJ/GtC
 AWS_parameters["phi_CCS"] = AWS_parameters["phi"] * 2
-AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 1.e12  # GJ
-AWS_parameters["sigma_ET"] = AWS_parameters["sigma_default"] * .5**(1/AWS_parameters["rho"])
+AWS_parameters["sigma"] = 4.e12  # GJ
+# AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 4.e12  # GJ
+# AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 1.e12  # GJ # old
+AWS_parameters["sigma_ET"] = AWS_parameters["sigma"] * .5**(1/AWS_parameters["rho"])
 AWS_parameters["tau_A"] = 50.  # yr
 AWS_parameters["tau_S"] = 50.  # yr
 AWS_parameters["theta"] = AWS_parameters["beta"] / (950 - AWS_parameters["A_offset"])  # 1/(yr GJ)
@@ -171,35 +173,18 @@ def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigm
 
     return adot, wdot, sdot
 
-# @jit(nopython=NB_USING_NOPYTHON)
-# def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
-    # a, w, s = aws
-    # # A, w, s = Aws
-    # W = W_mid * w / (1 - w)
-    # S = S_mid * s / (1 - s)
-    # A = A_mid * a / (1 - a)
-#
-    # # Adot, Wdot, Sdot = AWS_rhs((A, W, S), t=t, beta=beta, epsilon=epsilon, phi=phi, rho=rho, sigma=sigma, tau_A=tau_A, tau_S=tau_S, theta=theta)
-    # U = W / epsilon
-    # F = U / (1 + (S/sigma)**rho)
-    # R = U - F
-    # E = F / phi
-    # Adot = E - A / tau_A
-    # Wdot = (beta - theta * A) * W
-    # Sdot = R - S / tau_S
-#
-    # wdot = Wdot * W_mid / (W_mid + W)**2
-    # sdot = Sdot * S_mid / (S_mid + S)**2
-    # adot = Adot * A_mid / (A_mid + A)**2
-    # return adot, wdot, sdot
-    # # return Adot, wdot, sdot
-
 
 @jit(nopython=NB_USING_NOPYTHON)
-# def AWS_sunny(Aws): # A not rescaled
-    # return Aws[:, 0] < A_PB  # planetary boundary
-def AWS_sunny(aws):
+def AWS_sunny_PB(aws):
     return aws[:, 0] < A_PB / (A_PB + A_mid) # transformed A_PB  # planetary boundary
+
+@jit(nopython=NB_USING_NOPYTHON)
+def AWS_sunny_SF(aws):
+    return aws[:, 1] > W_SF / (W_SF + W_mid) # transformed W_SF  # social foundation
+
+@jit(nopython=NB_USING_NOPYTHON)
+def AWS_sunny_PB_SF(aws):
+    return aws[:, 0] < A_PB / (A_PB + A_mid) & aws[:, 1] > W_SF / (W_SF + W_mid) # both transformed
 
 
 

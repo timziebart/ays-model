@@ -26,6 +26,7 @@ import pickle
 
 MANAGEMENTS = aws.MANAGEMENTS
 
+boundaries_choices = ["planetary-boundary", "social-foundation", "both"]
 
 if __name__ == "__main__":
 
@@ -33,12 +34,14 @@ if __name__ == "__main__":
         description="Analyze the AWS model with TSM using the PyViability package.",
     )
 
-    # positional arguments
+    # required arguments
     parser.add_argument("output_file", metavar="output-file",
                         help="output file where the TSM data is saved to")
+    parser.add_argument("-b", "--boundaries", choices=boundaries_choices, required=True,
+                        help="set the boundaries that will be considered for the run")
 
     # optional arguments
-    parser.add_argument("-b", "--no-backscaling", action="store_false", dest="backscaling",
+    parser.add_argument("--no-backscaling", action="store_false", dest="backscaling",
                         help="do not backscale the result afterwards")
     parser.add_argument("-d", "--dry-run", action="store_true",
                         help="do a dry run; perpare everything but then do not"
@@ -128,9 +131,26 @@ if __name__ == "__main__":
     aws.globalize_dictionary(aws.grid_parameters, module=aws)
     aws.globalize_dictionary(aws.grid_parameters)
 
+    # manage and print the boundaries
+    if args.boundaries == "both":
+        aws.AWS_sunny = aws.AWS_sunny_PB_SF
+        args.boundaries = ["planetary-boundary", "social-foundation"]
+    elif args.boundaries == "planetary-boundary":
+        aws.AWS_sunny = aws.AWS_sunny_PB
+        args.boundaries = [args.boundaries]
+    elif args.boundaries == "social-foundation":
+        aws.AWS_sunny = aws.AWS_sunny_SF
+        args.boundaries = [args.boundaries]
+    else:
+        assert False, "something went wrong here ..."
+    assert isinstance(args.boundaries, list) and args.boundaries
     print("boundaries:")
-    print("planetary / CO2 concentration:", end=" ")
-    print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(aws.A_PB, (aws.A_PB + aws.AWS_parameters["A_offset"]) / 840 * 400 , aws.A_PB / (aws.A_mid + aws.A_PB)))
+    if "planetary-boundary" in args.boundaries:
+        print("planetary / CO2 concentration:", end=" ")
+        print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(aws.A_PB, (aws.A_PB + aws.AWS_parameters["A_offset"]) / 840 * 400 , aws.A_PB / (aws.A_mid + aws.A_PB)))
+    if "social-foundation" in args.boundaries:
+        print("social foundation / income boundary:", end=" ")
+        print("W_SF = {:4.1e} US$".format(aws.W_SF))
 
     # generate the grid, normalized to 1 in each dimension
     grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,
@@ -188,7 +208,7 @@ if __name__ == "__main__":
                      # [False, False],  # W compactified as w
                      # [False, False]]  # S compactified as s
 
-    out_of_bounds = False # in a, w, s representation, doesn't go out of bounds of [0, 1]^3 by definition
+    out_of_bounds = False # in a, w, s representation, doesn't go out of bounds of [0, 1)^3 by definition
 
     aws_general.register_signals()
 
@@ -227,7 +247,7 @@ if __name__ == "__main__":
                 "aws-version-info": __version_info__,
                 "model": "AWS",
                 "managements": args.managements,
-                "boundaries": ["planetary-boundary"],
+                "boundaries": args.boundaries,
                 "grid-parameters": aws.grid_parameters,
                 "model-parameters": aws.AWS_parameters,
                 "boundary-parameters": aws.boundary_parameters,
