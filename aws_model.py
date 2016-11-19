@@ -184,7 +184,7 @@ def AWS_sunny_SF(aws):
 
 # @jit(nopython=NB_USING_NOPYTHON)
 def AWS_sunny_PB_SF(aws):
-    return aws[:, 0] < A_PB / (A_PB + A_mid) & aws[:, 1] > W_SF / (W_SF + W_mid) # both transformed
+    return np.logical_and(aws[:, 0] < A_PB / (A_PB + A_mid), aws[:, 1] > W_SF / (W_SF + W_mid)) # both transformed
 
 
 
