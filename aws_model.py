@@ -174,15 +174,15 @@ def AWS_rescaled_rhs(aws, t=0, beta=None, epsilon=None, phi=None, rho=None, sigm
     return adot, wdot, sdot
 
 
-@jit(nopython=NB_USING_NOPYTHON)
+# @jit(nopython=NB_USING_NOPYTHON)
 def AWS_sunny_PB(aws):
     return aws[:, 0] < A_PB / (A_PB + A_mid) # transformed A_PB  # planetary boundary
 
-@jit(nopython=NB_USING_NOPYTHON)
+# @jit(nopython=NB_USING_NOPYTHON)
 def AWS_sunny_SF(aws):
     return aws[:, 1] > W_SF / (W_SF + W_mid) # transformed W_SF  # social foundation
 
-@jit(nopython=NB_USING_NOPYTHON)
+# @jit(nopython=NB_USING_NOPYTHON)
 def AWS_sunny_PB_SF(aws):
     return aws[:, 0] < A_PB / (A_PB + A_mid) & aws[:, 1] > W_SF / (W_SF + W_mid) # both transformed
 
