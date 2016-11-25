@@ -224,7 +224,6 @@ if __name__ == "__main__":
                 print("{} = {} <--> {} = {}".format(key, formatted(pars[key]), default_key, formatted(pars[default_key])))
     print()
     assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
-    # print("boundaries: {}".format(", ".join(header["boundaries"])))
     print("boundaries:")
     A_PB = header["boundary-parameters"]["A_PB"]
     A_mid = header["grid-parameters"]["A_mid"]
