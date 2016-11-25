@@ -43,7 +43,7 @@ if __name__=="__main__":
     header, data = aws_general.load_result_file(args.input_file)
 
     header_txt = "#"*80 + "\n"
-    header_txt += aws.recursive_dict2string(header)
+    header_txt += aws_general.recursive_dict2string(header)
     header_txt += "#"*80 + "\n"
 
     for region in lv.REGIONS:

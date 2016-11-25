@@ -24,7 +24,52 @@ aws-file version changes:
 no version or 0.1: the stuff from the beginning
 """
 
+def formatted_value(val):
+    fmt = "!r"
+    try:
+        float(val)
+    except (TypeError, ValueError):
+        pass
+    else:
+        fmt = ":4.2e"
+    return ("{"+fmt+"}").format(val)
 
+def get_changed_parameters(pars, default_pars):
+    changed_pars = {}
+    for par, val in pars.items():
+        if not par in default_pars:
+            changed_pars[par] = (val, None)
+        elif isinstance(default_pars[par], np.ndarray):
+            if not np.allclose(default_pars[par], val):
+                changed_pars[par] = (val, default_pars[par])
+        elif default_pars[par] != val:
+            changed_pars[par] = (val, default_pars[par])
+
+    return changed_pars
+
+def print_changed_parameters(pars, default_pars, prefix=""):
+    model_changed_pars = get_changed_parameters(pars, default_pars)
+    if model_changed_pars:
+        if prefix:
+            print(prefix)
+        for par in sorted(model_changed_pars):
+            print(("{} = {} (default: {})").format(par, *map(formatted_value, model_changed_pars[par])))
+        print()
+
+def recursive_dict2string(dic, prefix="", spacing=" "*4):
+    ret = ""
+    for key in sorted(dic):
+        assert isinstance(key, str)
+        ret += prefix + key + " = "
+        if isinstance(dic[key], dict):
+            ret += "{\n"
+            ret += recursive_dict2string(dic[key], prefix=prefix+spacing, spacing=spacing)
+            ret += "}\n"
+        else:
+            ret += formatted_value(dic[key]) + "\n"
+    if ret:
+        ret = ret[:-1]
+    return ret
 
 def dummy_hook(*args, **kwargs):
     pass

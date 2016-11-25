@@ -33,29 +33,6 @@ _all_regions_short = list(map(lambda x: RegionName2Option(x, style="short"), lv.
 assert len(_all_regions_short) == len(set(_all_regions_short))
 del _all_regions_short
 
-def get_changed_parameters(pars, default_pars):
-    changed_pars = {}
-    for par, val in pars.items():
-        if not par in default_pars:
-            changed_pars[par] = (val, None)
-        elif isinstance(default_pars[par], np.ndarray):
-            if not np.allclose(default_pars[par], val):
-                changed_pars[par] = (val, default_pars[par])
-        elif default_pars[par] != val:
-            changed_pars[par] = (val, default_pars[par])
-
-    return changed_pars
-
-def formatted(val):
-    fmt = "!r"
-    try:
-        float(val)
-    except TypeError:
-        pass
-    else:
-        fmt = ":4.2e"
-    return ("{"+fmt+"}").format(val)
-
 # prepare all the stuff needed for the regions argument parsing
 regions_dict_short = { RegionName2Option(region, style="short") : region for region in lv.REGIONS }
 regions_dict_long = { RegionName2Option(region, style="long") : region for region in lv.REGIONS }
@@ -139,7 +116,7 @@ if __name__ == "__main__":
                 dic = aws.boundary_parameters
             else:
                 raise ValueError("Did you forget to change something here?")
-            print(aws.recursive_dict2string(dic))
+            print(aws_general.recursive_dict2string(dic))
             print()
         sys.exit(0)
 
@@ -221,7 +198,7 @@ if __name__ == "__main__":
             # choose the variables that are changed by the ending
             if key.endswith(ending):
                 default_key = key[:-len(ending)]
-                print("{} = {} <--> {} = {}".format(key, formatted(pars[key]), default_key, formatted(pars[default_key])))
+                print("{} = {} <--> {} = {}".format(key, aws_general.formatted_value(pars[key]), default_key, aws_general.formatted_value(pars[default_key])))
     print()
     assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
     print("boundaries:")
@@ -240,29 +217,14 @@ if __name__ == "__main__":
         print("showing for", path_x0, path_dist)
     print()
 
-    model_changed_pars = get_changed_parameters(header["model-parameters"], aws.AWS_parameters)
-    grid_changed_pars = get_changed_parameters(header["grid-parameters"], aws.grid_parameters)
-    boundary_changed_pars = get_changed_parameters(header["boundary-parameters"], aws.boundary_parameters)
-    if model_changed_pars:
-        print("changed model parameters:")
-        for par in sorted(model_changed_pars):
-            print(("{} = {} (default: {})").format(par, *map(formatted, model_changed_pars[par])))
-        print()
-    if grid_changed_pars:
-        print("changed grid parameters:")
-        for par in sorted(grid_changed_pars):
-            print(("{} = {} (default: {})").format(par, *map(formatted, grid_changed_pars[par])))
-        print()
-    if boundary_changed_pars:
-        print("changed boundary parameters:")
-        for par in sorted(boundary_changed_pars):
-            print(("{} = {} (default: {})").format(par, *map(formatted, boundary_changed_pars[par])))
-        print()
+    aws_general.print_changed_parameters(header["model-parameters"], aws.AWS_parameters, prefix="changed model parameters:")
+    aws_general.print_changed_parameters(header["grid-parameters"], aws.grid_parameters, prefix="changed grid parameters:")
+    aws_general.print_changed_parameters(header["boundary-parameters"], aws.boundary_parameters, prefix="changed boundary parameters:")
 
     if args.verbose:
         print("#" * 70)
         print("# HEADER")
-        print(aws.recursive_dict2string(header))
+        print(aws_general.recursive_dict2string(header))
         print("# END HEADER")
         print("#" * 70)
         print()
