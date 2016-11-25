@@ -35,18 +35,6 @@ else:
     jit = dummy_decorator_with_args
 
 
-def recursive_dict2string(dic, prefix="", spacing=" "*4):
-    ret = ""
-    for key in sorted(dic):
-        assert isinstance(key, str)
-        ret += prefix + key + " = "
-        if isinstance(dic[key], dict):
-            ret += "{\n"
-            ret += recursive_dict2string(dic[key], prefix=prefix+spacing, spacing=spacing)
-            ret += "}\n"
-        else:
-            ret += repr(dic[key]) + "\n"
-    return ret
 
 
 # long name (command option line style) : short name (lower case)
@@ -102,11 +90,16 @@ boundary_parameters["W_SF"] = 4e13  # USD, year 2000 GWP
 
 grid_parameters = {}
 
+current_state = [240, 7e13, 8e11]
+
 # rescaling parameters
-grid_parameters["A_mid"] = boundary_parameters["A_PB"]
+grid_parameters["A_mid"] = current_state[0]
+# grid_parameters["A_mid"] = boundary_parameters["A_PB"]
 # grid_parameters["A_max"] = 500
-grid_parameters["W_mid"] = boundary_parameters["W_SF"]
-grid_parameters["S_mid"] = 5e10
+grid_parameters["W_mid"] = current_state[1]
+# grid_parameters["W_mid"] = boundary_parameters["W_SF"]
+grid_parameters["S_mid"] = current_state[2]
+# grid_parameters["S_mid"] = 5e10
 
 grid_parameters["n0"] = 40
 grid_parameters["grid_type"] = "orthogonal"
