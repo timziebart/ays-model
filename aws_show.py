@@ -103,7 +103,11 @@ def transformed_space(transform, inv_transform,
     if not boundaries is None:
         combined = [(l, f) for l, f in combined if boundaries[0] <= l <= boundaries[1] ]
 
-    locators, formatters = map(np.array, zip(*combined))
+    ret = tuple(map(np.array, zip(*combined)))
+    if ret:
+        locators, formatters = ret
+    else:
+        locators, formatters = np.empty((0,)), np.empty((0,))
     formatters = formatters / scale
 
     if add_infty:
