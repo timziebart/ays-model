@@ -201,6 +201,7 @@ if __name__ == "__main__":
                 print("{} = {} <--> {} = {}".format(key, aws_general.formatted_value(pars[key]), default_key, aws_general.formatted_value(pars[default_key])))
     print()
     assert header["boundaries"], "no boundaries for computation?"
+    header["boundaries"].append("bla")
     print("boundaries:")
     for b in header["boundaries"]:
         if b == "planetary-boundary":
