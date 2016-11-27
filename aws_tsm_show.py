@@ -6,7 +6,7 @@ from pyviability import libviability as lv
 
 from aws_general import __version__, __version_info__
 import aws_model as aws
-import aws_show, aws_general
+import aws_general
 
 from scipy import spatial as spat
 from scipy.spatial import ckdtree
@@ -200,13 +200,22 @@ if __name__ == "__main__":
                 default_key = key[:-len(ending)]
                 print("{} = {} <--> {} = {}".format(key, aws_general.formatted_value(pars[key]), default_key, aws_general.formatted_value(pars[default_key])))
     print()
-    # assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
+    assert header["boundaries"], "no boundaries for computation?"
     print("boundaries:")
-    A_PB = header["boundary-parameters"]["A_PB"]
-    A_mid = header["grid-parameters"]["A_mid"]
-    A_offset = header["model-parameters"]["A_offset"]
-    print("planetary / CO2 concentration:", end=" ")
-    print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(A_PB, (A_PB + A_offset) / 840 * 400 , A_PB / (A_mid + A_PB)))
+    for b in header["boundaries"]:
+        if b == "planetary-boundary":
+            A_PB = header["boundary-parameters"]["A_PB"]
+            A_mid = header["grid-parameters"]["A_mid"]
+            A_offset = header["model-parameters"]["A_offset"]
+            print("planetary / CO2 concentration:", end=" ")
+            print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(A_PB, (A_PB + A_offset) / 840 * 400 , A_PB / (A_mid + A_PB)))
+        elif b == "social-foundation":
+            W_SF = header["boundary-parameters"]["W_SF"]
+            W_mid = header["grid-parameters"]["W_mid"]
+            print("social foundation / welfare limit:", end=" ")
+            print("W_SF = {:4.2e} US$ <=> w_SF = {:5.3f}".format(W_SF, W_SF / (W_mid + W_SF)))
+        else:
+            print("{!r} (no further info)".format(b))
     print()
     print("stepsize / gridstepsize: {:<5.3f}".format(header["stepsize"] / header["xstep"]))
     print()
@@ -238,11 +247,11 @@ if __name__ == "__main__":
         if args.regions or args.show_path or args.mark is not None:
             figure_parameters = dict(header["grid-parameters"])
             figure_parameters["boundaries"] = args.plot_boundaries
-            fig, ax3d = aws_show.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
+            fig, ax3d = aws_general.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
 
             ax_parameters = dict(header["boundary-parameters"])  # make a copy
             ax_parameters.update(header["grid-parameters"])
-            aws_show.add_boundary(ax3d, plot_boundaries=args.plot_boundaries, **ax_parameters)
+            aws_general.add_boundary(ax3d, sunny_boundaries=header["boundaries"], plot_boundaries=args.plot_boundaries, **ax_parameters)
 
             def isinside(x, bounds):
                 if bounds is None:
@@ -258,7 +267,6 @@ if __name__ == "__main__":
                     ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
                                     color=lv.COLORS[region_num],
                                 alpha=args.alpha,
-                                # alpha=1/header["grid-parameters"]["n0"],
                                 linestyle="", marker=".", markersize=30,
                                 )
             else:

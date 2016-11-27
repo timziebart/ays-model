@@ -3,6 +3,7 @@
 
 from aws_general import __version__, __version_info__
 import aws_model as aws
+import aws_general
 from pyviability import helper
 
 import numpy as np
@@ -24,263 +25,6 @@ import argparse, argcomplete
 import pickle
 
 import functools as ft
-
-INFTY_SIGN = u"\u221E"
-
-# AZIMUTH, ELEVATION = -140, 30
-AZIMUTH, ELEVATION = 5, 20
-
-
-# patch to remove padding at ends of axes:
-###patch start###
-from mpl_toolkits.mplot3d.axis3d import Axis
-if not hasattr(Axis, "_get_coord_info_old"):
-    def _get_coord_info_new(self, renderer):
-        mins, maxs, centers, deltas, tc, highs = self._get_coord_info_old(renderer)
-        mins += deltas / 4
-        maxs -= deltas / 4
-        return mins, maxs, centers, deltas, tc, highs
-    Axis._get_coord_info_old = Axis._get_coord_info
-    Axis._get_coord_info = _get_coord_info_new
-###patch end###
-
-
-@np.vectorize
-def compactification(x, x_mid):
-    if x == 0:
-        return 0.
-    if x == np.infty:
-        return 1.
-    return x / (x + x_mid)
-
-
-@np.vectorize
-def inv_compactification(y, x_mid):
-    if y == 0:
-        return 0.
-    if np.allclose(y, 1):
-        return np.infty
-    return x_mid * y / (1 - y)
-
-
-def transformed_space(transform, inv_transform,
-                      start=0, stop=np.infty, num=12,
-                      scale=1,
-                      num_minors = 50,
-                      endpoint=True,
-                      axis_use=False,
-                      boundaries=None):
-    add_infty = False
-    if stop == np.infty and endpoint:
-        add_infty = True
-        endpoint = False
-        num -= 1
-
-    locators_start = transform(start)
-    locators_stop = transform(stop)
-
-    major_locators = np.linspace(locators_start,
-                           locators_stop,
-                           num,
-                           endpoint=endpoint)
-
-    major_formatters = inv_transform(major_locators)
-    # major_formatters = major_formatters / scale
-
-    major_combined = list(zip(major_locators, major_formatters))
-    # print(major_combined)
-
-    _minor_formatters = np.linspace(major_formatters[0], major_formatters[-1], num_minors, endpoint=False)[1:]
-    minor_locators = transform(_minor_formatters)
-    minor_formatters = [np.nan] * len(minor_locators)
-    minor_combined = list(zip(minor_locators, minor_formatters))
-    # print(minor_combined)
-
-    combined = list(hq.merge(minor_combined, major_combined, key = op.itemgetter(0)))
-
-    # print(combined)
-
-    if not boundaries is None:
-        combined = [(l, f) for l, f in combined if boundaries[0] <= l <= boundaries[1] ]
-
-    ret = tuple(map(np.array, zip(*combined)))
-    if ret:
-        locators, formatters = ret
-    else:
-        locators, formatters = np.empty((0,)), np.empty((0,))
-    formatters = formatters / scale
-
-    if add_infty:
-        # assume locators_stop has the transformed value for infinity already
-        locators = np.concatenate((locators, [locators_stop]))
-        formatters = np.concatenate(( formatters, [ np.infty ]))
-
-    if not axis_use:
-        return formatters
-
-    else:
-        string_formatters = np.zeros_like(formatters, dtype="|U10")
-        mask_nan = np.isnan(formatters)
-        if add_infty:
-            string_formatters[-1] = INFTY_SIGN
-            mask_nan[-1] = True
-        string_formatters[~mask_nan] = np.round(formatters[~mask_nan], decimals=2).astype(int).astype("|U10")
-        return string_formatters, locators
-
-def animate(fig, ax3d, fname):
-    assert fname.endswith(".mp4"), "for now '.mp4' files for video only"
-    def turning_animation(i):
-        ax3d.view_init(ELEVATION, AZIMUTH + i)
-    # Animate
-    anim = animation.FuncAnimation(fig, turning_animation, 
-                                   init_func=init,
-                                   frames=360, interval=20, blit=True)
-    # Save
-    anim.save(fname, fps=30, extra_args=['-vcodec', 'libx264'])
-    # ax3d.view_init(ELEVATION, AZIMUTH)
-
-
-def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, transformed_formatters=False, **kwargs):
-
-
-    kwargs = dict(kwargs)
-
-    if boundaries is None:
-        boundaries = [None]*3
-
-    fig = plt.figure(figsize=(16,9))
-    ax3d = plt3d.Axes3D(fig)
-    ax3d.set_xlabel("\n\nexcess atmospheric carbon\nstock A [GtC]")
-    ax3d.set_ylabel("\nwelfare W [%1.0e USD/yr]"%W_scale)
-    ax3d.set_zlabel("\n\nrenewable knowledge\nstock S [%1.0e GJ]"%S_scale)
-
-    # make proper tickmarks:
-    if "A_max" in kwargs:
-        A_max = kwargs.pop("A_max")
-        Aticks = np.linspace(0,A_max,11)
-        ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(Aticks))
-        ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(Aticks.astype("int")))
-        if boundaries is None:
-            ax3d.set_xlim(Aticks[0],Aticks[-1])
-        else:
-            ax3d.set_xlim(*boundaries[0])
-    elif "A_mid" in kwargs:
-        A_mid = kwargs.pop("A_mid")
-        transf = ft.partial(compactification, x_mid=A_mid)
-        inv_transf = ft.partial(inv_compactification, x_mid=A_mid)
-
-        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, boundaries=boundaries[0])
-        if transformed_formatters:
-            new_formatters = []
-            for el, loc in zip(formatters, locators):
-                if el:
-                    new_formatters.append("{:4.2f}".format(loc))
-                else:
-                    new_formatters.append(el)
-            formatters = new_formatters
-        ax3d.w_xaxis.set_major_locator(ticker.FixedLocator(locators))
-        ax3d.w_xaxis.set_major_formatter(ticker.FixedFormatter(formatters))
-
-        if boundaries[0] is None:
-            ax3d.set_xlim(0,1)
-        else:
-            ax3d.set_xlim(*boundaries[0])
-
-    else:
-        raise KeyError("can't find proper key for 'A' in kwargs that determines which representation of 'A' has been used")
-
-    if kwargs:
-        warn.warn("omitted arguments: {}".format(", ".join(sorted(kwargs))), stacklevel=2)
-
-    transf = ft.partial(compactification, x_mid=W_mid)
-    inv_transf = ft.partial(inv_compactification, x_mid=W_mid)
-
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, boundaries=boundaries[1])
-    if transformed_formatters:
-        new_formatters = []
-        for el, loc in zip(formatters, locators):
-            if el:
-                new_formatters.append("{:4.2f}".format(loc))
-            else:
-                new_formatters.append(el)
-        formatters = new_formatters
-    ax3d.w_yaxis.set_major_locator(ticker.FixedLocator(locators))
-    ax3d.w_yaxis.set_major_formatter(ticker.FixedFormatter(formatters))
-
-    if boundaries[1] is None:
-        ax3d.set_ylim(0,1)
-    else:
-        ax3d.set_ylim(*boundaries[1])
-
-
-    transf = ft.partial(compactification, x_mid=S_mid)
-    inv_transf = ft.partial(inv_compactification, x_mid=S_mid)
-
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, boundaries=boundaries[2])
-    if transformed_formatters:
-        new_formatters = []
-        for el, loc in zip(formatters, locators):
-            if el:
-                new_formatters.append("{:4.2f}".format(loc))
-            else:
-                new_formatters.append(el)
-        formatters = new_formatters
-    ax3d.w_zaxis.set_major_locator(ticker.FixedLocator(locators))
-    ax3d.w_zaxis.set_major_formatter(ticker.FixedFormatter(formatters))
-
-    if boundaries[2] is None:
-        ax3d.set_zlim(0,1)
-    else:
-        ax3d.set_zlim(*boundaries[2])
-
-    ax3d.view_init(ELEVATION, AZIMUTH)
-
-    return fig, ax3d
-
-
-def add_boundary(ax3d, boundary= "PB", add_outer=False, plot_boundaries=None, **parameters):
-    # show boundaries of undesirable region:
-    if boundary == "PB":
-        A_PB = parameters["A_PB"]
-        if "A_max" in parameters:
-            pass # no transformation necessary
-        elif "A_mid" in parameters:
-            A_PB = A_PB / (A_PB + parameters["A_mid"])
-        else:
-            assert False, "couldn't identify how the A axis is scaled"
-
-        if plot_boundaries is None:
-            if "A_max" in parameters:
-                a_min, a_max = 0, parameters["A_max"]
-            elif "A_mid" in parameters:
-                a_min, a_max = 0, 1
-            w_min, w_max = 0, 1
-            s_min, s_max = 0, 1
-        else:
-            a_min, a_max = plot_boundaries[0]
-            w_min, w_max = plot_boundaries[1]
-            s_min, s_max = plot_boundaries[2]
-
-        if a_min < A_PB < a_max:
-            boundary_surface_PB = plt3d.art3d.Poly3DCollection([[[A_PB,w_min,s_min],[A_PB,w_max,s_min],[A_PB,w_max,s_max],[A_PB,w_min,s_max]]])
-            boundary_surface_PB.set_color("gray"); boundary_surface_PB.set_edgecolor("gray"); boundary_surface_PB.set_alpha(0.25)
-            ax3d.add_collection3d(boundary_surface_PB)
-    elif boundary == "both":
-        raise NotImplementedError("will be done soon")
-        boundary_surface_both = plt3d.art3d.Poly3DCollection([[[0,.5,0],[0,.5,1],[A_PB,.5,1],[A_PB,.5,0]],
-                                                        [[A_PB,.5,0],[A_PB,1,0],[A_PB,1,1],[A_PB,.5,1]]])
-        boundary_surface_both.set_color("gray"); boundary_surface_both.set_edgecolor("gray"); boundary_surface_both.set_alpha(0.25)
-        ax3d.add_collection3d(boundary_surface_both)
-    else:
-        raise NameError("Unkown boundary {!r}".format(boundary))
-
-    if add_outer:
-        # add outer limits of undesirable view from standard view perspective:
-        undesirable_outer_stdview = plt3d.art3d.Poly3DCollection([[[0,0,0],[0,0,1],[0,.5,1],[0,.5,0]],
-                                            [[A_PB,1,0],[aws.A_max,1,0],[aws.A_max,1,1],[A_PB,1,1]],
-                                            [[0,0,0],[0,.5,0],[A_PB,.5,0],[A_PB,1,0],[aws.A_max,1,0],[aws.A_max,0,0]]])
-        undesirable_outer_stdview.set_color("gray"); undesirable_outer_stdview.set_edgecolor("gray"); undesirable_outer_stdview.set_alpha(0.25)
-        ax3d.add_collection3d(undesirable_outer_stdview)
 
 
 RUN_OPTIONS = [aws.DEFAULT_NAME] + list(aws.MANAGEMENTS)
@@ -319,7 +63,7 @@ if __name__ == "__main__":
     if args.mode == "lake":
         aws_0[0] = aws_0[0] * aws.A_PB / (aws.A_PB + aws.A_mid)
 
-    fig, ax3d = create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
+    fig, ax3d = aws_general.create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
 
     ########################################
     # prepare the integration
@@ -356,7 +100,9 @@ if __name__ == "__main__":
 
 
     if args.draw_boundary:
-        add_boundary(ax3d, **aws.grid_parameters, **aws.boundary_parameters)
+        aws_general.add_boundary(ax3d, 
+                sunny_boundaries=["planetary-boundary", "social-foundation"],
+                **aws.grid_parameters, **aws.boundary_parameters)
 
     if args.save_pic:
         print("saving to {} ... ".format(args.save_pic), end="", flush=True)
