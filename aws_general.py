@@ -176,7 +176,11 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
         transf = ft.partial(compactification, x_mid=A_mid)
         inv_transf = ft.partial(inv_compactification, x_mid=A_mid)
 
-        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, boundaries=boundaries[0])
+        if boundaries[0] is None:
+            start, stop = 0, np.infty
+        else:
+            start, stop = inv_transf(boundaries[0])
+        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, start=start, stop=stop)
         if transformed_formatters:
             new_formatters = []
             for el, loc in zip(formatters, locators):
@@ -202,7 +206,11 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     transf = ft.partial(compactification, x_mid=W_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=W_mid)
 
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, boundaries=boundaries[1])
+    if boundaries[1] is None:
+        start, stop = 0, np.infty
+    else:
+        start, stop = inv_transf(boundaries[1])
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, start=start, stop=stop)
     if transformed_formatters:
         new_formatters = []
         for el, loc in zip(formatters, locators):
@@ -223,7 +231,11 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     transf = ft.partial(compactification, x_mid=S_mid)
     inv_transf = ft.partial(inv_compactification, x_mid=S_mid)
 
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, boundaries=boundaries[2])
+    if boundaries[2] is None:
+        start, stop = 0, np.infty
+    else:
+        start, stop = inv_transf(boundaries[2])
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, start=start, stop=stop)
     if transformed_formatters:
         new_formatters = []
         for el, loc in zip(formatters, locators):
