@@ -34,18 +34,31 @@ def formatted_value(val):
         fmt = ":4.2e"
     return ("{"+fmt+"}").format(val)
 
-def get_changed_parameters(pars, default_pars):
-    changed_pars = {}
-    for par, val in pars.items():
-        if not par in default_pars:
-            changed_pars[par] = (val, None)
-        elif isinstance(default_pars[par], np.ndarray):
-            if not np.allclose(default_pars[par], val):
-                changed_pars[par] = (val, default_pars[par])
-        elif default_pars[par] != val:
-            changed_pars[par] = (val, default_pars[par])
+def recursive_difference(x, y):
+    if type(x) != type(y):
+        raise TypeError("arguments need to be of the same type")
+    if isinstance(x, dict):
+        changed_pars = {}
+        for key, val in x.items():
+            if not key in y:
+                changed_pars[key] = (val, None)
+            else:
+                ret = recursive_difference(val, y[key])
+                if ret:
+                    changed_pars[key] = ret
+        return changed_pars
+    else:
+        changed = ()
+        if isinstance(y, np.ndarray):
+            if not np.allclose(x, y):
+                changed = (x, y)
+        elif x != y:
+            changed = (x, y)
+        return changed
 
-    return changed_pars
+
+def get_changed_parameters(pars, default_pars):
+    return recursive_difference(pars, default_pars)
 
 def print_changed_parameters(pars, default_pars, prefix=""):
     model_changed_pars = get_changed_parameters(pars, default_pars)

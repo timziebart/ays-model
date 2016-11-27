@@ -200,7 +200,7 @@ if __name__ == "__main__":
                 default_key = key[:-len(ending)]
                 print("{} = {} <--> {} = {}".format(key, aws_general.formatted_value(pars[key]), default_key, aws_general.formatted_value(pars[default_key])))
     print()
-    assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
+    # assert header["boundaries"] == ["planetary-boundary"], "only PB is implemented for showing"
     print("boundaries:")
     A_PB = header["boundary-parameters"]["A_PB"]
     A_mid = header["grid-parameters"]["A_mid"]
