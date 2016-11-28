@@ -22,7 +22,7 @@ for beta_DG in `seq 0.015 0.0005 0.035`;
 
 		# below for bifurcation
                 echo "submitting job with beta_DG = $beta_DG"
-		srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-beta_DG-%j.out" --error="TSM-Bifurcation-beta_DG-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --degrowth --eddies --num 200 --set-parameter beta_DG $beta_DG dg-bifurc-${beta_DG}.out &
+		srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-beta_DG-%j.out" --error="TSM-Bifurcation-beta_DG-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --boundaries planetary-boundary --degrowth --eddies --num 200 --set-parameter beta_DG $beta_DG dg-bifurc-${beta_DG}.out &
 		echo -e "done\n"
         done    
 
