@@ -16,12 +16,17 @@ import itertools as it
 
 import datetime as dt
 import functools as ft
+import os, sys
 
 import matplotlib.pyplot as plt
 
 
 FILE_ERROR_MESSAGE = "{!r} seems to be an older aws file version or not a proper aws file, please use the '--reformat' option"
 
+TRANSLATION = {
+        "sigma" : r"$\sigma$",
+        "beta_DG" : r"$\beta_{GR}$",
+        }
 
 if __name__ == "__main__":
 
@@ -56,7 +61,7 @@ if __name__ == "__main__":
 
     try:
         print("getting reference ... ", end="")
-        reference_header, _ = aws_general.load_result_file(args.input_file, auto_reformat=args.reformat, verbose=1)
+        reference_header, _ = aws_general.load_result_file(args.input_files[0], verbose=1)
     except IOError:
         parser.error(FILE_ERROR_MESSAGE.format(args.input_file))
 
@@ -66,45 +71,49 @@ if __name__ == "__main__":
 
     # check correct parameters
     bifurcation_parameter_list = []
+    volume_lists = {r:[] for r in lv.REGIONS}
     for in_file in args.input_files:
         try:
-            header, _ = aws_general.load_result_file(args.input_file, auto_reformat=args.reformat, verbose=1)
+            header, data = aws_general.load_result_file(in_file, verbose=1)
         except IOError:
             parser.error(FILE_ERROR_MESSAGE.format(args.input_file))
         # append the value of the bifurcation parameter to the list and check at the same time that it really was in there
-        bifurcation_parameter_list.append(header.pop(bifurcation_parameter))
+        bifurcation_parameter_list.append(header["model-parameters"].pop(bifurcation_parameter))
         
         for el in cmp_list:
-            if isinstance(reference_header[el], dict):
-                assert not aws_general.get_changed_parameters(reference_header[el], header[el])
-            elif isinstance(reference_header[el]
+            if aws_general.recursive_difference(reference_header[el], header[el]):
+                raise ValueError("incompatible headers")
+        grid = np.asarray(data["grid"])
+        states = np.asarray(data["states"])
 
+        num_all = states.size
 
-
-    grid = data["grid"]
-    states = data["states"]
-
-    print("date: {}".format(dt.datetime.fromtimestamp(header["start-time"]).ctime()))
-    print("duration: {!s}".format(dt.timedelta(seconds=header["run-time"])))
+        for r in lv.REGIONS:
+            volume_lists[r].append(np.count_nonzero(states == getattr(lv, r))/num_all)
     print()
-    print("management options: {}".format(", ".join(header["managements"]) if header["managements"] else "(None)"))
-    pars = header["model-parameters"]  # just to make it shorter here
-    for m in header["managements"]:
-        ending = "_" + aws.MANAGEMENTS[m].upper()
-        changed = False
-        for key in pars:
-            # choose the variables that are changed by the ending
-            if key.endswith(ending):
-                default_key = key[:-len(ending)]
-                print("{} = {} <--> {} = {}".format(key, aws_general.formatted_value(pars[key]), default_key, aws_general.formatted_value(pars[default_key])))
 
-    aws_general.print_changed_parameters(reference["model-parameters"], aws.AWS_parameters, prefix="changed model parameters:")
-    aws_general.print_changed_parameters(reference["grid-parameters"], aws.grid_parameters, prefix="changed grid parameters:")
-    aws_general.print_changed_parameters(reference["boundary-parameters"], aws.boundary_parameters, prefix="changed boundary parameters:")
+    fig = plt.figure(figsize=(16, 9), tight_layout=True)
+    ax = fig.add_subplot(111)
 
+    argsort_param = np.argsort(bifurcation_parameter_list)
+    bifurcation_parameter_list = np.asarray(bifurcation_parameter_list)[argsort_param]
+    for key in volume_lists:
+        volume_lists[key] = np.asarray(volume_lists[key])[argsort_param]
 
-    if args.verbose >= 2:
-        viab.print_evaluation(states)
+    stacking_order = lv.REGIONS
+    print("stacking_order:", stacking_order)
+    y_before = 0
+    for r in stacking_order:
+        y_now = volume_lists[r] + y_before
+        ax.fill_between(bifurcation_parameter_list, y_before, y_now, facecolor=lv.COLORS[getattr(lv, r)], lw=2, edgecolor="white")
+        y_before = y_now
+
+    ax.set_xlim(bifurcation_parameter_list[0], bifurcation_parameter_list[-1])
+    xlabel = bifurcation_parameter
+    if xlabel in TRANSLATION:
+        xlabel = TRANSLATION[xlabel]
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("relative volume in phase space")
 
     if args.save_pic:
         print("saving to {} ... ".format(args.save_pic), end="", flush=True)
