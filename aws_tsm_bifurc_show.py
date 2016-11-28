@@ -58,6 +58,13 @@ if __name__ == "__main__":
         "boundary-parameters",
         "managements",
         ]
+    stacking_order = lv.REGIONS
+
+    if args.verbose:
+        print("stacking_order:", stacking_order)
+        print()
+        print("header comparison keys:", cmp_list)
+        print()
 
     try:
         print("getting reference ... ", end="")
@@ -67,7 +74,6 @@ if __name__ == "__main__":
 
     # remove the bifurcation_parameter from the reference and check at the same time that it really was in there
     reference_header["model-parameters"].pop(bifurcation_parameter)
-    print()
 
     # check correct parameters
     bifurcation_parameter_list = []
@@ -100,15 +106,19 @@ if __name__ == "__main__":
     for key in volume_lists:
         volume_lists[key] = np.asarray(volume_lists[key])[argsort_param]
 
-    stacking_order = lv.REGIONS
-    print("stacking_order:", stacking_order)
-    y_before = 0
+    y_before = np.zeros_like(volume_lists[key]) # using the key from the for-loop before
     for r in stacking_order:
         y_now = volume_lists[r] + y_before
-        ax.fill_between(bifurcation_parameter_list, y_before, y_now, facecolor=lv.COLORS[getattr(lv, r)], lw=2, edgecolor="white")
-        y_before = y_now
+        # mask = ~np.isclose(volume_lists[r], 0)
+        ax.fill_between(
+                bifurcation_parameter_list,#[mask], 
+                y_before,#[mask], 
+                y_now,#[mask], 
+                facecolor=lv.COLORS[getattr(lv, r)], lw=2, edgecolor="white")
+        y_before += volume_lists[r]
 
     ax.set_xlim(bifurcation_parameter_list[0], bifurcation_parameter_list[-1])
+    ax.set_ylim(0, 1)
     xlabel = bifurcation_parameter
     if xlabel in TRANSLATION:
         xlabel = TRANSLATION[xlabel]
