@@ -90,7 +90,7 @@ boundary_parameters["W_SF"] = 4e13  # USD, year 2000 GWP
 
 grid_parameters = {}
 
-current_state = [240, 7e13, 8e11]
+current_state = [240, 7e13, 5e11]
 
 # rescaling parameters
 grid_parameters["A_mid"] = current_state[0]
