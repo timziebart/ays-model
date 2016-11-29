@@ -25,7 +25,7 @@ FILE_ERROR_MESSAGE = "{!r} seems to be an older aws file version or not a proper
 
 TRANSLATION = {
         "sigma" : r"$\sigma$",
-        "beta_DG" : r"$\beta_{GR}$",
+        "beta_DG" : r"$\beta_{0,GR}$",
         }
 
 if __name__ == "__main__":
@@ -101,15 +101,35 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(16, 9), tight_layout=True)
     ax = fig.add_subplot(111)
 
+    bifurc_val = 1e-4
+    def add_middles(arr, check_bifurc=False):
+        new_arr = np.repeat(arr, 3)[:-2]
+        new_arr[1::3] = 0.5 * (arr[:-1] + arr[1:])
+        new_arr[2::3] = 0.5 * (arr[:-1] + arr[1:])
+        if check_bifurc:
+            for i in range(len(arr) - 1):
+                i_next = i+1
+                if (arr[i] > bifurc_val and arr[i_next] < bifurc_val) or (arr[i] < bifurc_val and arr[i_next] > bifurc_val):
+                    new_arr[1::3][i] = arr[i]
+                    new_arr[2::3][i] = arr[i_next]
+        return new_arr
+
     argsort_param = np.argsort(bifurcation_parameter_list)
     bifurcation_parameter_list = np.asarray(bifurcation_parameter_list)[argsort_param]
     for key in volume_lists:
         volume_lists[key] = np.asarray(volume_lists[key])[argsort_param]
 
+    bifurcation_parameter_list = add_middles(bifurcation_parameter_list)
+    for key in volume_lists:
+        volume_lists[key] = add_middles(volume_lists[key], check_bifurc=True)
+
+
+    
+
     y_before = np.zeros_like(volume_lists[key]) # using the key from the for-loop before
     for r in stacking_order:
+        vals = volume_lists[r]
         y_now = volume_lists[r] + y_before
-        # mask = ~np.isclose(volume_lists[r], 0)
         ax.fill_between(
                 bifurcation_parameter_list,#[mask], 
                 y_before,#[mask], 

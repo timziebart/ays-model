@@ -36,9 +36,10 @@ no version or 0.1: the stuff from the beginning
 INFTY_SIGN = u"\u221E"
 
 # AZIMUTH, ELEVATION = -140, 30
-# AZIMUTH, ELEVATION = 5, 20
+AZIMUTH_FLOW, ELEVATION_FLOW = -140, 30
+AZIMUTH, ELEVATION = 5, 20
 # AZIMUTH, ELEVATION = 110, 34
-AZIMUTH, ELEVATION = 170, 20
+AZIMUTH, ELEVATION = 170, 10
 
 
 # patch to remove padding at ends of axes:

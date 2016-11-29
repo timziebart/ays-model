@@ -149,8 +149,8 @@ if __name__ == "__main__":
         print("planetary / CO2 concentration:", end=" ")
         print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(aws.A_PB, (aws.A_PB + aws.AWS_parameters["A_offset"]) / 840 * 400 , aws.A_PB / (aws.A_mid + aws.A_PB)))
     if "social-foundation" in args.boundaries:
-        print("social foundation / income boundary:", end=" ")
-        print("W_SF = {:4.1e} US$".format(aws.W_SF))
+        print("social foundation / welfare limit:", end=" ")
+        print("W_SF = {:4.2e} US$ <=> w_SF = {:5.3f}".format(aws.W_SF, aws.W_SF / (aws.W_mid + aws.W_SF)))
 
     # generate the grid, normalized to 1 in each dimension
     grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,

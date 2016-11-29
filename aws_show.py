@@ -26,8 +26,8 @@ import pickle
 
 import functools as ft
 
-
-RUN_OPTIONS = [aws.DEFAULT_NAME] + list(aws.MANAGEMENTS)
+DG_BIFURCATION_END = "dg-bifurcation-end"
+RUN_OPTIONS = [aws.DEFAULT_NAME] + list(aws.MANAGEMENTS) + [DG_BIFURCATION_END]
 
 if __name__ == "__main__":
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--mode", choices=["all", "lake"], default="all",
                         help="which parts should be sampled (default 'all')")
     parser.add_argument("-n", "--num", type=int, default=400,
-                        help="number of initial conditions")
+            help="number of initial conditions (default: 400)")
     parser.add_argument("--no-boundary", dest="draw_boundary", action="store_false",
                         help="remove the boundary inside the plot")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
@@ -64,6 +64,7 @@ if __name__ == "__main__":
         aws_0[0] = aws_0[0] * aws.A_PB / (aws.A_PB + aws.A_mid)
 
     fig, ax3d = aws_general.create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
+    ax3d.view_init(aws_general.ELEVATION_FLOW, aws_general.AZIMUTH_FLOW)
 
     ########################################
     # prepare the integration
@@ -73,7 +74,11 @@ if __name__ == "__main__":
     # parameter_dicts = []
     parameter_lists = []
     for management in args.options:
-        parameter_dict = aws.get_management_parameter_dict(management, aws.AWS_parameters)
+        if management == DG_BIFURCATION_END:
+            parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AWS_parameters)
+            parameter_dict["beta"] = 0.035
+        else:
+            parameter_dict = aws.get_management_parameter_dict(management, aws.AWS_parameters)
         parameter_lists.append( helper.get_ordered_parameters(aws._AWS_rhs, parameter_dict))
     # colors = ["green", "blue", "red"]
     # assert len(parameter_lists) <= len(colors), "need to add colors"
