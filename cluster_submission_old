@@ -10,9 +10,10 @@ module load anaconda/2.3.0
 source activate TimClusterPython3
 
 # for sigma in `seq 1 1 10`;
-for sigma_ET in `seq 1.0 0.5 9.1`;
+# for sigma_ET in `seq 1.0 0.5 9.1`;
 # for beta_DG in `seq 0.015 0.0005 0.035`;
 # for beta_DG in `seq 0.015 0.002 0.045`;
+for beta_DG in `seq 0.035 0.005 0.1`;
         do
                 # echo "submitting job with sigma = $sigma"
 		# srun --qos=short --job-name=TSM-Sigma --output="TSM-Sigma-${sigma}-%j.out" --error="TSM-Sigma-${sigma}-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --degrowth --et --record-paths --eddies --num 200 --set-parameter sigma ${sigma}.e12 --set-parameter S_mid ${sigma}.e12 dg-et-sigma-${sigma}.out &
@@ -22,11 +23,10 @@ for sigma_ET in `seq 1.0 0.5 9.1`;
 		echo "$cmd"
 
 		# below for bifurcation
-                echo "submitting job with sigma_ET = $sigma_ET ..."
-		srun --qos=short --job-name=TSM-Bifurcation-ET --output="TSM-Bifurcation-sigma_ET-%j.out" --error="TSM-Bifurcation-sigma_ET-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --boundaries both --degrowth --et --eddies --num 200 --set-parameter sigma_ET "$sigma_ET*1.e12" dg-et-both-bounds-bifurc-sigma_ET-${sigma_ET}.out &
-                # echo "submitting job with beta_DG = $beta_DG"
-		# srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-beta_DG-%j.out" --error="TSM-Bifurcation-beta_DG-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --boundaries both --degrowth --et --eddies --num 200 --set-parameter beta_DG $beta_DG dg-et-both-bounds-bifurc-${beta_DG}.out &
-		# srun --qos=short --job-name=TSM-Bifurcation --output="TSM-Bifurcation-beta_DG-%j.out" --error="TSM-Bifurcation-beta_DG-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --boundaries planetary-boundary --degrowth --eddies --num 200 --set-parameter beta_DG $beta_DG dg-bifurc-${beta_DG}.out &
+                # echo "submitting job with sigma_ET = $sigma_ET ..."
+		# srun --qos=short --job-name=TSM-Bifurcation-ET --output="TSM-Bifurcation-sigma_ET-%j.out" --error="TSM-Bifurcation-sigma_ET-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --boundaries both --degrowth --et --eddies --num 200 --set-parameter sigma_ET "$sigma_ET*1.e12" dg-et-both-bounds-bifurc-sigma_ET-${sigma_ET}.out &
+                echo "submitting job with beta_DG = $beta_DG"
+		srun --qos=short --job-name=TSM-Bifurcation-GR --output="TSM-Bifurcation-beta_DG-%j.out" --error="TSM-Bifurcation-beta_DG-%j.err" --nodes=1 --cpus-per-task=3 python aws_tsm.py --boundaries both --degrowth --et --eddies --num 200 --set-parameter beta_DG $beta_DG dg-et-both-bounds-bifurc-beta_DG-${beta_DG}.out &
 		echo "(done)"
         done    
 
