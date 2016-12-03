@@ -56,6 +56,14 @@ if not hasattr(Axis, "_get_coord_info_old"):
 ###patch end###
 
 
+def remove_inner(arr):
+    arr = np.asarray(arr)
+    assert len(arr.shape) == 2
+    l, d = arr.shape
+    left_array = np.ones((l, ), dtype=bool)
+    # for i in range(l):
+
+
 @np.vectorize
 def compactification(x, x_mid):
     if x == 0:
