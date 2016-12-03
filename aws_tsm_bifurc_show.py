@@ -98,7 +98,7 @@ if __name__ == "__main__":
             volume_lists[r].append(np.count_nonzero(states == getattr(lv, r))/num_all)
     print()
 
-    fig = plt.figure(figsize=(16, 9), tight_layout=True)
+    fig = plt.figure(figsize=(8, 9), tight_layout=True)
     ax = fig.add_subplot(111)
 
     bifurc_val = 1e-4
