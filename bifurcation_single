@@ -1,29 +1,51 @@
 #!/bin/bash
 
-# source $HOME/.bashrc
+source $HOME/.bashrc
 
-LC_NUMERIC="en_US.UTF-8"
+LC_NUMERIC="en_US.UTF-8"  # so values are printed with a '.' instead of ',', like 1/4=0.25 and not 0,25
 
 var="$1"
-rank="$PMI_RANK"
+
+# BEGIN read the correct rank
+rank=""
+if ! [ -z "$PMI_RANK" ]  # for mpirun
+then
+	rank="$PMI_RANK"
+elif ! [ -z "$SLURM_PROCID" ]  # for srun
+then
+	rank="$SLURM_PROCID"
+fi
 
 if [ -z "$rank" ]
 then
-	>&2 echo "no mpi rank found"
+	>&2 echo "no mpi rank or slurm proc id found"
 	exit 1
 fi
 
-# echo "$var, $rank"
+rank=`printf "%3i" $rank` # just formatting
+# END
 
+
+# BEGIN set the values to be iterated over, i.e. the array arr
 if [ "$var" == "beta_DG" ]
 then
 	arr=(`seq 0.015 0.0005 0.035`)
+elif [ "$var" == "sigma_ET" ]
+then
+	arr=(`seq 1.0 0.5 9.1`)
+elif [ "$var" == "theta_SRM" ]
+then
+	arr=(`seq 4.2 0.2 8.6`)
+elif [ "$var" == "phi_CCS" ]
+then
+	arr=(`seq 4.7 0.1 6.3`)
 else
-	arr=()
+	>&2 echo "no array defined for $var"
+	exit 1
 fi
+# END
 
 arrlen=${#arr[@]}
-# echo "$arrlen"
 
 if [ "$rank" -ge "$arrlen" ]
 then
@@ -31,6 +53,19 @@ then
 	exit 0
 fi
 
+val=${arr[${rank}]}
+if [ "$var" == "sigma_ET" ] # rescaling necessary
+then 
+	val="$val*1.e12" 
+elif [ "$var" == "theta_SRM" ] # rescaling necessary
+then 
+	val="$val*1.e-5" 
+elif [ "$var" == "phi_CCS" ] # rescaling necessary
+then 
+	val="$val*1.e10" 
+fi
 
-echo "$rank $var = ${arr[${rank}]}"
+
+python aws_tsm.py --boundaries both --dg --et --srm --ccs --eddies --num 200 --set-parameter "$var" "$val" "dg-et-srm-ccs_pb-sf-bifurc-${var}-${val}.out" | sed -u "s/^/[$rank: $var = $val] /"
+exit 0
 
