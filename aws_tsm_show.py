@@ -14,9 +14,10 @@ import numpy as np
 import pickle, argparse, argcomplete
 import ast, sys, os
 import itertools as it
-
 import datetime as dt
 import functools as ft
+
+import pcl
 
 import matplotlib.pyplot as plt
 
@@ -264,11 +265,18 @@ if __name__ == "__main__":
                 for region in args.regions:
                     region_num = getattr(lv, region)
                     mask = (states == region_num) &  mask2
-                    ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
+                    if args.regions_style == "points":
+                        ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
                                     color=lv.COLORS[region_num],
-                                alpha=args.alpha,
-                                linestyle="", marker=".", markersize=30,
-                                )
+                                    alpha=args.alpha,
+                                    linestyle="", marker=".", markersize=30,
+                                    )
+                    elif args.regions_style == "surface":
+                        # pc = pcl.PointCloud()
+                        # p.from_array(
+                        assert False, "working here"
+                    else:
+                        assert False, "debugging?"
             else:
                 raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
         if args.analyze:

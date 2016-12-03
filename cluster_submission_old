@@ -1,5 +1,7 @@
 #!/bin/bash
 
+~/.bashrc
+
 
 # AWS_parameters["beta"] = 0.03  # 1/yr
 # AWS_parameters["beta_DG"] = AWS_parameters["beta"] / 2
