@@ -72,7 +72,8 @@ AWS_parameters["beta_DG"] = AWS_parameters["beta"] / 2
 AWS_parameters["epsilon"] = 147.  # USD/GJ
 AWS_parameters["rho"] = 2.  # 1
 AWS_parameters["phi"] = 47.e9  # GJ/GtC
-AWS_parameters["phi_CCS"] = AWS_parameters["phi"] * 2
+AWS_parameters["phi_CCS"] = AWS_parameters["phi"] * 4/3 # 25% carbon taken away in form oc co2 from the system
+# AWS_parameters["phi_CCS"] = AWS_parameters["phi"] * 2
 AWS_parameters["sigma"] = 4.e12  # GJ
 # AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 4.e12  # GJ
 # AWS_parameters["sigma"] = AWS_parameters["sigma_default"] = 1.e12  # GJ # old
