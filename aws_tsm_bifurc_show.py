@@ -24,8 +24,8 @@ import matplotlib.pyplot as plt
 FILE_ERROR_MESSAGE = "{!r} seems to be an older aws file version or not a proper aws file, please use the '--reformat' option"
 
 TRANSLATION = {
-        "sigma" : r"$\sigma$",
-        "beta_DG" : r"$\beta_{0,GR}$",
+        "sigma_ET" : r"$\sigma_{ET}$",
+        "beta_DG" : r"$\beta_{0,SG}$",
         }
 
 if __name__ == "__main__":
