@@ -1,6 +1,6 @@
 # data / output files
 *.out
-*.err  # cluster error file
+*.err
 *.txt
 *.jpg
 *.png

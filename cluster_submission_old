@@ -1,6 +1,6 @@
 #!/bin/bash
 
-~/.bashrc
+source $HOME/.bashrc
 
 
 # AWS_parameters["beta"] = 0.03  # 1/yr

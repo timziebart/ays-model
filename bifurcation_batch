@@ -1,0 +1,15 @@
+#!/bin/bash
+
+source $HOME/.bashrc
+
+ntasks=10
+var="beta_DG"
+
+jobname="TSM-Bifurcation-$var"
+output="$jobname-%j.out"
+error="$jobname-%j.err"
+
+# mysrun --qos=short --time=0-3 --job-name="$jobname" --output="$output" --error="$error" --ntasks=$ntasks --cpus-per-task=3 bifurcation_single "$var"
+
+python aws_tsm.py --boundaries both --dg --et --srm --ccs --eddies --num 200 --set-parameter sigma_ET "$sigma_ET*1.e12" dg-et-srm-ccs_pb-sf-bifurc-sigma_ET-${sigma_ET}.out &
+

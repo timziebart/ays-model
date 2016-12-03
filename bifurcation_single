@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# source $HOME/.bashrc
+
+LC_NUMERIC="en_US.UTF-8"
+
+var="$1"
+rank="$PMI_RANK"
+
+if [ -z "$rank" ]
+then
+	>&2 echo "no mpi rank found"
+	exit 1
+fi
+
+# echo "$var, $rank"
+
+if [ "$var" == "beta_DG" ]
+then
+	arr=(`seq 0.015 0.0005 0.035`)
+else
+	arr=()
+fi
+
+arrlen=${#arr[@]}
+# echo "$arrlen"
+
+if [ "$rank" -ge "$arrlen" ]
+then
+	>&2 echo "$rank exiting directly"
+	exit 0
+fi
+
+
+echo "$rank $var = ${arr[${rank}]}"
+
