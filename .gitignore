@@ -4,6 +4,7 @@
 *.txt
 *.jpg
 *.png
+*.pdf
 *.mp4
 
 # vim stuff (Pymode uses rope)
@@ -13,7 +14,6 @@
 # ecplise stuff
 *.project
 .pydevproject
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
