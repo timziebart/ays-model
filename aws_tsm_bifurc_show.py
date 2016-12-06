@@ -19,13 +19,16 @@ import functools as ft
 import os, sys
 
 import matplotlib.pyplot as plt
+from matplotlib import ticker as mticker
 
 
 FILE_ERROR_MESSAGE = "{!r} seems to be an older aws file version or not a proper aws file, please use the '--reformat' option"
 
 TRANSLATION = {
-        "sigma_ET" : r"$\sigma_{ET}$",
-        "beta_DG" : r"$\beta_{0,SG}$",
+        "beta_DG" : r"$\beta_{0,SG}\, \left[\mathrm{a}^{-1}\right]$",
+        "phi_CCS" : r"$\phi_{CCS}\, \left[\frac{\mathrm{GJ}}{\mathrm{GtC}}\right]$",
+        "theta_SRM" : r"$\theta_{SRM}\, \left[\mathrm{a}^{-1}\mathrm{GJ}^{-1}\right]$",
+        "sigma_ET" : r"$\sigma_{ET}\, \left[\mathrm{GJ}\right]$",
         }
 
 if __name__ == "__main__":
@@ -131,19 +134,94 @@ if __name__ == "__main__":
         vals = volume_lists[r]
         y_now = volume_lists[r] + y_before
         ax.fill_between(
-                bifurcation_parameter_list,#[mask], 
-                y_before,#[mask], 
-                y_now,#[mask], 
+                bifurcation_parameter_list, 
+                y_before,
+                y_now, 
                 facecolor=lv.COLORS[getattr(lv, r)], lw=2, edgecolor="white")
         y_before += volume_lists[r]
 
     ax.set_xlim(bifurcation_parameter_list[0], bifurcation_parameter_list[-1])
     ax.set_ylim(0, 1)
+
+
     xlabel = bifurcation_parameter
     if xlabel in TRANSLATION:
         xlabel = TRANSLATION[xlabel]
     ax.set_xlabel(xlabel)
     ax.set_ylabel("relative volume in phase space")
+
+    ax.ticklabel_format(style="sci", axis="x", scilimits=(0,0),  useMathTex=True) # useMathTex is somehow ignored?
+
+    text_xvals = {
+            "beta_DG" : 2.3e-2,
+            "phi_CCS" : 5.4e10,
+            "theta_SRM" : 6e-5,
+            "sigma_ET" : 5e12,
+            }
+    if bifurcation_parameter in text_xvals:
+        text_val = text_xvals[bifurcation_parameter]
+    else:
+        text_val = (bifurcation_parameter_list[0] + bifurcation_parameter_list[-1]) / 2
+
+    shelter_y = 0.05
+    glade_y = 0.12
+    lake_y = 0.15
+    sunny_up_y = 0.2
+    dark_up_y = 0.35
+
+    backw_y = 0.48
+    sunny_down_y = 0.53
+    dark_down_y = 0.7
+
+    trench_y = 0.99
+
+
+    # shelter
+    ax.text(text_val, shelter_y, "$S$")
+    # glade
+    if bifurcation_parameter == "sigma_ET":
+        ax.text(1.5e12, glade_y, "$G$")
+    else:
+        ax.text(text_val, glade_y, "$G$")
+    # alke
+    if bifurcation_parameter == "theta_SRM":
+        ax.text(text_val - 0.3e-5, lake_y, "$L$")
+    elif bifurcation_parameter == "beta_DG":
+        ax.text(1.6e-2, lake_y, "$L$")
+    elif bifurcation_parameter == "sigma_ET":
+        ax.text(text_val, 0.12, "$L$")
+    elif bifurcation_parameter == "phi_CCS":
+        ax.text(text_val - 0.1e10, lake_y, "$L$")
+    else:
+        ax.text(text_val, lake_y, "$L$")
+    # remaining sunny upstream
+    if bifurcation_parameter == "sigma_ET":
+        ax.text(text_val, 0.18, "$U^{(+)}$")
+    else:
+        ax.text(text_val, sunny_up_y, "$U^{(+)}$")
+    # remaining dark upstream
+    ax.text(text_val, dark_up_y, "$U^-$")
+    # backwaters
+    if bifurcation_parameter == "beta_DG":
+        ax.text(1.6e-2, backw_y, "$W$")
+    elif bifurcation_parameter == "sigma_ET":
+        ax.text(text_val, 0.45, "$W$")
+    else:
+        ax.text(text_val, backw_y, "$W$")
+    # remaining sunny downstream
+    if bifurcation_parameter == "sigma_ET":
+        ax.text(text_val, 0.51, "$D^{(+)}$")
+    else:
+        ax.text(text_val, sunny_down_y, "$D^{(+)}$")
+    # remaining dark downstream
+    ax.text(text_val, dark_down_y, "$D^-$")
+    # eddies
+    if bifurcation_parameter == "beta_DG":
+        ax.text(3.15e-2, sunny_down_y, "$E^+$")
+        ax.text(3.15e-2, dark_down_y, "$E^-$")
+    # trench
+    ax.text(text_val, trench_y, "$\Theta$")
+
 
     if args.save_pic:
         print("saving to {} ... ".format(args.save_pic), end="", flush=True)
