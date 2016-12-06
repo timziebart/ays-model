@@ -7,6 +7,10 @@
 *.pdf
 *.mp4
 
+# build output
+*.so
+
+
 # vim stuff (Pymode uses rope)
 .*.swp
 .ropeproject/
