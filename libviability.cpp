@@ -17,6 +17,7 @@ typedef bgi::linear<4> Params;
 typedef bg::model::point<double, 3, bg::cs::cartesian> point_t;
 typedef bgi::rtree<point_t, Params> Rtree_t;
 
+
 extern "C" {
 	int first_test() {
 		return 12;
@@ -36,15 +37,11 @@ extern "C" {
 	}
 
     double access_list(unsigned long index, double * list) {
-//        std::cout << list << std::endl;
-//        std::cout << list[index] << std::endl;
         return list[index];
     }
 
     double access_2d_list(unsigned long index1, unsigned long index2, double * list) {
         unsigned long index = index1 * 3 + index2;
-//        std::cout << list << std::endl;
-//        std::cout << list[index] << std::endl;
         return list[index];
     }
 
