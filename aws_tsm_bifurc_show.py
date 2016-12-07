@@ -25,7 +25,7 @@ from matplotlib import ticker as mticker
 FILE_ERROR_MESSAGE = "{!r} seems to be an older aws file version or not a proper aws file, please use the '--reformat' option"
 
 TRANSLATION = {
-        "beta_DG" : r"$\beta_{0,SG}\, \left[\mathrm{a}^{-1}\right]$",
+        "beta_DG" : r"$\beta_{0,SG}\, \left[\frac{\%}{\mathrm{a}}\right]$",
         "phi_CCS" : r"$\phi_{CCS}\, \left[\frac{\mathrm{GJ}}{\mathrm{GtC}}\right]$",
         "theta_SRM" : r"$\theta_{SRM}\, \left[\mathrm{a}^{-1}\mathrm{GJ}^{-1}\right]$",
         "sigma_ET" : r"$\sigma_{ET}\, \left[\mathrm{GJ}\right]$",
@@ -100,6 +100,9 @@ if __name__ == "__main__":
         for r in lv.REGIONS:
             volume_lists[r].append(np.count_nonzero(states == getattr(lv, r))/num_all)
     print()
+    if bifurcation_parameter == "beta_DG":
+        # multiply with 100 becuase it's shown in %
+        bifurcation_parameter_list =list(map(lambda x: x*100, bifurcation_parameter_list))
 
     fig = plt.figure(figsize=(8, 9), tight_layout=True)
     ax = fig.add_subplot(111)
@@ -150,10 +153,13 @@ if __name__ == "__main__":
     ax.set_xlabel(xlabel)
     ax.set_ylabel("relative volume in phase space")
 
-    ax.ticklabel_format(style="sci", axis="x", scilimits=(0,0),  useMathTex=True) # useMathTex is somehow ignored?
+    if bifurcation_parameter == "beta_DG":
+        pass
+    else:
+        ax.ticklabel_format(style="sci", axis="x", scilimits=(0,0),  useMathTex=True) # useMathTex is somehow ignored?
 
     text_xvals = {
-            "beta_DG" : 2.3e-2,
+            "beta_DG" : 2.3,
             "phi_CCS" : 5.4e10,
             "theta_SRM" : 6e-5,
             "sigma_ET" : 5e12,
@@ -187,7 +193,7 @@ if __name__ == "__main__":
     if bifurcation_parameter == "theta_SRM":
         ax.text(text_val - 0.3e-5, lake_y, "$L$")
     elif bifurcation_parameter == "beta_DG":
-        ax.text(1.6e-2, lake_y, "$L$")
+        ax.text(1.6, lake_y, "$L$")
     elif bifurcation_parameter == "sigma_ET":
         ax.text(text_val, 0.12, "$L$")
     elif bifurcation_parameter == "phi_CCS":
@@ -203,7 +209,7 @@ if __name__ == "__main__":
     ax.text(text_val, dark_up_y, "$U^-$")
     # backwaters
     if bifurcation_parameter == "beta_DG":
-        ax.text(1.6e-2, backw_y, "$W$")
+        ax.text(1.6, backw_y, "$W$")
     elif bifurcation_parameter == "sigma_ET":
         ax.text(text_val, 0.45, "$W$")
     else:
@@ -217,8 +223,8 @@ if __name__ == "__main__":
     ax.text(text_val, dark_down_y, "$D^-$")
     # eddies
     if bifurcation_parameter == "beta_DG":
-        ax.text(3.15e-2, sunny_down_y, "$E^+$")
-        ax.text(3.15e-2, dark_down_y, "$E^-$")
+        ax.text(3.15, sunny_down_y, "$E^+$")
+        ax.text(3.15, dark_down_y, "$E^-$")
     # trench
     ax.text(text_val, trench_y, "$\Theta$")
 
