@@ -1,0 +1,20 @@
+[0.1,0.39,0.56] 0.01
+[0.45,0.47,0.564] 0.01
+./aws_tsm_show.py degrowth.out --show-path [0.45,0.47,0.564] 0.01 --paths-outside --plot-boundaries [[0.45,0.55],[0.4,0.55],[0.2,0.6]]
+./aws_tsm_show.py degrowth-coarse2.out --show-path [0.45,0.47,0.564] 0.03 -t  -vv
+
+./aws_tsm_show.py change\ sigma/dg-sigma-4.out --analyze-original [240,7e13,0.8e12] 0.005 -vv -r l --mark red --plot-boundaries-original [[200,400],[5e13,10e13],[0.6e12,1.3e12]] --alpha 0.7
+
+./aws_tsm_show.py dg-both-boundaries-new-mids.out --analyze-original [240,7e13,0.8e12] 0.005 -vv -r l --mark red --plot-boundaries-original [[200,400],[3.55e13,10e13],[0.6e12,1.3e12]] --alpha 0.7
+
+./aws_tsm_show.py dg-et-both-boundaries-new-mids.out --analyze-original [240,7e13,0.5e12] 0.005 -vv -r l --mark red --plot-boundaries-original [[0,400],[3.55e13,9e13],[0.2e12,0.7e12]] --alpha 0.7
+
+
+plot shelter backwater
+./aws_tsm_show.py dg-et-srm-ccs_pb-sf2.out  --analyze-original [240,7e13,0.5e12] 0.005 -r s b --mark red -s shelter-backwater.jpg
+
+plot lake
+./aws_tsm_show.py dg-et-srm-ccs_pb-sf2.out  --analyze-original [240,7e13,0.5e12] 0.005 -r l --mark red --plot-boundaries-original [[0,400],[3.55e13,9e13],[0.2e12,1e12]] --alpha 0.7 -s current-state-in-lake.jpg
+
+plot bifurcation
+
