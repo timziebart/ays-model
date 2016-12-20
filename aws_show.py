@@ -9,6 +9,7 @@ from pyviability import helper
 import numpy as np
 
 import scipy.integrate as integ
+import scipy.optimize as opt
 
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d as plt3d
@@ -27,7 +28,8 @@ import pickle
 import functools as ft
 
 DG_BIFURCATION_END = "dg-bifurcation-end"
-RUN_OPTIONS = [aws.DEFAULT_NAME] + list(aws.MANAGEMENTS) + [DG_BIFURCATION_END]
+DG_BIFURCATION_MIDDLE = "dg-bifurcation-middle"
+RUN_OPTIONS = [aws.DEFAULT_NAME] + list(aws.MANAGEMENTS) + [DG_BIFURCATION_END, DG_BIFURCATION_MIDDLE]
 
 if __name__ == "__main__":
 
@@ -48,6 +50,8 @@ if __name__ == "__main__":
                         help="remove the boundary inside the plot")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
                         help="save the picture to 'file'")
+    parser.add_argument("-z", "--zero", action="store_true",
+            help="compute the zero of the RHS in the S=0 plane")
 
     # use argcomplete auto-completion
     argcomplete.autocomplete(parser)
@@ -63,9 +67,6 @@ if __name__ == "__main__":
     if args.mode == "lake":
         aws_0[0] = aws_0[0] * aws.A_PB / (aws.A_PB + aws.A_mid)
 
-    fig, ax3d = aws_general.create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
-    ax3d.view_init(aws_general.ELEVATION_FLOW, aws_general.AZIMUTH_FLOW)
-
     ########################################
     # prepare the integration
     ########################################
@@ -77,14 +78,28 @@ if __name__ == "__main__":
         if management == DG_BIFURCATION_END:
             parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AWS_parameters)
             parameter_dict["beta"] = 0.035
+        elif management == DG_BIFURCATION_MIDDLE:
+            parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AWS_parameters)
+            parameter_dict["beta"] = 0.027
         else:
             parameter_dict = aws.get_management_parameter_dict(management, aws.AWS_parameters)
+        if args.zero:
+            x0 = [0.5, 0.5, 0] # a, w, s
+            print("fixed point(s) of {}:".format(management))
+            # below the '0' is for the time t
+            print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
+                            args=(0., ) + helper.get_ordered_parameters(aws._AWS_rhs, parameter_dict)))
+            print()
         parameter_lists.append( helper.get_ordered_parameters(aws._AWS_rhs, parameter_dict))
     # colors = ["green", "blue", "red"]
     # assert len(parameter_lists) <= len(colors), "need to add colors"
 
+
     colortop = "green"
     colorbottom = "black"
+
+    fig, ax3d = aws_general.create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
+    ax3d.view_init(aws_general.ELEVATION_FLOW, aws_general.AZIMUTH_FLOW)
 
     for i in range(num):
         x0 = aws_0[i]
