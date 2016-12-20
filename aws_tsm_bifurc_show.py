@@ -143,6 +143,8 @@ if __name__ == "__main__":
                 facecolor=lv.COLORS[getattr(lv, r)], lw=2, edgecolor="white")
         y_before += volume_lists[r]
 
+    if bifurcation_parameter == "beta_DG":
+        ax.plot([3]*2, [0,1], color="red", lw=5)
     ax.set_xlim(bifurcation_parameter_list[0], bifurcation_parameter_list[-1])
     ax.set_ylim(0, 1)
 
@@ -227,6 +229,8 @@ if __name__ == "__main__":
         ax.text(3.15, dark_down_y, "$E^-$")
     # trench
     ax.text(text_val, trench_y, "$\Theta$")
+
+
 
 
     if args.save_pic:
