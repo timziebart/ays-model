@@ -16,6 +16,9 @@
 .*.swp
 .ropeproject/
 
+# pycharm
+.idea/*
+
 # ecplise stuff
 *.project
 .pydevproject
