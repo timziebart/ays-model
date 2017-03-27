@@ -6,6 +6,7 @@
 *.png
 *.pdf
 *.mp4
+*.cache
 
 # build output
 *.so
