@@ -16,13 +16,7 @@ import time
 import datetime as dt
 
 import sys, os
-import types
-import ast
 import argparse, argcomplete
-import warnings as warn
-
-import pickle
-
 
 MANAGEMENTS = aws.MANAGEMENTS
 

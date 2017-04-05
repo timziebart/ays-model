@@ -25,7 +25,7 @@ from matplotlib import ticker as mticker
 FILE_ERROR_MESSAGE = "{!r} seems to be an older aws file version or not a proper aws file, please use the '--reformat' option"
 
 TRANSLATION = {
-        "beta_DG" : r"$\beta_{0,SG}\, \left[\frac{\%}{\mathrm{a}}\right]$",
+        "beta_DG" : r"$\beta_{0,LG}\, \left[\frac{\%}{\mathrm{a}}\right]$",
         "phi_CCS" : r"$\phi_{CCS}\, \left[\frac{\mathrm{GJ}}{\mathrm{GtC}}\right]$",
         "theta_SRM" : r"$\theta_{SRM}\, \left[\mathrm{a}^{-1}\mathrm{GJ}^{-1}\right]$",
         "sigma_ET" : r"$\sigma_{ET}\, \left[\mathrm{GJ}\right]$",

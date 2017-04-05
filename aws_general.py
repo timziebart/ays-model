@@ -167,7 +167,7 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     fig = plt.figure(figsize=(16,9))
     ax3d = plt3d.Axes3D(fig)
     ax3d.set_xlabel("\n\nexcess atmospheric carbon\nstock A [GtC]")
-    ax3d.set_ylabel("\nwelfare W [%1.0e USD/yr]"%W_scale)
+    ax3d.set_ylabel("\neconomic output Y [%1.0e USD/yr]"%W_scale)
     ax3d.set_zlabel("\n\nrenewable knowledge\nstock S [%1.0e GJ]"%S_scale)
 
     # make proper tickmarks:

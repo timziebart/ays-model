@@ -10,6 +10,7 @@ import aws_general
 
 from scipy import spatial as spat
 from scipy.spatial import ckdtree
+import scipy.spatial as spat
 import numpy as np
 import pickle, argparse, argcomplete
 import ast, sys, os
@@ -17,7 +18,7 @@ import itertools as it
 import datetime as dt
 import functools as ft
 
-import pcl
+import pcl # add git python-pcl to setup.py
 
 import matplotlib.pyplot as plt
 
@@ -86,6 +87,8 @@ if __name__ == "__main__":
     regions_parser.add_argument("--alpha", type=float,
                                 help="set the alpha value (opacity) of the plotted points")
 
+    parser.add_argument("--paper", action="store_true",
+                        help="create the picture for paper style")
     parser.add_argument("--reformat", action="store_true",
                         help="automatically reformat 'input-file' if necessary")
     parser.add_argument("-s", "--save-pic", metavar="file", default="",
@@ -136,6 +139,24 @@ if __name__ == "__main__":
 
     if not header["viab-backscaling-done"]:
         raise NotImplementedError("there is no plotting for unrescaled systems yet (and probably won't ever be)")
+
+    LAKE_PLOT = False # only used for the plot of the lake in the paper
+    # define paper style
+    if args.paper:
+        if not args.verbose:
+            args.verbose = 1
+        args.analyze_original = ("[240,7e13,0.5e12]", "0.005")
+        # read current state here directly?
+        args.mark = "red"
+        args.regions_style = "surface"
+        if not args.verbose:
+            args.verbose=1
+        if args.regions == ["LAKE"]:
+            LAKE_PLOT = True
+            args.plot_boundaries_original = "[[0,400],[3.55e13,9e13],[0.2e12,1e12]]"
+            args.alpha = 0.6
+
+
     
     # to be used for eval(...) statements
     combined_parameters = dict(header["model-parameters"])
@@ -148,7 +169,10 @@ if __name__ == "__main__":
     X_mid = np.array([ A_mid, W_mid, S_mid ])
 
     if args.alpha is None:
-        args.alpha = 1/header["grid-parameters"]["n0"]
+        if args.regions_style == "points":
+            args.alpha = 1/header["grid-parameters"]["n0"]
+        else:
+            args.alpha = 0.8
 
     # evaluate the boundaries string to an array
     if args.plot_boundaries_original is not None:
@@ -261,25 +285,148 @@ if __name__ == "__main__":
 
             mask2 = isinside(grid, args.plot_boundaries)
 
-            if args.regions_style == "points":
-                for region in args.regions:
-                    region_num = getattr(lv, region)
+            for region in args.regions:
+                region_num = getattr(lv, region)
+                mask = (states == region_num) &  mask2
+                if args.regions_style == "points":
+                    ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
+                                color=lv.COLORS[region_num],
+                                alpha=args.alpha,
+                                linestyle="", marker=".", markersize=30,
+                                )
+                elif args.regions_style == "surface":
+
+                    import numba as nb
+
+                    @nb.jit
+                    def nb_dot(x, y):
+                        val = 0
+                        for x_i, y_i in zip(x, y):
+                            val += x_i * y_i
+                        return val
+
+                    @nb.jit
+                    def nb_cross(x, y):
+                        val = np.array([  x[1]*y[2] - x[2]*y[1],
+                                 x[2]*y[0] - x[0]*y[2],
+                                 x[0]*y[1] - x[1]*y[0] ])
+                        return val
+
+                    @nb.jit
+                    def r2_circumsphere_tetrahedron_single(a, b, c, d):
+                        ad = a - d
+                        bd = b - d
+                        cd = c - d
+
+                        ad2 = nb_dot(ad, ad)
+                        bd2 = nb_dot(bd, bd)
+                        cd2 = nb_dot(cd, cd)
+
+                        cross_1 = nb_cross(bd, cd)
+                        cross_2 = nb_cross(cd, ad)
+                        cross_3 = nb_cross(ad, bd)
+
+                        q = ad2 * cross_1 + bd2 * cross_2 + cd2 * cross_3
+                        p = 2 * np.abs( nb_dot(ad, cross_1) )
+                        if p < 1e-10:
+                            return np.infty
+                        
+                        r2 = nb_dot(q, q) / p**2
+
+                        return r2
+
+                    @nb.jit(nopython=True)
+                    def r2_circumsphere_tetrahedron(a, b, c, d):
+                        len_a = len(a)
+                        r2 = np.zeros((len_a,))
+                        for i in range(len_a):
+                            r2[i] = r2_circumsphere_tetrahedron_single(a[i], b[i], c[i], d[i])
+                        return r2
+
+                    def get_faces(tetrahedron):
+                        faces = np.zeros((4, 3))
+                        for n, (i1, i2, i3) in enumerate([(0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3)]):
+                            faces[n] = tetrahedron[i1], tetrahedron[i2], tetrahedron[i3]
+                        return faces
+
+                    def get_single_faces(triangulation):
+                        num_faces_single = 4
+                        num_tetrahedrons = triangulation.shape[0]
+                        num_faces = num_tetrahedrons * num_faces_single
+                        faces = np.zeros((num_faces, 3), np.int_) # 3 is the dimension of the model
+                        mask = np.ones((num_faces,), np.bool_)
+                        for n in range(num_tetrahedrons):
+                            faces[num_faces_single * n: num_faces_single * (n+1)] = get_faces(triangulation[n])
+                        orderlist = ["x{}".format(i) for i in range(faces.shape[1])]
+                        dtype_list = [(el, faces.dtype.str) for el in orderlist]
+                        faces.view(dtype_list).sort(axis=0)
+                        for k in range(num_faces-1):
+                            if mask[k]:
+                                if np.all(faces[k] == faces[k+1]):
+                                    mask[k] = False
+                                    mask[k+1] = False
+                        single_faces = faces[mask]
+                        return single_faces
+
+
+
+                    alpha_radius = 0.05
+                    basefilename = os.path.splitext(os.path.split(args.input_file)[-1])[0]
+                    CACHE_FILE = ".{}-region{}-{}.cache".format(basefilename, region_num, lv.REGIONS[region_num])
+
                     mask = (states == region_num) &  mask2
-                    if args.regions_style == "points":
-                        ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                                    color=lv.COLORS[region_num],
-                                    alpha=args.alpha,
-                                    linestyle="", marker=".", markersize=30,
-                                    )
-                    elif args.regions_style == "surface":
-                        # pc = pcl.PointCloud()
-                        # p.from_array(
-                        assert False, "working here"
+                    region_points = grid[mask]
+
+                    if os.path.exists(CACHE_FILE):
+                        if args.verbose:
+                            print()
+                            print("found cache file ({}) with an existing alpha shape, loading ... ".format(CACHE_FILE), end="", flush=True)
+                        with open(CACHE_FILE, "rb") as f:
+                            outer_triangulation = pickle.load(f)
+                        if args.verbose:
+                            print("done")
                     else:
-                        assert False, "debugging?"
-            else:
-                raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
+                        if args.verbose:
+                            print()
+                            print("computing alpha shape for {}: {}".format(region_num, lv.REGIONS[region_num]))
+                        triangulation = spat.Delaunay(region_points)
+
+                        tetrahedrons = region_points[triangulation.simplices]
+                        radii2 = r2_circumsphere_tetrahedron(tetrahedrons[:, 0, :], tetrahedrons[:, 1, :], tetrahedrons[:, 2, :], tetrahedrons[:, 3, :])
+                        reduced_triangulation = triangulation.simplices[radii2 < alpha_radius**2]
+                        del radii2, triangulation, tetrahedrons
+
+                        outer_triangulation = get_single_faces(reduced_triangulation)
+                        if args.verbose:
+                            print()
+                            print("saving alpha_shape to cache file ({}) ... ".format(CACHE_FILE), end="", flush=True)
+                        with open(CACHE_FILE, "wb") as f:
+                            pickle.dump(outer_triangulation, f)
+                        if args.verbose:
+                            print("done")
+
+                    if args.verbose:
+                        print()
+                        print("plotting hull for {}: {}".format(region_num, lv.REGIONS[region_num]))
+                        print("color {} ({}: {})".format(lv.COLORS[region_num], region_num, lv.REGIONS[region_num]))
+                        print("{} triangles)".format(outer_triangulation.shape[0]))
+                        print()
+                    ax3d.plot_trisurf(
+                            region_points[:, 0], region_points[:, 1], region_points[:, 2], 
+                            triangles=outer_triangulation,
+                            color=lv.COLORS[region_num],
+                            antialiased=True,
+                            linewidth=(0.2 if LAKE_PLOT else 0.1),
+                            shade=0,
+                            alpha=args.alpha,
+#                            alpha=0.5,
+                            edgecolors="white",
+                            zorder=10,
+                            )
+                else:
+                    raise NotImplementedError("plotting style '{}' is not yet implemented".format(args.regions_style))
         if args.analyze:
+            bounds = args.plot_boundaries
             print("compute indices of points that are to be analyzed ... ", end="", flush=True)
             diff = grid - path_x0
             mask = (np.linalg.norm(diff, axis=-1) <= path_dist)
@@ -291,23 +438,29 @@ if __name__ == "__main__":
                 print("your point and distance do not match any grid points")
             else:
                 print("matched:")
+                print("STATE : COUNT")
                 _matched_states = states[mask]
                 matched_states = sorted(np.unique(_matched_states))
                 for s in matched_states:
-                    print("{:>2} : {:>2}".format(s, np.count_nonzero(_matched_states == s)))
+                    print("{:>5} : {:>5}".format(s, np.count_nonzero(_matched_states == s)))
                     if args.verbose >= 2 and not args.show_path:
                         for y in grid[mask][_matched_states == s]:
                             x = X_mid * y / (1 - y)
                             print(y, "<==>" ,x)
                         print()
                 if args.mark is not None:
+                    # ax3d.plot3D(xs=[path_x0[0], path_x0[0]], ys=[path_x0[1], path_x0[1]], zs=bounds[2],
+                    #             color=args.mark, zorder=1)
+                    # ax3d.plot3D(xs=bounds[0], ys=[path_x0[1], path_x0[1]], zs=[path_x0[2], path_x0[2]],
+                    #             color=args.mark, zorder=1)
+                    # ax3d.plot3D(xs=[path_x0[0], path_x0[0]], ys=bounds[1], zs=[path_x0[2], path_x0[2]],
+                    #             color=args.mark, zorder=1)
                     ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                            color=args.mark, linestyle="", marker=".", markersize=30)
+                            color=args.mark, linestyle="", marker=".", markersize=30, zorder=2)
                 print()
                 if args.show_path:
                     plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
                                                                 color="lightblue" if choice == 0 else "black")
-                    bounds = args.plot_boundaries
                     paths_outside = args.paths_outside
                     if paths_outside or bounds is None:
                         path_isinside = aws_general.dummy_isinside
