@@ -83,7 +83,7 @@ The arguments stand for:
 
 *Warning: The plotting take quite a bit of memory, ~ 16 GB.*
 
-To plot the output, use `ays_tsm_show.py`. If `--regions-style surface` has been used, the surface of the region is estimated using alpha shapes. As *this process takes a while*, the script will save a cache file to speed up the process the next time it's run. To create the two plots of Fig. 5 in [2], run
+To plot the output, use `ays_tsm_show.py`. The surface of the region(s) is estimated using alpha shapes. As *this process takes a while*, the script will save a cache file to speed up the process the next time it's run. To create the two plots of Fig. 5 in [2], run
 ```
 ./ays_tsm_show.py dg-et-both.out  --paper -r s b -s shelter-backwater.jpg
 ```
