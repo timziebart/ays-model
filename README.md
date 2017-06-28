@@ -44,7 +44,7 @@ Afterwards you should be able to use [Tab] for auto-completion.
 
 *Disclaimer II: This code is prepared for scientific work, not a production where security and tight right management is important. The `eval` function is used for simplicity during command line evaluation ...*
 
-*Disclaimer III: If you read the code, often `w`/`W` is used instead of the variable `y`/`Y` in [2]. We renamed it later, because `Y` is a common choice for economic production.*
+*Disclaimer III: If you read the code, often `w`/`W` is used instead of the variable `y`/`Y` in [2]. We renamed it later, because `Y` is a common choice for economic production. The same goes for degrowth/dg instead of lowgrowth/lg.*
 
 In order to follow through the computations done for [2] and create the respective pictures, there are four steps  to take:
 
