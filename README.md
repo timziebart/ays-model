@@ -1,6 +1,5 @@
 ## TODO
 
-1. check the `remember` option
 2. `aws` to `ays`
 3. `degrowth` --> `low growth` (also `dg` --> `lg`)
 4. fix `pyviability` examples
@@ -89,8 +88,9 @@ To plot the output, use `aws_tsm_show.py`. If `--regions-style surface` has been
 ```
 and
 ```
-./aws_tsm_show.py dg-et-both.out  --analyze-original [240,7e13,0.5e12] 0.005 -r l --mark red --plot-boundaries-original [[0,400],[3.55e13,9e13],[0.2e12,1e12]] --alpha 0.7 -s current-state-in-lake.jpg --regions-style
+./aws_tsm_show.py dg-et-both.out  --analyze-original [240,7e13,0.5e12] 0.005 -r l --mark red --plot-boundaries-original [[0,400],[3.55e13,9e13],[0.2e12,1e12]] --alpha 0.7 -s current-state-in-lake.jpg --regions-style surface
 ```
+Please check the help message for details on the arguments.
 
 ### Bifurcation analysis
 

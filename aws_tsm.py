@@ -55,8 +55,6 @@ if __name__ == "__main__":
                         action="append", dest="changed_parameters", default=[],
                         help="set a parameter 'par' to value 'val' "\
                         "(caution, eval is used for the evaluation of 'val'")
-    parser.add_argument("--remember-computed", action="store_true",
-                        help="remember already computed points in a dict")
     parser.add_argument("--record-paths", action="store_true",
                         help="record the paths, direction and default / management option used, "\
                         "so a path can be reconstructed")
@@ -76,8 +74,7 @@ if __name__ == "__main__":
     # # add verbosity check
     # parser.add_argument("-v", "--verbosity", action="count", default=0,
                         # help="increase the output")
-
-    verbosity = 2
+    verbosity = 2 # lower verbosity would actually be annoying
 
     # use argcomplete auto-completion
     argcomplete.autocomplete(parser)
@@ -162,7 +159,7 @@ if __name__ == "__main__":
     states[ np.linalg.norm(grid - [0, 1, 1], axis=-1) < 5 * x_step] = -lv.SHELTER
 
     run_args = [offset, scaling_vector]
-    run_kwargs = dict(returning=args.run_type, remember=args.remember_computed)
+    run_kwargs = dict(returning=args.run_type)
 
     default_run = viab.make_run_function(aws.AWS_rescaled_rhs,
                                          helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters),
