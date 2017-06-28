@@ -61,7 +61,9 @@ if __name__ == "__main__":
     analyze_group.add_argument("--analyze-original", nargs=2, metavar=("point", "distance"),
                         help="analyze all points, that are closer to 'point' (in (A, W, S)-coordinates) than 'distance'")
 
-    paths_parser.add_argument("--mark",  metavar="color",
+    paths_parser.add_argument("--mark", metavar="color",
+                              help="mark the points chosen by analyze as 'color' points")
+    paths_parser.add_argument("--mark-alpha", metavar="opacity", type=float, default=1.,
                               help="mark the points chosen by analyze as 'color' points")
     paths_parser.add_argument("--show-path", action="store_true",
                               help="show a path for all points determined by '--analyze'")
@@ -140,7 +142,7 @@ if __name__ == "__main__":
     if args.paper:
         if not args.verbose:
             args.verbose = 1
-        args.analyze_original = ("[240,7e13,0.5e12]", "0.005")
+        args.analyze_original = ("[241,7.01e13,0.501e12]", "0.0035")
         # read current state here directly?
         args.mark = "red"
         args.regions_style = "surface"
@@ -150,6 +152,7 @@ if __name__ == "__main__":
             LAKE_PLOT = True
             args.plot_boundaries_original = "[[0,400],[3.55e13,9e13],[0.2e12,1e12]]"
             args.alpha = 0.6
+            args.mark_alpha = 0.4
 
 
     
@@ -267,6 +270,7 @@ if __name__ == "__main__":
         if args.regions or args.show_path or args.mark is not None:
             figure_parameters = dict(header["grid-parameters"])
             figure_parameters["boundaries"] = args.plot_boundaries
+            figure_parameters["num_a"] = 6
             fig, ax3d = ays_general.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
 
             ax_parameters = dict(header["boundary-parameters"])  # make a copy
@@ -456,7 +460,8 @@ if __name__ == "__main__":
                     # ax3d.plot3D(xs=[path_x0[0], path_x0[0]], ys=bounds[1], zs=[path_x0[2], path_x0[2]],
                     #             color=args.mark, zorder=1)
                     ax3d.plot3D(xs=grid[:, 0][mask], ys=grid[:, 1][mask], zs=grid[:, 2][mask],
-                            color=args.mark, linestyle="", marker=".", markersize=30, zorder=2)
+                            color=args.mark, linestyle="", marker=".", markersize=30, zorder=2,
+                                alpha=args.mark_alpha)
                 print()
                 if args.show_path:
                     plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],

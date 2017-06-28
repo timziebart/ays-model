@@ -157,7 +157,8 @@ def animate(fig, ax3d, fname):
     anim.save(fname, fps=30, extra_args=['-vcodec', 'libx264'])
     # ax3d.view_init(ELEVATION, AZIMUTH)
 
-def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, transformed_formatters=False, **kwargs):
+def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, transformed_formatters=False,
+                  num_a = 12, num_y = 12, num_s = 12, **kwargs):
 
 
     kwargs = dict(kwargs)
@@ -190,7 +191,7 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
             start, stop = 0, np.infty
         else:
             start, stop = inv_transf(boundaries[0])
-        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, start=start, stop=stop)
+        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, start=start, stop=stop, num=num_a)
         if transformed_formatters:
             new_formatters = []
             for el, loc in zip(formatters, locators):
@@ -220,7 +221,7 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
         start, stop = 0, np.infty
     else:
         start, stop = inv_transf(boundaries[1])
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, start=start, stop=stop)
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, start=start, stop=stop, num=num_y)
     if transformed_formatters:
         new_formatters = []
         for el, loc in zip(formatters, locators):
@@ -245,7 +246,7 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
         start, stop = 0, np.infty
     else:
         start, stop = inv_transf(boundaries[2])
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, start=start, stop=stop)
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, start=start, stop=stop, num=num_s)
     if transformed_formatters:
         new_formatters = []
         for el, loc in zip(formatters, locators):
