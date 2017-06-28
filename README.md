@@ -20,10 +20,12 @@ The easiest way to install everything is to copy and run the following lines
 ```
 git clone https://github.com/timkittel/ays-model.git
 git clone https://github.com/timkittel/PyViability.git
+pip install matplotlib==1.5.3
 cd PyViability
 pip install -e .
 cd ..
 ```
+Note that it's important to have the correct version of matplotlib. If the version is too new, there are problems with the opacity of patches and the plots are not correctly shown.
 
 ### auto-completion
 
