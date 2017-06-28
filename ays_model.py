@@ -11,7 +11,7 @@ import sys
 if sys.version_info[0] < 3:
     warn.warn("this code has been tested in Python3 only", category=DeprecationWarning)
 
-assert pv.version_info >= (0, 15), "please get the latest version of pyviability (and don't forget to (re)run the installation"
+assert pv.version_info == (0, 2, 0), "please get the correct version (0.2.0) of pyviability (and don't forget to (re)run the installation)"
 
 
 NB_USING_NOPYTHON = True
