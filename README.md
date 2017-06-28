@@ -79,7 +79,7 @@ The arguments stand for:
 
 ### Create the result plots
 
-To plot the output, use `ays_tsm_show.py`. If `--regions-style surface` has been used, the surface of the region is estimated using alpha shapes. As this process takes a while, the script will save a cache file to speed up the process the next time it's run. To create the two plots of Fig. 5 in [2], run 
+To plot the output, use `ays_tsm_show.py`. If `--regions-style surface` has been used, the surface of the region is estimated using alpha shapes. As *this process takes a while*, the script will save a cache file to speed up the process the next time it's run. To create the two plots of Fig. 5 in [2], run
 ```
 ./ays_tsm_show.py dg-et-both.out  --analyze-original [240,7e13,0.5e12] 0.005 -r s b --mark red -s shelter-backwater.jpg --regions-style surface -vv
 ```
