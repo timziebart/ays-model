@@ -1,6 +1,8 @@
 ## TODO
 
 4. fix `pyviability` examples
+5. fix pyviability `setup.py`
+6. check through the whole procedure mentioned below
 
 
 ## Introduction
