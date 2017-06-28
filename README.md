@@ -1,7 +1,5 @@
 ## TODO
 
-4. fix `pyviability` examples
-5. fix pyviability `setup.py`
 6. check through the whole procedure mentioned below
 
 
@@ -17,7 +15,7 @@ The code in this repository was written to run the analysis done in [2] and crea
 
 ## Setup
 
-The code was tested with **Python 3.5** under Ubuntu Xenial only. If you want to get it running on a different system, please contact me (Tim.Kittel@pik-potsdam.de).
+The code was tested with **Python 3.5** under **Ubuntu Xenial** only. If you want to get it running on a different system, please contact me (Tim.Kittel@pik-potsdam.de).
 
 The Code relies on the [`PyViability`-library](https://github.com/timkittel/PyViability), please install it.
 
