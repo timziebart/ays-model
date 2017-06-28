@@ -95,7 +95,7 @@ Please check the help message for details on the arguments.
 
 ### Bifurcation analysis
 
-the bifurcation analysis is basically not doable without access to an High-Performance Computer. I simply changed the corresponding parameter of the bifurcation analysis using the `--set-parameter` option of `ays_tsm.py` and ran a full analysis for all cases. Then use `ays_tsm_bifurc_show.py` to plot the results.
+The bifurcation analysis is basically not doable without access to an High-Performance Computer. I simply changed the corresponding parameter of the bifurcation analysis using the `--set-parameter` option of `ays_tsm.py` and ran a full analysis for all cases. Then use `ays_tsm_bifurc_show.py` to plot the results.
 
 ### More can be done
 
