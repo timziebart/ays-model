@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from aws_general import __version__, __version_info__
-import aws_model as aws
-import aws_general
+from ays_general import __version__, __version_info__
+import ays_model as aws
+import ays_general
 from pyviability import helper
 
 import numpy as np
@@ -76,21 +76,21 @@ if __name__ == "__main__":
     parameter_lists = []
     for management in args.options:
         if management == DG_BIFURCATION_END:
-            parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AWS_parameters)
+            parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AYS_parameters)
             parameter_dict["beta"] = 0.035
         elif management == DG_BIFURCATION_MIDDLE:
-            parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AWS_parameters)
+            parameter_dict = aws.get_management_parameter_dict("degrowth", aws.AYS_parameters)
             parameter_dict["beta"] = 0.027
         else:
-            parameter_dict = aws.get_management_parameter_dict(management, aws.AWS_parameters)
+            parameter_dict = aws.get_management_parameter_dict(management, aws.AYS_parameters)
         if args.zero:
             x0 = [0.5, 0.5, 0] # a, w, s
             print("fixed point(s) of {}:".format(management))
             # below the '0' is for the time t
-            print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
-                            args=(0., ) + helper.get_ordered_parameters(aws._AWS_rhs, parameter_dict)))
+            print(opt.fsolve(aws.AYS_rescaled_rhs, x0,
+                             args=(0., ) + helper.get_ordered_parameters(aws._AYS_rhs, parameter_dict)))
             print()
-        parameter_lists.append( helper.get_ordered_parameters(aws._AWS_rhs, parameter_dict))
+        parameter_lists.append(helper.get_ordered_parameters(aws._AYS_rhs, parameter_dict))
     # colors = ["green", "blue", "red"]
     # assert len(parameter_lists) <= len(colors), "need to add colors"
 
@@ -98,14 +98,14 @@ if __name__ == "__main__":
     colortop = "green"
     colorbottom = "black"
 
-    fig, ax3d = aws_general.create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
-    ax3d.view_init(aws_general.ELEVATION_FLOW, aws_general.AZIMUTH_FLOW)
+    fig, ax3d = ays_general.create_figure(A_mid=aws.A_mid, W_mid=aws.W_mid, S_mid=aws.S_mid)
+    ax3d.view_init(ays_general.ELEVATION_FLOW, ays_general.AZIMUTH_FLOW)
 
     for i in range(num):
         x0 = aws_0[i]
         # management trajectory with degrowth:
         for parameter_list in parameter_lists:
-            traj = integ.odeint(aws.AWS_rescaled_rhs, x0, time, args=parameter_list)
+            traj = integ.odeint(aws.AYS_rescaled_rhs, x0, time, args=parameter_list)
             ax3d.plot3D(xs=traj[:,0], ys=traj[:,1], zs=traj[:,2],
                         color=colorbottom if traj[-1,2]<0.5 else colortop, alpha=.3)
 
@@ -120,9 +120,9 @@ if __name__ == "__main__":
 
 
     if args.draw_boundary:
-        aws_general.add_boundary(ax3d, 
-                sunny_boundaries=["planetary-boundary", "social-foundation"],
-                **aws.grid_parameters, **aws.boundary_parameters)
+        ays_general.add_boundary(ax3d,
+                                 sunny_boundaries=["planetary-boundary", "social-foundation"],
+                                 **aws.grid_parameters, **aws.boundary_parameters)
 
     if args.save_pic:
         print("saving to {} ... ".format(args.save_pic), end="", flush=True)

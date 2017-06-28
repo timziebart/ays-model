@@ -4,9 +4,9 @@
 import pyviability as viab
 from pyviability import libviability as lv
 
-from aws_general import __version__, __version_info__
-import aws_model as aws
-import aws_show, aws_general
+from ays_general import __version__, __version_info__
+import ays_model as aws
+import ays_show, ays_general
 
 from scipy import spatial as spat
 from scipy.spatial import ckdtree
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     try:
         print("getting reference ... ", end="")
-        reference_header, _ = aws_general.load_result_file(args.input_files[0], verbose=1)
+        reference_header, _ = ays_general.load_result_file(args.input_files[0], verbose=1)
     except IOError:
         parser.error(FILE_ERROR_MESSAGE.format(args.input_file))
 
@@ -83,14 +83,14 @@ if __name__ == "__main__":
     volume_lists = {r:[] for r in lv.REGIONS}
     for in_file in args.input_files:
         try:
-            header, data = aws_general.load_result_file(in_file, verbose=1)
+            header, data = ays_general.load_result_file(in_file, verbose=1)
         except IOError:
             parser.error(FILE_ERROR_MESSAGE.format(args.input_file))
         # append the value of the bifurcation parameter to the list and check at the same time that it really was in there
         bifurcation_parameter_list.append(header["model-parameters"].pop(bifurcation_parameter))
         
         for el in cmp_list:
-            if aws_general.recursive_difference(reference_header[el], header[el]):
+            if ays_general.recursive_difference(reference_header[el], header[el]):
                 raise ValueError("incompatible headers")
         grid = np.asarray(data["grid"])
         states = np.asarray(data["states"])

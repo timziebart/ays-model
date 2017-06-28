@@ -28,6 +28,7 @@ version = __version__ = versioninfo2version(__version_info__)
 
 """
 aws-file version changes:
+# Note that the abbreviation aws is used here instead of ays, to keep the compatibility with the older files.
 0.3: added 'computation-status'
 0.2: the first ones with actual versioning, adding 'paths-lake' if paths has been given
 no version or 0.1: the stuff from the beginning

@@ -4,21 +4,16 @@
 import pyviability as viab
 from pyviability import libviability as lv
 
-from aws_general import __version__, __version_info__
-import aws_model as aws
-import aws_general
+import ays_model as aws
+import ays_general
 
-from scipy import spatial as spat
-from scipy.spatial import ckdtree
 import scipy.spatial as spat
 import numpy as np
 import pickle, argparse, argcomplete
-import ast, sys, os
-import itertools as it
+import sys, os
 import datetime as dt
 import functools as ft
 
-# import pcl # add git python-pcl to setup.py
 
 import matplotlib.pyplot as plt
 
@@ -115,12 +110,12 @@ if __name__ == "__main__":
             if d == "grid":
                 dic = aws.grid_parameters
             elif d == "model":
-                dic = aws.AWS_parameters
+                dic = aws.AYS_parameters
             elif d == "boundary":
                 dic = aws.boundary_parameters
             else:
                 raise ValueError("Did you forget to change something here?")
-            print(aws_general.recursive_dict2string(dic))
+            print(ays_general.recursive_dict2string(dic))
             print()
         sys.exit(0)
 
@@ -132,7 +127,7 @@ if __name__ == "__main__":
             args.regions = list(set(map(regions_dict.__getitem__, args.regions)))
 
     try:
-        header, data = aws_general.load_result_file(args.input_file, auto_reformat=args.reformat, verbose=1)
+        header, data = ays_general.load_result_file(args.input_file, auto_reformat=args.reformat, verbose=1)
     except IOError:
             parser.error("{!r} seems to be an older aws file version, please use the '--reformat' option".format(args.input_file))
     print()
@@ -223,7 +218,7 @@ if __name__ == "__main__":
             # choose the variables that are changed by the ending
             if key.endswith(ending):
                 default_key = key[:-len(ending)]
-                print("{} = {} <--> {} = {}".format(key, aws_general.formatted_value(pars[key]), default_key, aws_general.formatted_value(pars[default_key])))
+                print("{} = {} <--> {} = {}".format(key, ays_general.formatted_value(pars[key]), default_key, ays_general.formatted_value(pars[default_key])))
     print()
     assert header["boundaries"], "no boundaries for computation?"
     print("boundaries:")
@@ -251,14 +246,14 @@ if __name__ == "__main__":
         print("showing for", path_x0, path_dist)
     print()
 
-    aws_general.print_changed_parameters(header["model-parameters"], aws.AWS_parameters, prefix="changed model parameters:")
-    aws_general.print_changed_parameters(header["grid-parameters"], aws.grid_parameters, prefix="changed grid parameters:")
-    aws_general.print_changed_parameters(header["boundary-parameters"], aws.boundary_parameters, prefix="changed boundary parameters:")
+    ays_general.print_changed_parameters(header["model-parameters"], aws.AYS_parameters, prefix="changed model parameters:")
+    ays_general.print_changed_parameters(header["grid-parameters"], aws.grid_parameters, prefix="changed grid parameters:")
+    ays_general.print_changed_parameters(header["boundary-parameters"], aws.boundary_parameters, prefix="changed boundary parameters:")
 
     if args.verbose:
         print("#" * 70)
         print("# HEADER")
-        print(aws_general.recursive_dict2string(header))
+        print(ays_general.recursive_dict2string(header))
         print("# END HEADER")
         print("#" * 70)
         print()
@@ -272,11 +267,11 @@ if __name__ == "__main__":
         if args.regions or args.show_path or args.mark is not None:
             figure_parameters = dict(header["grid-parameters"])
             figure_parameters["boundaries"] = args.plot_boundaries
-            fig, ax3d = aws_general.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
+            fig, ax3d = ays_general.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
 
             ax_parameters = dict(header["boundary-parameters"])  # make a copy
             ax_parameters.update(header["grid-parameters"])
-            aws_general.add_boundary(ax3d, sunny_boundaries=header["boundaries"], plot_boundaries=args.plot_boundaries, **ax_parameters)
+            ays_general.add_boundary(ax3d, sunny_boundaries=header["boundaries"], plot_boundaries=args.plot_boundaries, **ax_parameters)
 
             def isinside(x, bounds):
                 if bounds is None:
@@ -468,16 +463,16 @@ if __name__ == "__main__":
                                                                 color="lightblue" if choice == 0 else "black")
                     paths_outside = args.paths_outside
                     if paths_outside or bounds is None:
-                        path_isinside = aws_general.dummy_isinside
+                        path_isinside = ays_general.dummy_isinside
                     else:
                         def path_isinside(x):
                             return np.all((bounds[:, 0] <= x) & ( x <= bounds[:, 1]))
-                    aws_general.follow_indices(starting_indices, 
-                                               grid=grid, 
-                                               states=states, 
-                                               paths=data["paths"], 
-                                               trajectory_hook=plotting, 
-                                               verbose=args.verbose, 
+                    ays_general.follow_indices(starting_indices,
+                                               grid=grid,
+                                               states=states,
+                                               paths=data["paths"],
+                                               trajectory_hook=plotting,
+                                               verbose=args.verbose,
                                                isinside=path_isinside)
 
                     if lv.LAKE in matched_states:
@@ -489,13 +484,13 @@ if __name__ == "__main__":
                         starting_indices = [index for index in _starting_indices if states[index] == lv.LAKE]
                         plotting = lambda traj, choice: ax3d.plot3D(xs=traj[0], ys=traj[1], zs=traj[2],
                                                                     color="green" if choice == 0 else "brown")
-                        aws_general.follow_indices(starting_indices, 
-                                                   grid=grid, 
-                                                   states=states, 
-                                                   paths=data["paths-lake"], 
+                        ays_general.follow_indices(starting_indices,
+                                                   grid=grid,
+                                                   states=states,
+                                                   paths=data["paths-lake"],
                                                    fallback_paths=data["paths"] if args.paths_lake_fallback else None,
-                                                   trajectory_hook=plotting, 
-                                                   verbose=args.verbose, 
+                                                   trajectory_hook=plotting,
+                                                   verbose=args.verbose,
                                                    isinside=path_isinside)
 
         if args.save_pic:

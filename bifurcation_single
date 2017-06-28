@@ -66,6 +66,6 @@ then
 fi
 
 
-python aws_tsm.py --boundaries both --dg --et --srm --ccs --eddies --num 200 --set-parameter "$var" "$val" "dg-et-srm-ccs_pb-sf-bifurc-${var}-${val}.out" | sed -u "s/^/[$rank: $var = $val] /"
+python ays_tsm.py --boundaries both --dg --et --srm --ccs --eddies --num 200 --set-parameter "$var" "$val" "dg-et-srm-ccs_pb-sf-bifurc-${var}-${val}.out" | sed -u "s/^/[$rank: $var = $val] /"
 exit 0
 

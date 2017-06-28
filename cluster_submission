@@ -42,7 +42,7 @@ if args.submission_type == "dg-et-sigma":
     output_template = "--output=\"TSM-Sigma-DG-ET-{}-%j.out\""
     error_template  =  "--error=\"TSM-Sigma-DG-ET-{}-%j.err\""
     python_prefix = ["python",
-                     "aws_tsm.py",
+                     "ays_tsm.py",
                      "--degrowth",
                      "--et",
                      "--record-paths",
@@ -73,7 +73,7 @@ if args.submission_type == "dg-sigma":
     output_template = "--output=\"TSM-Sigma-DG-{}-%j.out\""
     error_template  =  "--error=\"TSM-Sigma-DG-{}-%j.err\""
     python_prefix = ["python",
-                     "aws_tsm.py",
+                     "ays_tsm.py",
                      "--degrowth",
                      "--record-paths",
                      "--eddies",

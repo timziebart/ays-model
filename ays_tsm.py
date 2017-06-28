@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from aws_general import __version__, __version_info__
-import aws_general
-import aws_model as aws
+from ays_general import __version__, __version_info__
+import ays_general
+import ays_model as ays
 
 import pyviability as viab
 from pyviability import helper
@@ -18,14 +18,14 @@ import datetime as dt
 import sys, os
 import argparse, argcomplete
 
-MANAGEMENTS = aws.MANAGEMENTS
+MANAGEMENTS = ays.MANAGEMENTS
 
 boundaries_choices = ["planetary-boundary", "social-foundation", "both"]
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description="Analyze the AWS model with TSM using the PyViability package.",
+        description="Analyze the AYS model with TSM using the PyViability package.",
     )
 
     # required arguments
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                         help="integrate instead of using linear approx.")
     parser.add_argument("-n", "--no-save", action="store_true",
                         help="don't save the result")
-    parser.add_argument("--num", type=int, default=aws.grid_parameters["n0"],
+    parser.add_argument("--num", type=int, default=ays.grid_parameters["n0"],
                         help="number of points per dimension for the grid")
     parser.add_argument("-p", "--set-parameter", nargs=2, metavar=("par", "val"),
                         action="append", dest="changed_parameters", default=[],
@@ -92,18 +92,18 @@ if __name__ == "__main__":
 
     print()
 
-    aws.grid_parameters["n0"] = args.num
+    ays.grid_parameters["n0"] = args.num
 
     print("managements: {}".format(", ".join(args.managements) if args.managements else "(None)"))
     print()
 
     if args.changed_parameters:
         print("parameter changing:")
-        combined_parameters = dict(aws.AWS_parameters)
-        combined_parameters.update(aws.grid_parameters)
-        combined_parameters.update(aws.boundary_parameters)
+        combined_parameters = dict(ays.AYS_parameters)
+        combined_parameters.update(ays.grid_parameters)
+        combined_parameters.update(ays.boundary_parameters)
         for par, val in args.changed_parameters:
-            for d in [aws.AWS_parameters, aws.grid_parameters, aws.boundary_parameters]:
+            for d in [ays.AYS_parameters, ays.grid_parameters, ays.boundary_parameters]:
                 if par in d:
                     try:
                         val2 = eval(val, combined_parameters)
@@ -118,19 +118,19 @@ if __name__ == "__main__":
     print()
 
     # a small hack to make all the parameters available as global variables
-    aws.globalize_dictionary(aws.boundary_parameters, module=aws)
-    aws.globalize_dictionary(aws.grid_parameters, module=aws)
-    aws.globalize_dictionary(aws.grid_parameters)
+    ays.globalize_dictionary(ays.boundary_parameters, module=ays)
+    ays.globalize_dictionary(ays.grid_parameters, module=ays)
+    ays.globalize_dictionary(ays.grid_parameters)
 
     # manage and print the boundaries
     if args.boundaries == "both":
-        aws.AWS_sunny = aws.AWS_sunny_PB_SF
+        ays.AYS_sunny = ays.AYS_sunny_PB_SF
         args.boundaries = ["planetary-boundary", "social-foundation"]
     elif args.boundaries == "planetary-boundary":
-        aws.AWS_sunny = aws.AWS_sunny_PB
+        ays.AYS_sunny = ays.AYS_sunny_PB
         args.boundaries = [args.boundaries]
     elif args.boundaries == "social-foundation":
-        aws.AWS_sunny = aws.AWS_sunny_SF
+        ays.AYS_sunny = ays.AYS_sunny_SF
         args.boundaries = [args.boundaries]
     else:
         assert False, "something went wrong here ..."
@@ -138,10 +138,10 @@ if __name__ == "__main__":
     print("boundaries:")
     if "planetary-boundary" in args.boundaries:
         print("planetary / CO2 concentration:", end=" ")
-        print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(aws.A_PB, (aws.A_PB + aws.AWS_parameters["A_offset"]) / 840 * 400 , aws.A_PB / (aws.A_mid + aws.A_PB)))
+        print("A_PB = {:6.2f} GtC above equ. <=> {:6.2f} ppm <=> a_PB = {:5.3f}".format(ays.A_PB, (ays.A_PB + ays.AYS_parameters["A_offset"]) / 840 * 400, ays.A_PB / (ays.A_mid + ays.A_PB)))
     if "social-foundation" in args.boundaries:
         print("social foundation / welfare limit:", end=" ")
-        print("W_SF = {:4.2e} US$ <=> w_SF = {:5.3f}".format(aws.W_SF, aws.W_SF / (aws.W_mid + aws.W_SF)))
+        print("W_SF = {:4.2e} US$ <=> w_SF = {:5.3f}".format(ays.W_SF, ays.W_SF / (ays.W_mid + ays.W_SF)))
 
     # generate the grid, normalized to 1 in each dimension
     grid, scaling_vector, offset, x_step = viab.generate_grid(boundaries,
@@ -161,8 +161,8 @@ if __name__ == "__main__":
     run_args = [offset, scaling_vector]
     run_kwargs = dict(returning=args.run_type)
 
-    default_run = viab.make_run_function(aws.AWS_rescaled_rhs,
-                                         helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters),
+    default_run = viab.make_run_function(ays.AYS_rescaled_rhs,
+                                         helper.get_ordered_parameters(ays._AYS_rhs, ays.AYS_parameters),
                                          *run_args, **run_kwargs)
 
     print("recording-paths: {}".format(args.record_paths))
@@ -170,30 +170,30 @@ if __name__ == "__main__":
 
     if args.zeros:
         x0 = [0.5, 0.5, 0] # a, w, s
-        # x0 = [aws.boundary_parameters["A_PB"], 0.5, 0] # A, w, s
+        # x0 = [ays.boundary_parameters["A_PB"], 0.5, 0] # A, w, s
         # print(x0)
         print("fixed point(s) of default:")
         # below the '0' is for the time t
-        print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
-                         args=(0., ) + helper.get_ordered_parameters(aws._AWS_rhs, aws.AWS_parameters)))
+        print(opt.fsolve(ays.AYS_rescaled_rhs, x0,
+                         args=(0., ) + helper.get_ordered_parameters(ays._AYS_rhs, ays.AYS_parameters)))
         print()
 
 
     management_runs = []
     for m in args.managements:
-        management_dict = aws.get_management_parameter_dict(m, aws.AWS_parameters)
-        management_run = viab.make_run_function(aws.AWS_rescaled_rhs,
-                                             helper.get_ordered_parameters(aws._AWS_rhs, management_dict),
-                                             *run_args, **run_kwargs)
+        management_dict = ays.get_management_parameter_dict(m, ays.AYS_parameters)
+        management_run = viab.make_run_function(ays.AYS_rescaled_rhs,
+                                                helper.get_ordered_parameters(ays._AYS_rhs, management_dict),
+                                                *run_args, **run_kwargs)
         management_runs.append(management_run)
         if args.zeros:
             print("fixed point(s) of {}:".format(m))
             # below the '0' is for the time t
-            print(opt.fsolve(aws.AWS_rescaled_rhs, x0,
-                            args=(0., ) + helper.get_ordered_parameters(aws._AWS_rhs, management_dict)))
+            print(opt.fsolve(ays.AYS_rescaled_rhs, x0,
+                             args=(0., ) + helper.get_ordered_parameters(ays._AYS_rhs, management_dict)))
             print()
 
-    sunny = viab.scaled_to_one_sunny(aws.AWS_sunny, offset, scaling_vector)
+    sunny = viab.scaled_to_one_sunny(ays.AYS_sunny, offset, scaling_vector)
 
     # out_of_bounds = [[False, True],   # A still has A_max as upper boundary
                      # [False, False],  # W compactified as w
@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
     out_of_bounds = False # in a, w, s representation, doesn't go out of bounds of [0, 1)^3 by definition
 
-    aws_general.register_signals()
+    ays_general.register_signals()
 
     start_time = time.time()
     print("started: {}".format(dt.datetime.fromtimestamp(start_time).ctime()))
@@ -219,7 +219,7 @@ if __name__ == "__main__":
         except SystemExit as e:
             print()
             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-            print("interrupted by SystemExit or Signal {} [{}]".format(aws_general.NUMBER_TO_SIGNAL[e.args[0]], e.args[0]))
+            print("interrupted by SystemExit or Signal {} [{}]".format(ays_general.NUMBER_TO_SIGNAL[e.args[0]], e.args[0]))
             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
             print()
     time_passed = time.time() - start_time
@@ -239,9 +239,9 @@ if __name__ == "__main__":
                 "model": "AWS",
                 "managements": args.managements,
                 "boundaries": args.boundaries,
-                "grid-parameters": aws.grid_parameters,
-                "model-parameters": aws.AWS_parameters,
-                "boundary-parameters": aws.boundary_parameters,
+                "grid-parameters": ays.grid_parameters,
+                "model-parameters": ays.AYS_parameters,
+                "boundary-parameters": ays.boundary_parameters,
                 "start-time": start_time,
                 "run-time": time_passed,
                 "viab-backscaling-done": args.backscaling,
@@ -261,7 +261,7 @@ if __name__ == "__main__":
             data["paths"] = lv.PATHS
             data["paths-lake"] = lv.PATHS_LAKE
         if not args.dry_run:
-            aws_general.save_result_file(args.output_file, header, data, verbose=1)
+            ays_general.save_result_file(args.output_file, header, data, verbose=1)
 
 
 

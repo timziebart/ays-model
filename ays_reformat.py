@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from aws_general import __version__, __version_info__
-import aws_general
+from ays_general import __version__, __version_info__
+import ays_general
 import argparse, argcomplete
 
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     for current_file in args.files:
 
-        aws_general.reformat(current_file, verbose=1)
+        ays_general.reformat(current_file, verbose=1)
 
 
 
