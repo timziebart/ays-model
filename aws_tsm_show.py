@@ -18,7 +18,7 @@ import itertools as it
 import datetime as dt
 import functools as ft
 
-import pcl # add git python-pcl to setup.py
+# import pcl # add git python-pcl to setup.py
 
 import matplotlib.pyplot as plt
 
@@ -296,6 +296,9 @@ if __name__ == "__main__":
                                 )
                 elif args.regions_style == "surface":
 
+                    ###############################################################################
+                    # a quick and straightforward alpha shape computation is implemented below
+
                     import numba as nb
 
                     @nb.jit
@@ -368,9 +371,11 @@ if __name__ == "__main__":
                         single_faces = faces[mask]
                         return single_faces
 
+                    ###############################################################################
 
 
-                    alpha_radius = 0.05
+
+                    alpha_radius = 0.05 # this would actually depend on the input resolution but I just hardcoded it, as it's code for the paper
                     basefilename = os.path.splitext(os.path.split(args.input_file)[-1])[0]
                     CACHE_FILE = ".{}-region{}-{}.cache".format(basefilename, region_num, lv.REGIONS[region_num])
 
