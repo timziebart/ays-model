@@ -21,8 +21,8 @@ The Code relies on the [`PyViability`-library](https://github.com/timkittel/PyVi
 
 The easiest way to install everything is to copy and run the following lines
 ```
-git clone **ays-TODO**
-git clone **pyviability-TODO**
+git clone https://github.com/timkittel/ays-model.git
+git clone https://github.com/timkittel/PyViability.git
 cd PyViability
 pip install -e .
 cd ..
