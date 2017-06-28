@@ -1,6 +1,3 @@
-## TODO
-
-6. check through the whole procedure mentioned below
 
 
 ## Introduction
