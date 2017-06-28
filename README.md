@@ -1,6 +1,5 @@
 ## TODO
 
-3. `degrowth` --> `low growth` (also `dg` --> `lg`)
 4. fix `pyviability` examples
 
 
