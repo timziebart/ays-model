@@ -7,6 +7,7 @@ from pyviability import libviability as lv
 import ays_model as aws
 import ays_general
 
+import alpha_shapes
 import scipy.spatial as spat
 import numpy as np
 import pickle, argparse, argcomplete
@@ -53,6 +54,9 @@ if __name__ == "__main__":
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
 
+    parser.add_argument("--no-show", action="store_true",
+                        help="do not show the plots")
+
     paths_parser = parser.add_argument_group(title="analyze tool",
                                              description="tools for analyzing")
     analyze_group = paths_parser.add_mutually_exclusive_group()
@@ -83,6 +87,8 @@ if __name__ == "__main__":
                                 help="choose the plotting style from: " + ", ".join(region_plotting_styles))
     regions_parser.add_argument("--alpha", type=float,
                                 help="set the alpha value (opacity) of the plotted points")
+    regions_parser.add_argument("--no-cache", dest="use_cache", action="store_false",
+                                help="switch off the caching when computing the alpha shapes for the surface plotting")
 
     parser.add_argument("--paper", action="store_true",
                         help="create the picture for paper style")
@@ -295,85 +301,6 @@ if __name__ == "__main__":
                                 )
                 elif args.regions_style == "surface":
 
-                    ###############################################################################
-                    # a quick and straightforward alpha shape computation is implemented below
-
-                    import numba as nb
-
-                    @nb.jit
-                    def nb_dot(x, y):
-                        val = 0
-                        for x_i, y_i in zip(x, y):
-                            val += x_i * y_i
-                        return val
-
-                    @nb.jit
-                    def nb_cross(x, y):
-                        val = np.array([  x[1]*y[2] - x[2]*y[1],
-                                 x[2]*y[0] - x[0]*y[2],
-                                 x[0]*y[1] - x[1]*y[0] ])
-                        return val
-
-                    @nb.jit
-                    def r2_circumsphere_tetrahedron_single(a, b, c, d):
-                        ad = a - d
-                        bd = b - d
-                        cd = c - d
-
-                        ad2 = nb_dot(ad, ad)
-                        bd2 = nb_dot(bd, bd)
-                        cd2 = nb_dot(cd, cd)
-
-                        cross_1 = nb_cross(bd, cd)
-                        cross_2 = nb_cross(cd, ad)
-                        cross_3 = nb_cross(ad, bd)
-
-                        q = ad2 * cross_1 + bd2 * cross_2 + cd2 * cross_3
-                        p = 2 * np.abs( nb_dot(ad, cross_1) )
-                        if p < 1e-10:
-                            return np.infty
-                        
-                        r2 = nb_dot(q, q) / p**2
-
-                        return r2
-
-                    @nb.jit(nopython=True)
-                    def r2_circumsphere_tetrahedron(a, b, c, d):
-                        len_a = len(a)
-                        r2 = np.zeros((len_a,))
-                        for i in range(len_a):
-                            r2[i] = r2_circumsphere_tetrahedron_single(a[i], b[i], c[i], d[i])
-                        return r2
-
-                    def get_faces(tetrahedron):
-                        faces = np.zeros((4, 3))
-                        for n, (i1, i2, i3) in enumerate([(0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3)]):
-                            faces[n] = tetrahedron[i1], tetrahedron[i2], tetrahedron[i3]
-                        return faces
-
-                    def get_single_faces(triangulation):
-                        num_faces_single = 4
-                        num_tetrahedrons = triangulation.shape[0]
-                        num_faces = num_tetrahedrons * num_faces_single
-                        faces = np.zeros((num_faces, 3), np.int_) # 3 is the dimension of the model
-                        mask = np.ones((num_faces,), np.bool_)
-                        for n in range(num_tetrahedrons):
-                            faces[num_faces_single * n: num_faces_single * (n+1)] = get_faces(triangulation[n])
-                        orderlist = ["x{}".format(i) for i in range(faces.shape[1])]
-                        dtype_list = [(el, faces.dtype.str) for el in orderlist]
-                        faces.view(dtype_list).sort(axis=0)
-                        for k in range(num_faces-1):
-                            if mask[k]:
-                                if np.all(faces[k] == faces[k+1]):
-                                    mask[k] = False
-                                    mask[k+1] = False
-                        single_faces = faces[mask]
-                        return single_faces
-
-                    ###############################################################################
-
-
-
                     alpha_radius = 0.05 # this would actually depend on the input resolution but I just hardcoded it, as it's code for the paper
                     basefilename = os.path.splitext(os.path.split(args.input_file)[-1])[0]
                     CACHE_FILE = ".{}-region{}-{}.cache".format(basefilename, region_num, lv.REGIONS[region_num])
@@ -381,7 +308,7 @@ if __name__ == "__main__":
                     mask = (states == region_num) &  mask2
                     region_points = grid[mask]
 
-                    if os.path.exists(CACHE_FILE):
+                    if args.use_cache and os.path.exists(CACHE_FILE):
                         if args.verbose:
                             print()
                             print("found cache file ({}) with an existing alpha shape, loading ... ".format(CACHE_FILE), end="", flush=True)
@@ -392,22 +319,22 @@ if __name__ == "__main__":
                     else:
                         if args.verbose:
                             print()
-                            print("computing alpha shape for {}: {}".format(region_num, lv.REGIONS[region_num]))
-                        triangulation = spat.Delaunay(region_points)
+                            print("computing alpha shape for {}: {}".format(region_num, lv.REGIONS[region_num]), end=" ... ", flush=True)
 
-                        tetrahedrons = region_points[triangulation.simplices]
-                        radii2 = r2_circumsphere_tetrahedron(tetrahedrons[:, 0, :], tetrahedrons[:, 1, :], tetrahedrons[:, 2, :], tetrahedrons[:, 3, :])
-                        reduced_triangulation = triangulation.simplices[radii2 < alpha_radius**2]
-                        del radii2, triangulation, tetrahedrons
+                        t0 = dt.datetime.now()
+                        outer_triangulation = alpha_shapes.get_alpha_shape(region_points, alpha_radius)
+                        time_delta = dt.datetime.now() - t0
+                        print("done ({})".format(time_delta))
+                        del t0, time_delta
 
-                        outer_triangulation = get_single_faces(reduced_triangulation)
-                        if args.verbose:
-                            print()
-                            print("saving alpha_shape to cache file ({}) ... ".format(CACHE_FILE), end="", flush=True)
-                        with open(CACHE_FILE, "wb") as f:
-                            pickle.dump(outer_triangulation, f)
-                        if args.verbose:
-                            print("done")
+                        if args.use_cache:
+                            if args.verbose:
+                                print()
+                                print("saving alpha_shape to cache file ({}) ... ".format(CACHE_FILE), end="", flush=True)
+                            with open(CACHE_FILE, "wb") as f:
+                                pickle.dump(outer_triangulation, f)
+                            if args.verbose:
+                                print("done")
 
                     if args.verbose:
                         print()
@@ -505,7 +432,8 @@ if __name__ == "__main__":
 
         sys.stdout.flush()
         sys.stderr.flush()
-        plt.show()
+        if not args.no_show:
+            plt.show()
 
 
 
