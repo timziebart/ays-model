@@ -48,10 +48,15 @@ if __name__ == "__main__":
     boundaries_group.add_argument("-b", "--plot-boundaries-transformed", metavar="boundaries",
                                   help="set the boundaries (in (a,w,s)-coordinates) as a list with shape (3,2)")
     boundaries_group.add_argument("--plot-boundaries-original", metavar="boundaries",
-                                  help="set the boundariess (in (A,W,S)-coordinates) as a list with shape (3,2)")
+                                  help="set the boundaries (in (A,W,S)-coordinates) as a list with shape (3,2)")
+    boundaries_group.add_argument("--plot-box-original", metavar="box-boundaries",
+                                  help="plot a box, given (in (A,W,S)-coordinates) as a list with shape (3,2)")
     parser.add_argument("-d", "--defaults", default=[], nargs="+",
                         choices=["grid", "model", "boundary"],
                         help="show all the default values")
+
+    parser.add_argument("--defense", default=0, choices=[0, 2], type=int,
+                        help="produce plots for the defense")
 
     paths_parser = parser.add_argument_group(title="analyze tool",
                                              description="tools for analyzing")
@@ -140,6 +145,8 @@ if __name__ == "__main__":
     LAKE_PLOT = False # only used for the plot of the lake in the paper
     # define paper style
     if args.paper:
+        lake_position = "[[0,400],[3.55e13,9e13],[0.2e12,1e12]]"
+
         if not args.verbose:
             args.verbose = 1
         args.analyze_original = ("[241,7.01e13,0.501e12]", "0.0035")
@@ -150,9 +157,12 @@ if __name__ == "__main__":
             args.verbose=1
         if args.regions == ["LAKE"]:
             LAKE_PLOT = True
-            args.plot_boundaries_original = "[[0,400],[3.55e13,9e13],[0.2e12,1e12]]"
+            # args.plot_boundaries_original = "[[0,400],[3.55e13,9e13],[0.2e12,1e12]]"
+            args.plot_boundaries_original = lake_position
             args.alpha = 0.6
             args.mark_alpha = 0.4
+        else:
+            args.plot_box_original = lake_position # for defense
 
 
     
@@ -185,6 +195,13 @@ if __name__ == "__main__":
             args.plot_boundaries = args.plot_boundaries / (X_mid[:, np.newaxis] + args.plot_boundaries)
         assert args.plot_boundaries.shape == (3, 2)
         assert np.all(args.plot_boundaries >= 0) and np.all(args.plot_boundaries <= 1)
+
+    if args.plot_box_original:
+        args.plot_box = np.array(eval(args.plot_box_original))
+        args.plot_box = args.plot_box / (X_mid[:, np.newaxis] + args.plot_box)
+    else:
+        args.plot_box = None
+
 
 
     if args.analyze_original is not None:
@@ -271,11 +288,39 @@ if __name__ == "__main__":
             figure_parameters = dict(header["grid-parameters"])
             figure_parameters["boundaries"] = args.plot_boundaries
             figure_parameters["num_a"] = 6
-            fig, ax3d = ays_general.create_figure(transformed_formatters=args.transformed_formatters, **figure_parameters)
+            fig, ax3d = ays_general.create_figure(transformed_formatters=args.transformed_formatters, isdefense=args.defense, epsilon=0.01 if args.defense and LAKE_PLOT else 0, **figure_parameters)
 
             ax_parameters = dict(header["boundary-parameters"])  # make a copy
             ax_parameters.update(header["grid-parameters"])
             ays_general.add_boundary(ax3d, sunny_boundaries=header["boundaries"], plot_boundaries=args.plot_boundaries, **ax_parameters)
+
+            def add_box(ax3d, box_boundaries):
+                # p1, p2 = box_boundaries.T
+                lvu = [box_boundaries[0, 0], box_boundaries[1, 0], box_boundaries[2, 0]]
+                rvu = [box_boundaries[0, 1], box_boundaries[1, 0], box_boundaries[2, 0]]
+                lhu = [box_boundaries[0, 0], box_boundaries[1, 1], box_boundaries[2, 0]]
+                rhu = [box_boundaries[0, 1], box_boundaries[1, 1], box_boundaries[2, 0]]
+                lvo = [box_boundaries[0, 0], box_boundaries[1, 0], box_boundaries[2, 1]]
+                rvo = [box_boundaries[0, 1], box_boundaries[1, 0], box_boundaries[2, 1]]
+                lho = [box_boundaries[0, 0], box_boundaries[1, 1], box_boundaries[2, 1]]
+                rho = [box_boundaries[0, 1], box_boundaries[1, 1], box_boundaries[2, 1]]
+
+                box_kwargs = dict(
+                    color="black",
+                    alpha=0.2
+                )
+
+                traj = np.array( [ lvu, rvu, rvo, lvo, lvu, lhu, lho, lvo ] )
+                ax3d.plot3D(xs=traj.T[0], ys=traj.T[1], zs=traj.T[2], **box_kwargs)
+                traj = np.array( [ lhu, rhu, rvu ] )
+                ax3d.plot3D(xs=traj.T[0], ys=traj.T[1], zs=traj.T[2], **box_kwargs)
+                traj = np.array( [ lho, rho, rvo ] )
+                ax3d.plot3D(xs=traj.T[0], ys=traj.T[1], zs=traj.T[2], **box_kwargs)
+                traj = np.array( [ rhu, rho ] )
+                ax3d.plot3D(xs=traj.T[0], ys=traj.T[1], zs=traj.T[2], **box_kwargs)
+
+            if args.plot_box is not None:
+                add_box(ax3d, args.plot_box)
 
             def isinside(x, bounds):
                 if bounds is None:

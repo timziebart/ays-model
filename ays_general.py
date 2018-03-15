@@ -87,7 +87,8 @@ def transformed_space(transform, inv_transform,
                       num_minors = 50,
                       endpoint=True,
                       axis_use=False,
-                      boundaries=None):
+                      boundaries=None,
+                      isdefense=False):
     add_infty = False
     if stop == np.infty and endpoint:
         add_infty = True
@@ -114,7 +115,10 @@ def transformed_space(transform, inv_transform,
     minor_combined = list(zip(minor_locators, minor_formatters))
     # print(minor_combined)
 
-    combined = list(hq.merge(minor_combined, major_combined, key = op.itemgetter(0)))
+    if isdefense:
+        combined = major_combined
+    else:
+        combined = list(hq.merge(minor_combined, major_combined, key = op.itemgetter(0)))
 
     # print(combined)
 
@@ -158,7 +162,7 @@ def animate(fig, ax3d, fname):
     # ax3d.view_init(ELEVATION, AZIMUTH)
 
 def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = None, boundaries = None, transformed_formatters=False,
-                  num_a = 12, num_y = 12, num_s = 12, **kwargs):
+                  num_a = 12, num_y = 12, num_s = 12, isdefense = 0, epsilon = 0, **kwargs):
 
 
     kwargs = dict(kwargs)
@@ -168,9 +172,19 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
 
     fig = plt.figure(figsize=(16,9))
     ax3d = plt3d.Axes3D(fig)
-    ax3d.set_xlabel("\n\nexcess atmospheric carbon\nstock A [GtC]")
-    ax3d.set_ylabel("\neconomic output Y [%1.0e USD/yr]"%W_scale)
-    ax3d.set_zlabel("\n\nrenewable knowledge\nstock S [%1.0e GJ]"%S_scale)
+    if isdefense:
+        num_a = num_y = num_s = 7
+        if isdefense == 2:
+            num_a = 3
+        S_scale = 1e10
+        ax3d.set_xlabel("\n\n\nA [GtC]", fontsize = 30)
+        ax3d.set_ylabel("\n\nY [%1.0e USD/yr]"%W_scale, fontsize = 30)
+        ax3d.set_zlabel("\n\nS [%1.0e GJ]"%S_scale, fontsize = 30)
+        ax3d.tick_params(labelsize=30)
+    else:
+        ax3d.set_xlabel("\n\n\nexcess atmospheric carbon\nstock A [GtC]", fontsize = 30)
+        ax3d.set_ylabel("\neconomic output Y [%1.0e USD/yr]"%W_scale)
+        ax3d.set_zlabel("\n\nrenewable knowledge\nstock S [%1.0e GJ]"%S_scale)
 
     # make proper tickmarks:
     if "A_max" in kwargs:
@@ -190,8 +204,11 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
         if boundaries[0] is None:
             start, stop = 0, np.infty
         else:
-            start, stop = inv_transf(boundaries[0])
-        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, start=start, stop=stop, num=num_a)
+            bounds_A = np.copy(boundaries[0])
+            bounds_A[0] += epsilon
+            bounds_A[1] -= epsilon
+            start, stop = inv_transf(bounds_A)
+        formatters, locators = transformed_space(transf, inv_transf, axis_use=True, start=start, stop=stop, num=num_a, isdefense=isdefense)
         if transformed_formatters:
             new_formatters = []
             for el, loc in zip(formatters, locators):
@@ -220,8 +237,12 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     if boundaries[1] is None:
         start, stop = 0, np.infty
     else:
-        start, stop = inv_transf(boundaries[1])
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, start=start, stop=stop, num=num_y)
+        bounds_W = np.copy(boundaries[1])
+        bounds_W[0] += epsilon
+        bounds_W[1] -= epsilon
+        start, stop = inv_transf(bounds_W)
+        # start, stop = inv_transf(boundaries[1])
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=W_scale, start=start, stop=stop, num=num_y, isdefense=isdefense)
     if transformed_formatters:
         new_formatters = []
         for el, loc in zip(formatters, locators):
@@ -245,8 +266,12 @@ def create_figure(*bla, S_scale = 1e9, W_scale = 1e12, W_mid = None, S_mid = Non
     if boundaries[2] is None:
         start, stop = 0, np.infty
     else:
-        start, stop = inv_transf(boundaries[2])
-    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, start=start, stop=stop, num=num_s)
+        bounds_S = np.copy(boundaries[2])
+        bounds_S[0] += epsilon
+        bounds_S[1] -= epsilon
+        start, stop = inv_transf(bounds_S)
+        # start, stop = inv_transf(boundaries[2])
+    formatters, locators = transformed_space(transf, inv_transf, axis_use=True, scale=S_scale, start=start, stop=stop, num=num_s, isdefense=isdefense)
     if transformed_formatters:
         new_formatters = []
         for el, loc in zip(formatters, locators):
@@ -328,10 +353,10 @@ def add_boundary(ax3d, *, sunny_boundaries, add_outer=False, plot_boundaries=Non
     else:
         raise ValueError("something wrong with sunny_boundaries = {!r}".format(sunny_boundaries))
 
-    boundary_surface_PB = plt3d.art3d.Poly3DCollection(corner_points_list)
-    boundary_surface_PB.set_color("gray")
-    boundary_surface_PB.set_edgecolor("gray")
-    boundary_surface_PB.set_alpha(0.25)
+    boundary_surface_PB = plt3d.art3d.Poly3DCollection(corner_points_list, alpha=0.25)
+    boundary_surface_PB.set_facecolor("gray")
+    # boundary_surface_PB.set_edgecolor("gray")
+    # boundary_surface_PB.set_alpha(0.25)
     ax3d.add_collection3d(boundary_surface_PB)
 
     # elif boundary == "both":

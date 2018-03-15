@@ -11,7 +11,7 @@ import sys
 if sys.version_info[0] < 3:
     warn.warn("this code has been tested in Python3 only", category=DeprecationWarning)
 
-assert pv.version_info == (0, 2, 0), "please get the correct version (0.2.0) of pyviability (and don't forget to (re)run the installation)"
+assert pv.version_info >= (0, 2, 0), "please get the correct version (0.2.0) of pyviability (and don't forget to (re)run the installation)"
 
 
 NB_USING_NOPYTHON = True
@@ -134,8 +134,7 @@ AYS_rhs = nb.jit(_AYS_rhs, nopython=NB_USING_NOPYTHON)
 # AYS_rhs = _AYS_rhs  # used for debugging
 
 
-@jit(nopython=NB_USING_NOPYTHON)
-def AYS_rescaled_rhs(ays, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
+def _AYS_rescaled_rhs(ays, t=0, beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
     a, y, s = ays
     # A, y, s = Ays
 
@@ -153,6 +152,7 @@ def AYS_rescaled_rhs(ays, t=0, beta=None, epsilon=None, phi=None, rho=None, sigm
 
     return adot, ydot, sdot
 
+AYS_rescaled_rhs = jit(_AYS_rescaled_rhs, nopython=NB_USING_NOPYTHON)
 
 # @jit(nopython=NB_USING_NOPYTHON)
 def AYS_sunny_PB(ays):
@@ -165,6 +165,13 @@ def AYS_sunny_SF(ays):
 # @jit(nopython=NB_USING_NOPYTHON)
 def AYS_sunny_PB_SF(ays):
     return np.logical_and(ays[:, 0] < A_PB / (A_PB + A_mid), ays[:, 1] > W_SF / (W_SF + W_mid)) # both transformed
+
+def AYS_black_fp_rescaled(beta=None, epsilon=None, phi=None, rho=None, sigma=None, tau_A=None, tau_S=None, theta=None):
+    a_b = beta / (beta + theta * A_mid)
+    y_b = phi * epsilon * beta / ( phi * epsilon * beta + W_mid * theta * tau_A )
+    s_b = 0
+    return np.array([a_b, y_b, s_b])
+
 
 
 
